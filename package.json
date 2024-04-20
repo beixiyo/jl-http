@@ -1,0 +1,49 @@
+{
+    "name": "@jl-org/http",
+    "version": "0.0.1",
+    "description": "能中断请求、缓存（幂等）请求的库",
+    "main": "dist/index.cjs",
+    "module": "dist/index.js",
+    "type": "module",
+    "types": "dist/typings/index.d.ts",
+    "files": [
+        "/dist"
+    ],
+    "exports": {
+        "require": {
+            "types": "./dist/typings/index.d.ts",
+            "default": "./dist/index.cjs"
+        },
+        "import": {
+            "types": "./dist/typings/index.d.ts",
+            "default": "./dist/index.js"
+        }
+    },
+    "scripts": {
+        "build": "rollup -c && tsc-alias"
+    },
+    "keywords": [
+        "http",
+        "request"
+    ],
+    "author": "cjl",
+    "license": "MIT",
+    "devDependencies": {
+        "@rollup/plugin-alias": "^5.1.0",
+        "@rollup/plugin-node-resolve": "^15.2.3",
+        "@rollup/plugin-terser": "^0.4.4",
+        "@rollup/plugin-typescript": "^11.1.5",
+        "@types/node": "^20.11.17",
+        "npm-run-all": "^4.1.5",
+        "rollup": "^4.6.1",
+        "rollup-plugin-clear": "^2.0.7",
+        "tsc-alias": "^1.8.8",
+        "tslib": "^2.6.2"
+    },
+    "dependencies": {
+        "query-string": "^9.0.0"
+    },
+    "publishConfig": {
+        "access": "public"
+    }
+}
