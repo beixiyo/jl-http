@@ -1,13 +1,14 @@
 {
     "name": "@jl-org/http",
-    "version": "0.0.3",
+    "version": "0.1",
     "description": "能中断请求、缓存（幂等）请求的库",
     "main": "dist/index.cjs",
     "module": "dist/index.js",
     "type": "module",
     "types": "dist/typings/index.d.ts",
     "files": [
-        "/dist"
+        "/dist",
+        "/cli"
     ],
     "bin": {
         "jl-http": "./cli/index.cjs"

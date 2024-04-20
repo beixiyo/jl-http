@@ -49,6 +49,7 @@ function genCode(config) {
 
     function genServiceCode() {
         config.fns.forEach((item) => {
+            if (Object.keys(item) <= 0) return 
             enter()
             tab()
             const type = genType(item.args)

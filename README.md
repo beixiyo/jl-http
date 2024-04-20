@@ -88,6 +88,24 @@ iotHttp.cachePost(
     .then(console.log)
 ```
 
+### 中断请求
+
+```ts
+iotHttp.get('/device/list', {
+    params: {
+        page: 1,
+        size: 10,
+    },
+    /**
+     * 若返回 true，则会中断请求
+     * 你也可以在请求拦截器设置，或者手动设置 fetch 的配置项 signal
+     */
+    abort: () => true
+})
+```
+
+---
+
 ### 命令行快速生成模板代码
 
 ```bash
@@ -108,10 +126,14 @@ module.exports = defineConfig({
     /** 可以发送请求的对象 */
     requestFnName: 'iotHttp',
     /** 顶部导入的路径 */
-    importPath: 'import { iotHttp } from \'@/http/iotHttp\''
+    importPath: 'import { iotHttp } from \'@/http/iotHttp\'',
     /** 类里的函数 */
     fns: [
-        {   /** 生成 TS 类型的代码，你可以像写 TS 一样写，也可以乱写 */
+        {   
+            /** 
+             * 生成 TS 类型的代码
+             * 你可以像写 TS 一样写，也可以写字面量，字面量会被 typeof 转换
+             */
             args: {
                 age: 18,
                 name: 'string',
@@ -119,7 +141,6 @@ module.exports = defineConfig({
                 salary: 'Bigint',
                 money: BigInt(123),
                 fn: 'function',
-                fn2: function () { },
                 isMan: true,
             },
             /** 函数的名字 */
