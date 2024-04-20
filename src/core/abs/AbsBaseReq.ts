@@ -51,20 +51,28 @@ export type BaseReqMethodConfig = Omit<BaseReqConfig, 'url'>
 export interface BaseReqConstructorConfig {
     /** 默认配置，可在方法中覆盖 */
     defaultConfig?: {
+        /** 基路径 */
         baseUrl?: string
         headers?: ReqHeaders
         /** 请求超时时间，默认 10 秒 */
         timeout?: number
     }
+    /** 拦截器 */
     interceptor?: {
+        /** 请求拦截 */
         reqInterceptor?: (config: BaseReqMethodConfig) => any
+        /** 响应拦截 */
         respInterceptor?: <T = any>(resp: Resp<T>) => any
+        /** 错误拦截 */
         respErrInterceptor?: <T = any>(err: any) => any
     }
 }
 
 export interface Resp<T> {
+    /** fetch 返回的原始对象 */
     rawResp: Response
+    /** 后端返回的数据 */
     data: T
+    /** 如果 respType = stream，则返回一个可读流 */
     reader?: ReadableStreamDefaultReader<Uint8Array>
 }

@@ -1,6 +1,6 @@
 {
     "name": "@jl-org/http",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "description": "能中断请求、缓存（幂等）请求的库",
     "main": "dist/index.cjs",
     "module": "dist/index.js",
