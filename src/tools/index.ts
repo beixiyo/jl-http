@@ -1,5 +1,3 @@
-
-
 /** 获取类型 */
 export const getType = (data: any) => (Object.prototype.toString.call(data) as string).slice(8, -1).toLowerCase()
 
