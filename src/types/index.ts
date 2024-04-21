@@ -9,7 +9,7 @@ export type HttpMethod =
     | 'TRACE'
     | 'PATCH'
 
-export type ReqBody = RequestInit['body'] | Record<string, any>
+export type ReqBody = Record<string, any>
 export type ReqHeaders = Headers | Record<string, any>
 
 export type FetchType = 'json' | 'text' | 'blob' | 'arrayBuffer' | 'formData' | 'stream'
