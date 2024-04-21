@@ -43,7 +43,8 @@ export class BaseReq implements BaseHttpReq {
             return fetch(url, data)
                 .then(async (response) => {
                     if (hasHttpErr(response.status)) {
-                        return respErrInterceptor?.(response)
+                        respErrInterceptor?.(response)
+                        return Promise.reject(response)
                     }
 
                     let res: Resp<T>
@@ -66,7 +67,10 @@ export class BaseReq implements BaseHttpReq {
 
                     return await respInterceptor(res)
                 })
-                .catch(respErrInterceptor)
+                .catch(err => {
+                    respErrInterceptor?.(err)
+                    return Promise.reject(err)
+                })
                 .finally(() => clearTimeout(id))
         }
     }
@@ -145,7 +149,9 @@ async function getReqConfig(
         const data = await reqInterceptor(config)
         return {
             data,
-            url: `${url}?${query}`
+            url: query
+                ? `${url}?${query}`
+                : url
         }
     }
 
@@ -162,5 +168,5 @@ async function getReqConfig(
 }
 
 function hasHttpErr(code: string | number) {
-    return +code >= 300
+    return +code >= 400
 }

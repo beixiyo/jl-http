@@ -108,12 +108,12 @@ iotHttp.get('/device/list', {
 
 ### 并发请求
 ```ts
-import { concurrentTask } from '@jl-org/http'
-
-declare function concurrentTask(
-    tasks: () => Promise<T>[],
-    maxNum = 4
-): Promise<T[]>
+/**
+ * 并发任务数组 完成最大并发数后才会继续
+ * @param tasks 任务数组
+ * @param maxCount 最大并发数，默认 4
+ */
+export declare function concurrentTask<T>(tasks: (() => Promise<T>)[], maxCount?: number): Promise<T[]>;
 ```
 
 ### 下载资源
