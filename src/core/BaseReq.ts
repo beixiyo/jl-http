@@ -155,7 +155,9 @@ async function getReqConfig(
     })
     return {
         data,
-        url: `${url}?${query}`
+        url: query
+            ? `${url}?${query}`
+            : url
     }
 }
 

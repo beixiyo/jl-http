@@ -61,7 +61,7 @@ export function retryReq<T>(
     task: () => Promise<T>,
     count = 3
 ): Promise<T> {
-    if (count <= 0) {
+    if (count <= -1) {
         return Promise.reject({ msg: '重试次数耗尽', code: 500 })
     }
     return task()
