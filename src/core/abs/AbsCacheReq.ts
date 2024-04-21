@@ -6,7 +6,7 @@ import { deepCompare } from '../../tools'
 /** 带缓存控制的请求基类 */
 export abstract class AbsCacheReq implements BaseHttpReq {
 
-    protected abstract http: BaseHttpReq
+    abstract http: BaseHttpReq
     /** 缓存过期时间，默认 1 秒 */
     protected _cacheTimeout = 1000
     /** 未命中缓存 */
@@ -141,16 +141,17 @@ export abstract class AbsCacheReq implements BaseHttpReq {
         return this.http.get<T, HttpResponse>(url, config)
     }
 
-    delete<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse> {
-        return this.http.delete<T, HttpResponse>(url, config)
-    }
-
     head<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse> {
         return this.http.head<T, HttpResponse>(url, config)
     }
 
-    options<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse> {
-        return this.http.options<T, HttpResponse>(url, config)
+
+    delete<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+        return this.http.delete<T, HttpResponse>(url, data, config)
+    }
+
+    options<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+        return this.http.options<T, HttpResponse>(url, data, config)
     }
 
 

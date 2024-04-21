@@ -71,16 +71,17 @@ export class BaseReq implements BaseHttpReq {
         return this.request({ url, method: 'GET', ...config })
     }
 
-    delete<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse> {
-        return this.request({ url, method: 'DELETE', ...config })
-    }
-
     head<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse> {
         return this.request({ url, method: 'HEAD', ...config })
     }
 
-    options<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse> {
-        return this.request({ url, method: 'OPTIONS', ...config })
+
+    delete<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+        return this.request({ url, method: 'DELETE', body: data, ...config })
+    }
+
+    options<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+        return this.request({ url, method: 'OPTIONS', body: data, ...config })
     }
 
     post<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
