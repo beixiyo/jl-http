@@ -216,6 +216,7 @@ export interface BaseCacheReqMethodConfig extends BaseReqMethodConfig {
 }
 
 export type Cache = {
+    /** 缓存那一刻的时间 */
     time: number,
     params?: any,
     /** 缓存的数据 */

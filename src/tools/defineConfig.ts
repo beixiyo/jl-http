@@ -20,12 +20,14 @@ export type Fn = {
     name: string
     /** 添加异步关键字 */
     isAsync?: boolean
+    /** 请求地址 */
+    url: string
     /** 
      * 生成 TS 类型的代码
      * 你可以像写 TS 一样写，也可以写字面量，字面量会被 typeof 转换
      */
-    args: Record<string, any>
+    args?: Record<string, any>
     /** 请求的方法，如 get | post | ... */
-    method: HttpMethod
+    method: Lowercase<HttpMethod>
 }
 

@@ -71,7 +71,7 @@ iotHttp.post(
 ### 可缓存的请求
 
 - 当你在短时间内多次请求同一个接口，并且参数一致，则不会发送请求，而是直接返回上一次的结果
-- 适用于幂等请求，请注意，缓存在内存中，如果页面刷新则会失效
+- 适用于幂等请求，请注意，**缓存在内存中，如果页面刷新则会失效**
 - 每隔两秒或者调用接口时，会检查一遍缓存，如果超时则会清除缓存
 ```ts
 iotHttp.cachePost(
@@ -118,9 +118,9 @@ npx jl-http ./test/input.ts ./test/output.ts
 **模板配置文件**  
 `./test/input.ts`
 ```ts
-const { defineConfig } = require('@jl-org/http')
+import { defineConfig } from '@jl-org/http'
 
-module.exports = defineConfig({
+export default defineConfig({
     /** 类名 */
     className: 'Test',
     /** 可以发送请求的对象 */
@@ -142,11 +142,14 @@ module.exports = defineConfig({
                 money: BigInt(123),
                 fn: 'function',
                 isMan: true,
+                isWoman: 'boolean',
             },
             /** 函数的名字 */
             name: 'getData',
             /** 请求的方法，如 get | post | ... */
             method: 'get',
+            /** 请求地址 */
+            url: '/addList',
             /** 添加异步关键字 */
             isAsync: false
         },
@@ -155,4 +158,26 @@ module.exports = defineConfig({
         }
     ],
 })
+```
+
+上面的代码，将会生成如下的模板代码
+```ts
+import { iotHttp } from '@/http/iotHttp'
+
+export class Test {
+
+    static getData(data: {
+		age: number
+		name: string
+		ids: number[]
+		salary: string
+		money: bigint
+		fn: string
+		isMan: true
+		isWoman: boolean
+	}) {
+        return iotHttp.get(data)
+    }
+
+}
 ```

@@ -1,17 +1,26 @@
 #!/usr/bin/env node
-const { writeFileSync } = require('node:fs')
+const { writeFileSync, rm } = require('node:fs')
 const { resolve } = require('node:path')
 const genType = require('./genType.cjs')
+const { esmTocjs, writeTempFile } = require('./esmTocjs.cjs')
 
+
+const tempPath = 'node_modules/@jl-org/.http',
+    tempFile = 'temp.cjs',
+    filename = resolve(process.cwd(), tempPath + '/' + tempFile)
 
 parseCommand()
 
 function parseCommand() {
     const { input, output } = getSrc()
-    const config = require(input)
+    const cjsCode = esmTocjs(input)
+    writeTempFile(cjsCode, tempPath, tempFile)
+
+    const config = require(filename)
     const content = genCode(config)
 
     writeFileSync(output, content, 'utf-8')
+    rm(filename, () => { })
 }
 
 function getSrc() {
@@ -48,17 +57,22 @@ function genCode(config) {
     }
 
     function genServiceCode() {
-        config.fns.forEach((item) => {
-            if (Object.keys(item) <= 0) return 
+        config.fns?.forEach((item) => {
+            if (Object.keys(item) <= 0) return
             enter()
             tab()
             const type = genType(item.args)
-            code += `static ${item.isAsync ? 'async ' : ''}${item.name}(data: ${type}) {`
+            code += `static ${item.isAsync ? 'async ' : ''}${item.name}(${type ? `data: ${type}` : ''}) {`
 
             enter()
             tab()
             tab()
-            code += `return ${requestFnName}.${item.method}(data)`
+            if (['get', 'head'].includes(item.method)) {
+                code += `return ${requestFnName}.${item.method}('${item.url}'${type ? `, { query: data }` : ''})`
+            }
+            else {
+                code += `return ${requestFnName}.${item.method}('${item.url}'${type ? `, data` : ''})`
+            }
             enter()
 
             tab()

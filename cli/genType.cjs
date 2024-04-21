@@ -14,6 +14,8 @@ const typeMap = {
 }
 
 function genType(args) {
+    if (!args) return ''
+    
     let ts = '{'
     for (const k in args) {
         if (!Object.hasOwnProperty.call(args, k)) continue

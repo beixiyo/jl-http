@@ -1,8 +1,8 @@
 {
     "name": "@jl-org/http",
-    "version": "0.1",
+    "version": "0.1.3",
     "description": "能中断请求、缓存（幂等）请求的库",
-    "main": "dist/index.cjs",
+    "main": "dist/index.js",
     "module": "dist/index.js",
     "type": "module",
     "types": "dist/typings/index.d.ts",
@@ -45,8 +45,6 @@
         "tslib": "^2.6.2"
     },
     "dependencies": {
-        "cosmiconfig": "^9.0.0",
-        "lilconfig": "^3.1.1",
         "query-string": "^9.0.0"
     },
     "publishConfig": {
