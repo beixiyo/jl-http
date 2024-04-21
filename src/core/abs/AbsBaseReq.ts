@@ -19,7 +19,7 @@ export type FetchOptions = Omit<RequestInit, 'method'> & {
     method?: HttpMethod
 }
 
-export interface BaseReqConfig extends FetchOptions {
+export interface BaseReqConfig extends Omit<FetchOptions, 'body'> {
     /** 返回类型，默认 json。如果设置为 stream，会返回一个 ReadableStream */
     respType?: FetchType
     url: string
@@ -30,6 +30,7 @@ export interface BaseReqConfig extends FetchOptions {
     /** 是否终止请求，你也可以自己传递 signal 控制 */
     abort?: () => boolean
     query?: Record<string, any>
+    body?: ReqBody
 }
 
 export type BaseReqMethodConfig = Omit<BaseReqConfig, 'url'>

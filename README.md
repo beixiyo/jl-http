@@ -109,7 +109,10 @@ iotHttp.get('/device/list', {
 ```ts
 import { downloadByData } from '@jl-org/tool'
 
-const data = await iotHttp.get('/getImg', { respType: 'blob' })
+const data = await iotHttp.get('/getImg', {
+    /** 如果需要可读流，则设置为 stream */
+    respType: 'blob' 
+})
 downloadByData(blob.data as Blob, 'test.png')
 ```
 
