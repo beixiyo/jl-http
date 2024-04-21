@@ -105,6 +105,14 @@ iotHttp.get('/device/list', {
 })
 ```
 
+### 下载资源
+```ts
+import { downloadByData } from '@jl-org/tool'
+
+const data = await iotHttp.get('/getImg', { respType: 'blob' })
+downloadByData(blob.data as Blob, 'test.png')
+```
+
 ---
 
 ### 命令行快速生成模板代码

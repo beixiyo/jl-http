@@ -1,6 +1,6 @@
 {
     "name": "@jl-org/http",
-    "version": "0.1.4",
+    "version": "0.1.6",
     "description": "能中断请求、缓存（幂等）请求的库",
     "main": "dist/index.js",
     "module": "dist/index.js",
@@ -38,7 +38,6 @@
         "@rollup/plugin-terser": "^0.4.4",
         "@rollup/plugin-typescript": "^11.1.5",
         "@types/node": "^20.11.17",
-        "npm-run-all": "^4.1.5",
         "rollup": "^4.6.1",
         "rollup-plugin-clear": "^2.0.7",
         "tsc-alias": "^1.8.8",
