@@ -1,17 +1,15 @@
-import { AbsBaseReq, type BaseReqConstructorConfig, type BaseReqConfig, type BaseReqMethodConfig, type Resp } from './abs/AbsBaseReq'
+import type { BaseReqConstructorConfig, BaseReqConfig, BaseReqMethodConfig, Resp, BaseHttpReq } from './abs/AbsBaseReq'
 import { TIME_OUT } from '../constants'
 import type { HttpMethod, ReqBody } from '../types'
 import { isObj } from '../tools'
 import qs from 'query-string'
 
 
-export class BaseReq extends AbsBaseReq {
+export class BaseReq implements BaseHttpReq {
 
-    constructor(private config?: BaseReqConstructorConfig) {
-        super()
-    }
+    constructor(private config?: BaseReqConstructorConfig) { }
 
-    async request<T>(config: BaseReqConfig): Promise<Resp<T>> {
+    async request<T, HttpResponse = Resp<T>>(config: BaseReqConfig): Promise<HttpResponse> {
         const {
             url: _url,
             timeout,
@@ -69,31 +67,31 @@ export class BaseReq extends AbsBaseReq {
 
     // ======================= 请求方法 =======================
 
-    get<T>(url: string, config?: BaseReqMethodConfig): Promise<Resp<T>> {
+    get<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse> {
         return this.request({ url, method: 'GET', ...config })
     }
 
-    delete<T>(url: string, config?: BaseReqMethodConfig): Promise<Resp<T>> {
+    delete<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse> {
         return this.request({ url, method: 'DELETE', ...config })
     }
 
-    head<T>(url: string, config?: BaseReqMethodConfig): Promise<Resp<T>> {
+    head<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse> {
         return this.request({ url, method: 'HEAD', ...config })
     }
 
-    options<T>(url: string, config?: BaseReqMethodConfig): Promise<Resp<T>> {
+    options<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse> {
         return this.request({ url, method: 'OPTIONS', ...config })
     }
 
-    post<T, D extends ReqBody>(url: string, data?: D, config?: BaseReqMethodConfig): Promise<Resp<T>> {
+    post<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
         return this.request({ url, method: 'POST', body: data, ...config })
     }
 
-    put<T, D extends ReqBody>(url: string, data?: D, config?: BaseReqMethodConfig): Promise<Resp<T>> {
+    put<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
         return this.request({ url, method: 'PUT', body: data, ...config })
     }
 
-    patch<T, D extends ReqBody>(url: string, data?: D, config?: BaseReqMethodConfig): Promise<Resp<T>> {
+    patch<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
         return this.request({ url, method: 'PATCH', body: data, ...config })
     }
 

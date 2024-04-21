@@ -22,6 +22,7 @@ export const iotHttp = new Http({
     cacheTimeout: 1000,
     defaultConfig: {
         baseUrl: '/iot',
+        /** 超时时间 */
         timeout: 10000,
         // ... 其他配置详见定义
     },
@@ -48,7 +49,7 @@ export const iotHttp = new Http({
 
 // get 请求
 iotHttp.get('/device/list', {
-    params: {
+    query: {
         page: 1,
         size: 10,
     }
@@ -149,18 +150,22 @@ export default defineConfig({
             /** 请求的方法，如 get | post | ... */
             method: 'get',
             /** 请求地址 */
-            url: '/addList',
+            url: '/getList',
             /** 添加异步关键字 */
             isAsync: false
         },
         {
-            // ...
+            method: 'post',
+            name: 'postData',
+            url: '/addList',
+            isAsync: true,
         }
     ],
 })
 ```
 
-上面的代码，将会生成如下的模板代码
+上面的代码，将会生成如下的模板代码  
+`./test/output.ts`
 ```ts
 import { iotHttp } from '@/http/iotHttp'
 
@@ -176,7 +181,11 @@ export class Test {
 		isMan: true
 		isWoman: boolean
 	}) {
-        return iotHttp.get(data)
+        return iotHttp.get('/getList', { query: data })
+    }
+
+    static async postData() {
+        return iotHttp.post('/addList')
     }
 
 }

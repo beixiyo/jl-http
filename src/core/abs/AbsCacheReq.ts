@@ -1,4 +1,4 @@
-import type { BaseHttpReq, BaseReqMethodConfig, BaseReqConstructorConfig, Resp, AbsBaseReq } from './AbsBaseReq'
+import type { BaseHttpReq, BaseReqMethodConfig, BaseReqConstructorConfig, Resp } from './AbsBaseReq'
 import type { ReqBody } from '../../types'
 import { deepCompare } from '../../tools'
 
@@ -6,7 +6,7 @@ import { deepCompare } from '../../tools'
 /** 带缓存控制的请求基类 */
 export abstract class AbsCacheReq implements BaseHttpReq {
 
-    protected abstract http: AbsBaseReq
+    protected abstract http: BaseHttpReq
     /** 缓存过期时间，默认 1 秒 */
     protected _cacheTimeout = 1000
     /** 未命中缓存 */
@@ -137,63 +137,63 @@ export abstract class AbsCacheReq implements BaseHttpReq {
 
     // ======================= 请求方法 =======================
 
-    get<T>(url: string, config?: BaseReqMethodConfig): Promise<Resp<T>> {
-        return this.http.get(url, config)
+    get<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+        return this.http.get<T, HttpResponse>(url, config)
     }
 
-    delete<T>(url: string, config?: BaseReqMethodConfig): Promise<Resp<T>> {
-        return this.http.delete(url, config)
+    delete<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+        return this.http.delete<T, HttpResponse>(url, config)
     }
 
-    head<T>(url: string, config?: BaseReqMethodConfig): Promise<Resp<T>> {
-        return this.http.head(url, config)
+    head<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+        return this.http.head<T, HttpResponse>(url, config)
     }
 
-    options<T>(url: string, config?: BaseReqMethodConfig): Promise<Resp<T>> {
-        return this.http.options(url, config)
+    options<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+        return this.http.options<T, HttpResponse>(url, config)
     }
 
 
-    post<T, D extends ReqBody>(url: string, data?: D, config?: BaseReqMethodConfig): Promise<Resp<T>> {
-        return this.http.post(url, data, config)
+    post<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+        return this.http.post<T, HttpResponse>(url, data, config)
     }
 
-    put<T, D extends ReqBody>(url: string, data?: D, config?: BaseReqMethodConfig): Promise<Resp<T>> {
-        return this.http.put(url, data, config)
+    put<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+        return this.http.put<T, HttpResponse>(url, data, config)
     }
 
-    patch<T, D extends ReqBody>(url: string, data?: D, config?: BaseReqMethodConfig): Promise<Resp<T>> {
-        return this.http.patch(url, data, config)
+    patch<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+        return this.http.patch<T, HttpResponse>(url, data, config)
     }
 
 
     /** 缓存响应，如果下次请求未超过缓存时间，则直接从缓存中获取 */
-    async cacheGet<T>(url: string, config: BaseCacheReqMethodConfig = {}): Promise<Resp<T>> {
+    async cacheGet<T, HttpResponse = Resp<T>>(url: string, config: BaseCacheReqMethodConfig = {}): Promise<HttpResponse> {
         const cache = this.getCache(url, config.query)
         if (this.isMatchCache(cache)) {
-            return cache as Resp<T>
+            return cache as Promise<HttpResponse>
         }
 
         const { cacheTimeout, ...rest } = config
-        const cacheData = await this.get<T>(url, rest)
+        const cacheData = await this.get<T, HttpResponse>(url, rest)
         this.setCache({
             url,
-            params: config.query,
             cacheData,
+            params: config.query,
             cacheTimeout
         })
         return cacheData
     }
 
     /** 缓存响应，如果下次请求未超过缓存时间，则直接从缓存中获取 */
-    async cachePost<T, D extends ReqBody>(url: string, data?: D, config: BaseCacheReqMethodConfig = {}): Promise<Resp<T>> {
+    async cachePost<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config: BaseCacheReqMethodConfig = {}): Promise<HttpResponse> {
         const cache = this.getCache(url, data)
-        if (cache !== AbsCacheReq.NO_MATCH_TAG) {
-            return cache as Resp<T>
+        if (this.isMatchCache(cache)) {
+            return cache as Promise<HttpResponse>
         }
 
         const { cacheTimeout, ...rest } = config
-        const cacheData = await this.post<T, D>(url, data, rest)
+        const cacheData = await this.post<T, HttpResponse>(url, data, rest)
         this.setCache({
             url,
             cacheData,

@@ -1,31 +1,16 @@
 import type { FetchType, HttpMethod, ReqBody, ReqHeaders } from '../../types'
 
 
-/** 请求基类 */
-export abstract class AbsBaseReq implements BaseHttpReq {
-
-    abstract request<T>(config: BaseReqConfig): Promise<Resp<T>>
-
-    abstract get<T>(url: string, config?: BaseReqMethodConfig): Promise<Resp<T>>
-    abstract delete<T>(url: string, config?: BaseReqMethodConfig): Promise<Resp<T>>
-    abstract head<T>(url: string, config?: BaseReqMethodConfig): Promise<Resp<T>>
-    abstract options<T>(url: string, config?: BaseReqMethodConfig): Promise<Resp<T>>
-
-    abstract post<T, D extends ReqBody>(url: string, data?: D, config?: BaseReqMethodConfig): Promise<Resp<T>>
-    abstract put<T, D extends ReqBody>(url: string, data?: D, config?: BaseReqMethodConfig): Promise<Resp<T>>
-    abstract patch<T, D extends ReqBody>(url: string, data?: D, config?: BaseReqMethodConfig): Promise<Resp<T>>
-
-}
-
+/** 请求基础接口 */
 export interface BaseHttpReq {
-    get<T>(url: string, config?: BaseReqMethodConfig): Promise<Resp<T>>
-    delete<T>(url: string, config?: BaseReqMethodConfig): Promise<Resp<T>>
-    head<T>(url: string, config?: BaseReqMethodConfig): Promise<Resp<T>>
-    options<T>(url: string, config?: BaseReqMethodConfig): Promise<Resp<T>>
+    get<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse>
+    delete<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse>
+    head<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse>
+    options<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse>
 
-    post<T, D extends ReqBody>(url: string, data?: D, config?: BaseReqMethodConfig): Promise<Resp<T>>
-    put<T, D extends ReqBody>(url: string, data?: D, config?: BaseReqMethodConfig): Promise<Resp<T>>
-    patch<T, D extends ReqBody>(url: string, data?: D, config?: BaseReqMethodConfig): Promise<Resp<T>>
+    post<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
+    put<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
+    patch<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
 }
 
 
