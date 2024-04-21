@@ -31,28 +31,26 @@ export interface BaseReqConfig extends Omit<FetchOptions, 'body'> {
     abort?: () => boolean
     query?: Record<string, any>
     body?: ReqBody
+    /** 重试请求次数 */
+    retry?: number
 }
 
 export type BaseReqMethodConfig = Omit<BaseReqConfig, 'url'>
 
 export interface BaseReqConstructorConfig {
-    /** 默认配置，可在方法中覆盖 */
-    defaultConfig?: {
-        /** 基路径 */
-        baseUrl?: string
-        headers?: ReqHeaders
-        /** 请求超时时间，默认 10 秒 */
-        timeout?: number
-    }
-    /** 拦截器 */
-    interceptor?: {
-        /** 请求拦截 */
-        reqInterceptor?: (config: BaseReqMethodConfig) => any
-        /** 响应拦截 */
-        respInterceptor?: <T = any>(resp: Resp<T>) => any
-        /** 错误拦截 */
-        respErrInterceptor?: <T = any>(err: any) => any
-    }
+    /** 基路径 */
+    baseUrl?: string
+    headers?: ReqHeaders
+    /** 请求超时时间，默认 10 秒 */
+    timeout?: number
+    /** 重试请求次数 */
+    retry?: number
+    /** 请求拦截 */
+    reqInterceptor?: (config: BaseReqMethodConfig) => any
+    /** 响应拦截 */
+    respInterceptor?: <T = any>(resp: Resp<T>) => any
+    /** 错误拦截 */
+    respErrInterceptor?: <T = any>(err: T) => any
 }
 
 export interface Resp<T> {

@@ -1,4 +1,4 @@
-# 一个能中断请求、缓存（幂等）请求的库
+# 一个能中断请求、缓存（幂等）请求、重试请求、并发请求的库
 
 支持 `ESM` | `CommonJS` | `iife`
 
@@ -17,42 +17,43 @@ npm i @jl-org/http
 ```ts
 import { Http } from '@jl-org/http'
 
+/** 这里的默认配置，都可以在实际请求里设置 */
 export const iotHttp = new Http({
     /** 缓存过期时间，默认 1 秒 */
     cacheTimeout: 1000,
-    defaultConfig: {
-        baseUrl: '/iot',
-        /** 超时时间 */
-        timeout: 10000,
-        // ... 其他配置详见定义
-    },
-    
-    interceptor: {
-        reqInterceptor: (config) => {
-            return {
-                ...config,
-                headers: {
-                    token: 'token'
-                },
-            }
-        },
-        respInterceptor: (resp) => {
-            return {
-                data: resp.data,
-            }
-        },
-        respErrInterceptor: (reason) => {
-            console.warn(reason)
+    baseUrl: '/iot',
+    /** 超时时间 */
+    timeout: 10000,
+    /** 请求失败重试次数 */
+    retry: 3,
+
+    reqInterceptor: (config) => {
+        return {
+            ...config,
+            headers: {
+                token: 'token'
+            },
         }
+    },
+    respInterceptor: (resp) => {
+        return {
+            data: resp.data,
+        }
+    },
+    respErrInterceptor: (reason) => {
+        console.warn(reason)
     }
+    // ... 其他配置详见定义
 })
 
-// get 请求
+
+// get 请求，重试 5 次
 iotHttp.get('/device/list', {
     query: {
         page: 1,
         size: 10,
-    }
+    },
+    retry: 5,
 }).then(console.log)
 
 // post 请求
@@ -103,6 +104,16 @@ iotHttp.get('/device/list', {
      */
     abort: () => true
 })
+```
+
+### 并发请求
+```ts
+import { concurrentTask } from '@jl-org/http'
+
+declare function concurrentTask(
+    tasks: () => Promise<T>[],
+    maxNum = 4
+): Promise<T[]>
 ```
 
 ### 下载资源

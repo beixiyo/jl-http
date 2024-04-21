@@ -1,7 +1,7 @@
 import type { BaseReqConstructorConfig, BaseReqConfig, BaseReqMethodConfig, Resp, BaseHttpReq } from './abs/AbsBaseReq'
 import { TIME_OUT } from '../constants'
 import type { HttpMethod, ReqBody } from '../types'
-import { isObj } from '../tools'
+import { isObj, retryReq } from '../tools'
 import qs from 'query-string'
 
 
@@ -15,6 +15,7 @@ export class BaseReq implements BaseHttpReq {
             timeout,
             respType,
             controller,
+            retry,
             ...rest
         } = this.normalizeOpts(config)
 
@@ -29,40 +30,45 @@ export class BaseReq implements BaseHttpReq {
             reqInterceptor = async (config: BaseReqMethodConfig) => config,
             respInterceptor = async (config: Resp<any>) => config,
             respErrInterceptor,
-        } = this.config?.interceptor || {}
+        } = this.config || {}
 
         const { data, url } = await getReqConfig(rest, reqInterceptor, rest.method, _url)
-        const res = fetch(url, data)
-            .then(async (response) => {
-                if (hasHttpErr(response.status)) {
-                    return respErrInterceptor?.(response)
-                }
-
-                let res: Resp<T>
-                if (respType === 'stream') {
-                    const reader = response.body?.getReader()
-
-                    res = {
-                        rawResp: response,
-                        data: null as T,
-                        reader,
-                    }
-                }
-                else {
-                    const data = await response[respType]()
-                    res = {
-                        rawResp: response,
-                        data,
-                    }
-                }
-
-                return await respInterceptor(res)
-            })
-            .catch(respErrInterceptor)
-            .finally(() => clearTimeout(id))
+        const res = retryReq<HttpResponse>(_req, retry)
 
         if (data.abort?.()) controller.abort()
         return res
+
+
+        function _req() {
+            return fetch(url, data)
+                .then(async (response) => {
+                    if (hasHttpErr(response.status)) {
+                        return respErrInterceptor?.(response)
+                    }
+
+                    let res: Resp<T>
+                    if (respType === 'stream') {
+                        const reader = response.body?.getReader()
+
+                        res = {
+                            rawResp: response,
+                            data: null as T,
+                            reader,
+                        }
+                    }
+                    else {
+                        const data = await response[respType]()
+                        res = {
+                            rawResp: response,
+                            data,
+                        }
+                    }
+
+                    return await respInterceptor(res)
+                })
+                .catch(respErrInterceptor)
+                .finally(() => clearTimeout(id))
+        }
     }
 
     // ======================= 请求方法 =======================
@@ -103,7 +109,7 @@ export class BaseReq implements BaseHttpReq {
             method = 'GET',
         } = config
 
-        const defaultConfig = this.config?.defaultConfig || {}
+        const defaultConfig = this.config || {}
 
         return {
             respType,
@@ -112,6 +118,7 @@ export class BaseReq implements BaseHttpReq {
             timeout: config.timeout || defaultConfig.timeout || TIME_OUT,
             signal: controller.signal,
             controller,
+            retry: defaultConfig.retry ?? config.retry ?? 0,
             ...config,
             url: (defaultConfig.baseUrl || config.baseUrl || '') + config.url,
         }
