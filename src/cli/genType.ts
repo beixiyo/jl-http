@@ -1,4 +1,5 @@
-const getType = (data) => Object.prototype.toString.call(data).slice(8, -1)
+import { getType } from '@/tools'
+
 const typeMap = {
     string: 'string',
     number: 'number',
@@ -12,13 +13,12 @@ const typeMap = {
     undefined: 'undefined',
     function: 'Function',
     Function: 'Function',
-    BigInt: 'BigInt',
     bigInt: 'bigInt',
 }
 
-function genType(args) {
+export function genType(args?: Record<string, any>) {
     if (!args) return ''
-    
+
     let ts = '{'
     for (const k in args) {
         if (!Object.hasOwnProperty.call(args, k)) continue
@@ -31,21 +31,20 @@ function genType(args) {
     ts += '\n\t}'
     return ts
 }
-function normalizeType(value) {
-    const type = typeMap[value] ?? value
-    if (Object.keys(typeMap).includes(type)) return type
+function normalizeType(value: string) {
+    const type = typeMap[value]
+    if (type) return type
 
-    if (typeof type === 'string') {
-        let match = type.match(/.+?\[\]/g)
+    if (typeof value === 'string') {
+        let match = value.match(/.+?\[\]/g)
         if (match?.[0]) {
             return match[0]
         }
     }
 
-    return getType(type)
+    return getType(value)
 }
 
-module.exports = genType
 
 // console.log(genType({
 //     a: 'string',

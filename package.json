@@ -1,6 +1,6 @@
 {
     "name": "@jl-org/http",
-    "version": "0.2.5",
+    "version": "0.2.6",
     "description": "一个能中断请求、缓存（幂等）请求、重试请求、并发请求，生成模板代码的库",
     "main": "dist/index.js",
     "module": "dist/index.js",
@@ -8,7 +8,7 @@
     "types": "dist/typings/index.d.ts",
     "files": [
         "/dist",
-        "/cli"
+        "/cli/index.cjs"
     ],
     "bin": {
         "jl-http": "./cli/index.cjs"
@@ -36,9 +36,9 @@
         "@rollup/plugin-alias": "^5.1.0",
         "@rollup/plugin-node-resolve": "^15.2.3",
         "@rollup/plugin-terser": "^0.4.4",
-        "@rollup/plugin-typescript": "^11.1.5",
-        "@types/node": "^20.11.17",
-        "rollup": "^4.6.1",
+        "@rollup/plugin-typescript": "^11.1.6",
+        "@types/node": "^20.12.7",
+        "rollup": "^4.16.1",
         "rollup-plugin-clear": "^2.0.7",
         "tsc-alias": "^1.8.8",
         "tslib": "^2.6.2"

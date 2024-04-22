@@ -7,34 +7,45 @@ import clear from 'rollup-plugin-clear'
 import { fileURLToPath } from 'node:url'
 
 
-export default defineConfig({
-    input: 'src/index.ts',
-    output: [
-        outputFormat('dist/index.cjs', 'cjs'),
-        outputFormat('dist/index.js', 'es'),
-        outputFormat('dist/index.browser.js', 'iife', '_jlHttp'),
-    ],
-    plugins: [
-        nodeResolve(),  // 开启`node_modules`查找模块功能
-        terser(),
-        typescript(),
-        clear({
-            targets: ['dist'],
-            watch: true,
-        }),
+const plugins = [
+    nodeResolve(),  // 开启`node_modules`查找模块功能
+    terser(),
+    typescript(),
+    clear({
+        targets: ['dist'],
+        watch: true,
+    }),
 
-        alias({
-            entries: [
-                {
-                    find: '@',
-                    replacement: fileURLToPath(
-                        new URL('src', import.meta.url)
-                    )
-                },
-            ]
-        }),
-    ],
-})
+    alias({
+        entries: [
+            {
+                find: '@',
+                replacement: fileURLToPath(
+                    new URL('src', import.meta.url)
+                )
+            },
+        ]
+    }),
+]
+
+export default defineConfig([
+    {
+        input: './src/index.ts',
+        output: [
+            outputFormat('dist/index.cjs', 'cjs'),
+            outputFormat('dist/index.js', 'es'),
+            outputFormat('dist/index.browser.js', 'iife', '_jlHttp'),
+        ],
+        plugins,
+    },
+    {
+        input: './src/cli/index.ts',
+        output: [
+            outputFormat('cli/index.cjs', 'cjs'),
+        ],
+        plugins,
+    }
+])
 
 
 /**

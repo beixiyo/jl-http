@@ -1,4 +1,4 @@
-# 一个能中断请求、缓存（幂等）请求、重试请求、并发请求的库
+# 一个能中断请求、缓存（幂等）请求、重试请求、并发请求，生成模板代码的库
 
 支持 `ESM` | `CommonJS` | `iife`
 
@@ -36,9 +36,7 @@ export const iotHttp = new Http({
         }
     },
     respInterceptor: (resp) => {
-        return {
-            data: resp.data,
-        }
+        return resp
     },
     respErrInterceptor: (reason) => {
         console.warn(reason)
@@ -134,12 +132,12 @@ downloadByData(blob.data as Blob, 'test.png')
 ```bash
 npx jl-http <inputSrc> <outputSrc>
 
-# 例如：则向 ./test/output.ts 生成模板代码
-npx jl-http ./test/input.ts ./test/output.ts
+# 例如下面的命令：会向 `./test/output.ts` 生成模板代码
+npx jl-http ./test/template.ts ./test/output.ts
 ```
 
 **模板配置文件**  
-`./test/input.ts`
+`./test/template.ts`
 ```ts
 import { defineConfig } from '@jl-org/http'
 
@@ -161,11 +159,11 @@ export default defineConfig({
                 age: 18,
                 name: 'string',
                 ids: 'number[]',
-                salary: 'Bigint',
                 money: BigInt(123),
                 fn: 'function',
                 isMan: true,
                 isWoman: 'boolean',
+                scratch: '乱写的'
             },
             /** 函数的名字 */
             name: 'getData',
@@ -197,11 +195,11 @@ export class Test {
 		age: number
 		name: string
 		ids: number[]
-		salary: string
 		money: bigint
-		fn: string
+		fn: Function
 		isMan: true
 		isWoman: boolean
+		scratch: string
 	}) {
         return iotHttp.get('/getList', { query: data })
     }
