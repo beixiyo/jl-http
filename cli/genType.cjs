@@ -1,3 +1,4 @@
+const getType = (data) => Object.prototype.toString.call(data).slice(8, -1)
 const typeMap = {
     string: 'string',
     number: 'number',
@@ -41,7 +42,7 @@ function normalizeType(value) {
         }
     }
 
-    return typeof type
+    return getType(type)
 }
 
 module.exports = genType
