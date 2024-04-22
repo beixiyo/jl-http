@@ -10,7 +10,9 @@ const typeMap = {
     null: 'null',
     undefined: 'undefined',
     function: 'Function',
+    Function: 'Function',
     BigInt: 'BigInt',
+    bigInt: 'bigInt',
 }
 
 function genType(args) {
