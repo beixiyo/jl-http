@@ -67,10 +67,6 @@ export class BaseReq implements BaseHttpReq {
 
                     return await respInterceptor(res)
                 })
-                .catch(err => {
-                    respErrInterceptor?.(err)
-                    return Promise.reject(err)
-                })
                 .finally(() => clearTimeout(id))
         }
     }

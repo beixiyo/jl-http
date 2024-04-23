@@ -64,7 +64,7 @@ function genCode(config: Config) {
             tab()
             const type = genType(item.args)
             code += item.comment
-                ? `/** ${item.comment} */\n`
+                ? `/** ${item.comment} */\n\t`
                 : ''
             code += `static ${item.isAsync ? 'async ' : ''}${item.name}(${type ? `data: ${type}` : ''}) {`
 

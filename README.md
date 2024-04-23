@@ -172,13 +172,25 @@ export default defineConfig({
             /** 请求地址 */
             url: '/getList',
             /** 添加异步关键字 */
-            isAsync: false
+            isAsync: false,
+            /** 注释 */
+            comment: '我是一个高雅的文档注释'
         },
         {
             method: 'post',
             name: 'postData',
             url: '/addList',
             isAsync: true,
+            args: {
+                id: 'number'
+            }
+        },
+        {
+            method: 'delete',
+            name: 'delData',
+            url: '/addList',
+            isAsync: true,
+            comment: '我是无参函数'
         }
     ],
 })
@@ -191,7 +203,8 @@ import { iotHttp } from '@/http/iotHttp'
 
 export class Test {
 
-    static getData(data: {
+    /** 我是一个高雅的文档注释 */
+	static getData(data: {
 		age: number
 		name: string
 		ids: number[]
@@ -204,8 +217,15 @@ export class Test {
         return iotHttp.get('/getList', { query: data })
     }
 
-    static async postData() {
-        return iotHttp.post('/addList')
+    static async postData(data: {
+		id: number
+	}) {
+        return iotHttp.post('/addList', data)
+    }
+
+    /** 我是无参函数 */
+	static async delData() {
+        return iotHttp.delete('/addList')
     }
 
 }
