@@ -1,5 +1,5 @@
 import type { BaseHttpReq, BaseReqMethodConfig, BaseReqConstructorConfig, Resp } from './AbsBaseReq'
-import type { ReqBody } from '../../types'
+import type { HttpMethod, ReqBody } from '../../types'
 import { deepCompare } from '../../tools'
 
 
@@ -167,41 +167,51 @@ export abstract class AbsCacheReq implements BaseHttpReq {
         return this.http.patch<T, HttpResponse>(url, data, config)
     }
 
+    /** 统一的缓存请求方法 */
+    async cacheReq<T, HttpResponse = Resp<T>>(
+        method: Lowercase<HttpMethod>,
+        url: string,
+        data?: ReqBody,
+        config?: BaseCacheReqMethodConfig
+    ): Promise<HttpResponse> {
+        const params = ['get', 'head'].includes(method)
+            ? config?.query
+            : data
 
-    /** 缓存响应，如果下次请求未超过缓存时间，则直接从缓存中获取 */
-    async cacheGet<T, HttpResponse = Resp<T>>(url: string, config: BaseCacheReqMethodConfig = {}): Promise<HttpResponse> {
-        const cache = this.getCache(url, config.query)
+        const cache = this.getCache(url, params)
         if (this.isMatchCache(cache)) {
             return cache as Promise<HttpResponse>
         }
 
-        const { cacheTimeout, ...rest } = config
-        const cacheData = await this.get<T, HttpResponse>(url, rest)
+        const { cacheTimeout, ...rest } = config || {}
+        const cacheData = await this[method](url, rest)
         this.setCache({
             url,
             cacheData,
-            params: config.query,
+            params,
             cacheTimeout
         })
         return cacheData
     }
 
     /** 缓存响应，如果下次请求未超过缓存时间，则直接从缓存中获取 */
-    async cachePost<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config: BaseCacheReqMethodConfig = {}): Promise<HttpResponse> {
-        const cache = this.getCache(url, data)
-        if (this.isMatchCache(cache)) {
-            return cache as Promise<HttpResponse>
-        }
+    async cacheGet<T, HttpResponse = Resp<T>>(url: string, config: BaseCacheReqMethodConfig = {}): Promise<HttpResponse> {
+        return this.cacheReq('get', url, undefined, config)
+    }
 
-        const { cacheTimeout, ...rest } = config
-        const cacheData = await this.post<T, HttpResponse>(url, data, rest)
-        this.setCache({
-            url,
-            cacheData,
-            params: data,
-            cacheTimeout
-        })
-        return cacheData
+    /** 缓存响应，如果下次请求未超过缓存时间，则直接从缓存中获取 */
+    async cachePost<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config: BaseCacheReqMethodConfig = {}): Promise<HttpResponse> {
+        return this.cacheReq('post', url, data, config)
+    }
+
+    /** 缓存响应，如果下次请求未超过缓存时间，则直接从缓存中获取 */
+    async cachePut<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config: BaseCacheReqMethodConfig = {}): Promise<HttpResponse> {
+        return this.cacheReq('put', url, data, config)
+    }
+
+    /** 缓存响应，如果下次请求未超过缓存时间，则直接从缓存中获取 */
+    async cachePatch<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config: BaseCacheReqMethodConfig = {}): Promise<HttpResponse> {
+        return this.cacheReq('patch', url, data, config)
     }
 }
 

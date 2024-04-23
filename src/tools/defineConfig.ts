@@ -29,5 +29,7 @@ export type Fn = {
     args?: Record<string, any>
     /** 请求的方法，如 get | post | ... */
     method: Lowercase<HttpMethod>
+    /** 注释 */
+    comment?: string
 }
 
