@@ -42,7 +42,10 @@ function normalizeType(value: string) {
         }
     }
 
-    return getType(value)
+    const finaltype = getType(value)
+    return finaltype === 'array'
+        ? 'any[]'
+        : finaltype
 }
 
 
