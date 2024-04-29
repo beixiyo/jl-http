@@ -17,20 +17,21 @@ npm i @jl-org/http
 ```ts
 import { Http } from '@jl-org/http'
 
-/** 这里的默认配置，都可以在实际请求里设置 */
+/** 这里的默认配置，都可以在实际请求里设置覆盖 */
 export const iotHttp = new Http({
     /** 缓存过期时间，默认 1 秒 */
     cacheTimeout: 1000,
     baseUrl: '/iot',
     /** 超时时间 */
     timeout: 10000,
-    /** 请求失败重试次数 */
-    retry: 3,
+    /** 请求失败重试次数，默认 0 */
+    retry: 0,
 
     reqInterceptor: (config) => {
         return {
             ...config,
             headers: {
+                ...config.headers,
                 token: 'token'
             },
         }

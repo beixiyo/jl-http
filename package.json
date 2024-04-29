@@ -1,6 +1,6 @@
 {
     "name": "@jl-org/http",
-    "version": "0.2.8",
+    "version": "0.2.9",
     "description": "一个能中断请求、缓存（幂等）请求、重试请求、并发请求，生成模板代码的库",
     "main": "dist/index.js",
     "module": "dist/index.js",

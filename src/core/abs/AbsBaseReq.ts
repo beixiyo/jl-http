@@ -19,21 +19,24 @@ export type FetchOptions = Omit<RequestInit, 'method'> & {
     method?: HttpMethod
 }
 
-export interface BaseReqConfig extends Omit<FetchOptions, 'body'> {
-    /** 返回类型，默认 json。如果设置为 stream，会返回一个 ReadableStream */
-    respType?: FetchType
-    url: string
-    /** 基路径，传入后比实例化时的 baseUrl 优先级高 */
-    baseUrl?: string
-    /** 请求超时时间，默认 10 秒 */
-    timeout?: number
-    /** 是否终止请求，你也可以自己传递 signal 控制 */
-    abort?: () => boolean
-    query?: Record<string, any>
-    body?: ReqBody
-    /** 重试请求次数 */
-    retry?: number
-}
+export type BaseReqConfig =
+    Omit<FetchOptions, 'body'>
+    & BaseReqConstructorConfig
+    & {
+        /** 返回类型，默认 json。如果设置为 stream，会返回一个 ReadableStream */
+        respType?: FetchType
+        url: string
+        /** 基路径，传入后比实例化时的 baseUrl 优先级高 */
+        baseUrl?: string
+        /** 请求超时时间，默认 10 秒 */
+        timeout?: number
+        /** 是否终止请求，你也可以自己传递 signal 控制 */
+        abort?: () => boolean
+        query?: Record<string, any>
+        body?: ReqBody
+        /** 重试请求次数 */
+        retry?: number
+    }
 
 export type BaseReqMethodConfig = Omit<BaseReqConfig, 'url'>
 

@@ -19,20 +19,20 @@ export class BaseReq implements BaseHttpReq {
             ...rest
         } = this.normalizeOpts(config)
 
+        const {
+            reqInterceptor,
+            respInterceptor,
+            respErrInterceptor,
+        } = this.getInterceptor<HttpResponse>(config)
+
+        const { data, url } = await getReqConfig(rest, reqInterceptor, rest.method, _url)
+
         let id = setTimeout(() => {
             return Promise.reject({
-                msg: '请求超时',
+                msg: '请求超时（Request Timeout）',
                 status: 408
             })
         }, timeout)
-
-        const {
-            reqInterceptor = async (config: BaseReqMethodConfig) => config,
-            respInterceptor = async (config: Resp<any>) => config,
-            respErrInterceptor,
-        } = this.config || {}
-
-        const { data, url } = await getReqConfig(rest, reqInterceptor, rest.method, _url)
         const res = retryReq<HttpResponse>(_req, retry)
 
         if (data.abort?.()) controller.abort()
@@ -65,7 +65,7 @@ export class BaseReq implements BaseHttpReq {
                         }
                     }
 
-                    return await respInterceptor(res)
+                    return await respInterceptor(res as any)
                 })
                 .finally(() => clearTimeout(id))
         }
@@ -121,6 +121,39 @@ export class BaseReq implements BaseHttpReq {
             retry: defaultConfig.retry ?? config.retry ?? 0,
             ...config,
             url: (defaultConfig.baseUrl || config.baseUrl || '') + config.url,
+        }
+    }
+
+    private getInterceptor<T>(config: BaseReqConfig) {
+        let reqInterceptor = async (config: BaseReqMethodConfig) => config,
+            respInterceptor = async (config: T) => config,
+            respErrInterceptor: Function
+
+        const defaultConfig = this.config
+        if (defaultConfig.reqInterceptor) {
+            reqInterceptor = defaultConfig.reqInterceptor
+        }
+        if (defaultConfig.respInterceptor) {
+            respInterceptor = defaultConfig.respInterceptor as any
+        }
+        if (defaultConfig.respErrInterceptor) {
+            respErrInterceptor = defaultConfig.respErrInterceptor
+        }
+
+        if (config.reqInterceptor) {
+            reqInterceptor = config.reqInterceptor
+        }
+        if (config.respInterceptor) {
+            respInterceptor = config.respInterceptor as any
+        }
+        if (config.respErrInterceptor) {
+            respErrInterceptor = config.respErrInterceptor
+        }
+
+        return {
+            reqInterceptor,
+            respInterceptor,
+            respErrInterceptor,
         }
     }
 }
