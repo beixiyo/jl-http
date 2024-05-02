@@ -174,17 +174,25 @@ export abstract class AbsCacheReq implements BaseHttpReq {
         data?: ReqBody,
         config?: BaseCacheReqMethodConfig
     ): Promise<HttpResponse> {
-        const params = ['get', 'head'].includes(method)
-            ? config?.query
-            : data
+        const needBody = !['get', 'head'].includes(method)
+        const params = needBody
+            ? data
+            : config?.query
 
         const cache = this.getCache(url, params)
         if (this.isMatchCache(cache)) {
             return cache as Promise<HttpResponse>
         }
 
+        let cacheData: HttpResponse
         const { cacheTimeout, ...rest } = config || {}
-        const cacheData = await this[method](url, rest)
+        if (needBody) {
+            cacheData = await (this as any)[method](url, data, rest)
+        }
+        else {
+            cacheData = await (this as any)[method](url, rest)
+        }
+
         this.setCache({
             url,
             cacheData,

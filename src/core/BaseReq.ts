@@ -1,13 +1,13 @@
 import type { BaseReqConstructorConfig, BaseReqConfig, BaseReqMethodConfig, Resp, BaseHttpReq } from './abs/AbsBaseReq'
 import { TIME_OUT } from '../constants'
 import type { HttpMethod, ReqBody } from '../types'
-import { getType, isObj, retryReq } from '../tools'
+import { getType, retryReq } from '../tools'
 import qs from 'query-string'
 
 
 export class BaseReq implements BaseHttpReq {
 
-    constructor(private config?: BaseReqConstructorConfig) { }
+    constructor(private config: BaseReqConstructorConfig = {}) { }
 
     async request<T, HttpResponse = Resp<T>>(config: BaseReqConfig): Promise<HttpResponse> {
         const {
@@ -127,7 +127,7 @@ export class BaseReq implements BaseHttpReq {
     private getInterceptor<T>(config: BaseReqConfig) {
         let reqInterceptor = async (config: BaseReqMethodConfig) => config,
             respInterceptor = async (config: T) => config,
-            respErrInterceptor: Function
+            respErrInterceptor: any = () => { }
 
         const defaultConfig = this.config
         if (defaultConfig.reqInterceptor) {
