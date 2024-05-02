@@ -1,7 +1,7 @@
 import type { BaseReqConstructorConfig, BaseReqConfig, BaseReqMethodConfig, Resp, BaseHttpReq } from './abs/AbsBaseReq'
 import { TIME_OUT } from '../constants'
 import type { HttpMethod, ReqBody } from '../types'
-import { isObj, retryReq } from '../tools'
+import { getType, isObj, retryReq } from '../tools'
 import qs from 'query-string'
 
 
@@ -160,10 +160,10 @@ export class BaseReq implements BaseHttpReq {
 
 
 function parseBody(data: any) {
-    if (isObj(data)) {
+    if (getType(data) === 'object') {
         return JSON.stringify(data)
     }
-    return '{}'
+    return data
 }
 
 async function getReqConfig(
