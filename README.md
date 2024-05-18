@@ -135,6 +135,9 @@ npx jl-http <inputSrc> <outputSrc>
 
 # 例如下面的命令：会向 `./test/output.ts` 生成模板代码
 npx jl-http ./test/template.ts ./test/output.ts
+
+# 如果你用 npx 报错，那你可能需要使用对应的包管理器，比如你项目用 pnpm
+pnpm jl-http ./test/template.ts ./test/output.ts
 ```
 
 **模板配置文件**  
