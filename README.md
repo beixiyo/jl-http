@@ -101,6 +101,9 @@ iotHttp.cachePost(
 
 ### 中断请求
 
+注意，配置了 *signal* 后，**超时配置无效**  
+因为你的控制器覆盖了超时的控制器
+
 ```ts
 const controller = new AbortController()
 

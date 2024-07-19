@@ -9,6 +9,7 @@ export type { BaseCacheReqMethodConfig, BaseCacheConstructorConfig } from './abs
 
 
 export class Http extends AbsCacheReq {
+    
     http: BaseReq
 
     constructor(protected config: BaseCacheConstructorConfig) {

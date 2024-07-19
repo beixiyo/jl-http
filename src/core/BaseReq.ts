@@ -26,21 +26,36 @@ export class BaseReq implements BaseHttpReq {
 
         const { data, url } = await getReqConfig(rest, reqInterceptor, rest.method, _url)
 
-        let id = setTimeout(() => {
-            return Promise.reject({
+        return new Promise((resolve, reject) => {
+            const abort = new AbortController()
+            const reason: RespData = {
                 msg: '请求超时（Request Timeout）',
                 code: 408
-            } as RespData)
-        }, timeout)
+            }
 
-        const res = retry >= 1
-            ? retryReq<HttpResponse>(_req, retry)
-            : _req()
-        return res
+            if (rest.signal) {
+                rest.signal.addEventListener('abort', () => {
+                    abort.abort()
+                })
+            }
+
+            setTimeout(() => {
+                reject(reason)
+                abort.abort(reason)
+            }, timeout)
+
+            const res = retry >= 1
+                ? retryReq<HttpResponse>(() => _req(abort.signal), retry)
+                : _req(abort.signal)
+            resolve(res)
+        })
 
 
-        function _req() {
-            return fetch(url, data)
+        function _req(signal: AbortSignal) {
+            return fetch(url, {
+                ...data,
+                signal: rest.signal || signal
+            })
                 .then(async (response) => {
                     if (hasHttpErr(response.status)) {
                         respErrInterceptor?.(response)
@@ -67,7 +82,6 @@ export class BaseReq implements BaseHttpReq {
 
                     return await respInterceptor(res as any)
                 })
-                .finally(() => clearTimeout(id))
         }
     }
 
@@ -164,6 +178,9 @@ function parseBody(data: any) {
     return data
 }
 
+/**
+ * 获取请求拦截器过滤后的数据
+ */
 async function getReqConfig(
     config: BaseReqMethodConfig,
     reqInterceptor: Function,
@@ -172,6 +189,9 @@ async function getReqConfig(
 ) {
     const query = qs.stringify(config.query || {})
 
+    /**
+     * 这俩请求方法没有 body
+     */
     if (['GET', 'HEAD'].includes(method.toUpperCase())) {
         const data = await reqInterceptor(config)
         return {
