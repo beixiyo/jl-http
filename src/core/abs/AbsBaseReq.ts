@@ -23,30 +23,49 @@ export type BaseReqConfig =
     Omit<FetchOptions, 'body'>
     & BaseReqConstructorConfig
     & {
-        /** 返回类型，默认 json。如果设置为 stream，会返回一个 ReadableStream */
+        /** 
+         * 返回类型，默认 json
+         * 如果设置为 stream，会返回一个 ReadableStream
+         */
         respType?: FetchType
         url: string
-        /** 基路径，传入后比实例化时的 baseUrl 优先级高 */
+        /** 
+         * 基路径，传入后比实例化时的 baseUrl 优先级高
+         * @default ''
+         */
         baseUrl?: string
-        /** 请求超时时间，默认 10 秒 */
+        /** 
+         * 请求超时时间，默认 10 秒 
+         * @default 10000
+         */
         timeout?: number
-        /** 是否终止请求，你也可以自己传递 signal 控制 */
-        abort?: () => boolean
         query?: Record<string, any>
         body?: ReqBody
-        /** 重试请求次数 */
+        /**
+         * 重试请求次数
+         * @default 0
+         */
         retry?: number
     }
 
 export type BaseReqMethodConfig = Omit<BaseReqConfig, 'url'>
 
 export interface BaseReqConstructorConfig {
-    /** 基路径 */
+    /** 
+     * 基路径
+     * @default ''
+     */
     baseUrl?: string
     headers?: ReqHeaders
-    /** 请求超时时间，默认 10 秒 */
+    /** 
+     * 请求超时时间，默认 10 秒 
+     * @default 10000
+     */
     timeout?: number
-    /** 重试请求次数 */
+    /**
+     * 重试请求次数
+     * @default 0
+     */
     retry?: number
     /** 请求拦截 */
     reqInterceptor?: (config: BaseReqMethodConfig) => any

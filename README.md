@@ -11,7 +11,11 @@
 npm i @jl-org/http
 ```
 
+---
+
+
 ## 使用
+
 **配置全部都有文档注释**
 
 ```ts
@@ -69,6 +73,9 @@ iotHttp.post(
     .then(console.log)
 ```
 
+---
+
+
 ### 可缓存的请求
 
 - 当你在短时间内多次请求同一个接口，并且参数一致，则不会发送请求，而是直接返回上一次的结果
@@ -89,23 +96,31 @@ iotHttp.cachePost(
     .then(console.log)
 ```
 
+---
+
+
 ### 中断请求
 
 ```ts
+const controller = new AbortController()
+
 iotHttp.get('/device/list', {
     params: {
         page: 1,
         size: 10,
     },
-    /**
-     * 若返回 true，则会中断请求
-     * 你也可以在请求拦截器设置，或者手动设置 fetch 的配置项 signal
-     */
-    abort: () => true
+    signal: controller.signal
 })
+
+// 中断请求
+controller.abort()
 ```
 
+---
+
+
 ### 并发请求
+
 ```ts
 /**
  * 并发任务数组 完成最大并发数后才会继续
@@ -115,7 +130,11 @@ iotHttp.get('/device/list', {
 export declare function concurrentTask<T>(tasks: (() => Promise<T>)[], maxCount?: number): Promise<T[]>;
 ```
 
+---
+
+
 ### 下载资源
+
 ```ts
 import { downloadByData } from '@jl-org/tool'
 
@@ -127,6 +146,7 @@ downloadByData(blob.data as Blob, 'test.png')
 ```
 
 ---
+
 
 ### 命令行快速生成模板代码
 
@@ -140,8 +160,11 @@ npx jl-http ./test/template.ts ./test/output.ts
 pnpm jl-http ./test/template.ts ./test/output.ts
 ```
 
+
 **模板配置文件**  
+
 `./test/template.ts`
+
 ```ts
 import { defineConfig } from '@jl-org/http'
 
@@ -201,6 +224,7 @@ export default defineConfig({
 ```
 
 上面的代码，将会生成如下的模板代码  
+
 `./test/output.ts`
 ```ts
 import { iotHttp } from '@/http/iotHttp'

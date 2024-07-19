@@ -1,3 +1,5 @@
+import type { RespData } from '@/types'
+
 /** 获取类型 */
 export const getType = (data: any) => (Object.prototype.toString.call(data) as string).slice(8, -1).toLowerCase()
 
@@ -65,7 +67,7 @@ export function retryReq<T>(
         .then(res => res)
         .catch(() => {
             return maxCount <= 0
-                ? Promise.reject({ msg: '重试次数耗尽', code: 500 })
+                ? Promise.reject({ msg: '重试次数耗尽', code: 500 } as RespData)
                 : retryReq(task, maxCount - 1)
         })
 }

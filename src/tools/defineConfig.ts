@@ -24,7 +24,7 @@ export type Fn = {
     url: string
     /** 
      * 生成 TS 类型的代码
-     * 你可以像写 TS 一样写，也可以写字面量，字面量会被 typeof 转换
+     * 你可以像写 TS 一样写，也可以写字面量，字面量会被自动转换类型
      */
     args?: Record<string, any>
     /** 请求的方法，如 get | post | ... */

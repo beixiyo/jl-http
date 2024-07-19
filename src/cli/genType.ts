@@ -31,6 +31,7 @@ export function genType(args?: Record<string, any>) {
     ts += '\n\t}'
     return ts
 }
+
 function normalizeType(value: string) {
     const type = typeMap[value]
     if (type) return type

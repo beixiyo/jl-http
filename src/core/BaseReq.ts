@@ -1,20 +1,19 @@
 import type { BaseReqConstructorConfig, BaseReqConfig, BaseReqMethodConfig, Resp, BaseHttpReq } from './abs/AbsBaseReq'
 import { TIME_OUT } from '../constants'
-import type { HttpMethod, ReqBody } from '../types'
+import type { HttpMethod, ReqBody, RespData } from '../types'
 import { getType, retryReq } from '../tools'
 import qs from 'query-string'
 
 
 export class BaseReq implements BaseHttpReq {
 
-    constructor(private config: BaseReqConstructorConfig = {}) { }
+    constructor(private defaultConfig: BaseReqConstructorConfig = {}) { }
 
     async request<T, HttpResponse = Resp<T>>(config: BaseReqConfig): Promise<HttpResponse> {
         const {
             url: _url,
             timeout,
             respType,
-            controller,
             retry,
             ...rest
         } = this.normalizeOpts(config)
@@ -30,12 +29,13 @@ export class BaseReq implements BaseHttpReq {
         let id = setTimeout(() => {
             return Promise.reject({
                 msg: '请求超时（Request Timeout）',
-                status: 408
-            })
+                code: 408
+            } as RespData)
         }, timeout)
-        const res = retryReq<HttpResponse>(_req, retry)
 
-        if (data.abort?.()) controller.abort()
+        const res = retry >= 1
+            ? retryReq<HttpResponse>(_req, retry)
+            : _req()
         return res
 
 
@@ -103,25 +103,23 @@ export class BaseReq implements BaseHttpReq {
     }
 
     private normalizeOpts(config: BaseReqConfig) {
-        const controller = new AbortController()
         const {
             respType = 'json',
             method = 'GET',
         } = config
 
-        const defaultConfig = this.config || {}
+        const defaultConfig = this.defaultConfig || {}
 
         return {
             respType,
             method,
             headers: config.headers || defaultConfig.headers || {},
             timeout: config.timeout || defaultConfig.timeout || TIME_OUT,
-            signal: controller.signal,
-            controller,
+            signal: config.signal,
             retry: defaultConfig.retry ?? config.retry ?? 0,
             ...config,
             url: (defaultConfig.baseUrl || config.baseUrl || '') + config.url,
-        }
+        } as BaseReqConfig
     }
 
     private getInterceptor<T>(config: BaseReqConfig) {
@@ -129,7 +127,7 @@ export class BaseReq implements BaseHttpReq {
             respInterceptor = async (config: T) => config,
             respErrInterceptor: any = () => { }
 
-        const defaultConfig = this.config
+        const defaultConfig = this.defaultConfig
         if (defaultConfig.reqInterceptor) {
             reqInterceptor = defaultConfig.reqInterceptor
         }
