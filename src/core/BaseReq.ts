@@ -173,9 +173,17 @@ export class BaseReq implements BaseHttpReq {
 
 function parseBody(data: any) {
     if (getType(data) === 'object') {
-        return JSON.stringify(data)
+        return {
+            body: JSON.stringify(data),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        }
     }
-    return data
+
+    return {
+        body: data
+    }
 }
 
 /**
@@ -204,8 +212,9 @@ async function getReqConfig(
 
     const data = await reqInterceptor({
         ...config,
-        body: parseBody(config.body)
+        ...parseBody(config.body)
     })
+    
     return {
         data,
         url: query
