@@ -133,7 +133,7 @@ export class BaseReq implements BaseHttpReq {
             retry: defaultConfig.retry ?? config.retry ?? 0,
             ...config,
             url: (defaultConfig.baseUrl || config.baseUrl || '') + config.url,
-        } as BaseReqConfig
+        } as Required<BaseReqConfig>
     }
 
     private getInterceptor<T>(config: BaseReqConfig) {
