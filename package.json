@@ -11,7 +11,7 @@
         "/cli/index.cjs"
     ],
     "bin": {
-        "jl-http": "./cli/index.cjs"
+        "jl-http": "cli/index.cjs"
     },
     "exports": {
         "require": {
