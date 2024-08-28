@@ -68,11 +68,11 @@ export interface BaseReqConstructorConfig {
      */
     retry?: number
     /** 请求拦截 */
-    reqInterceptor?: (config: BaseReqMethodConfig) => any
+    reqInterceptor?: (config: Omit<BaseReqConfig, 'headers'> & { headers: any }) => any
     /** 响应拦截 */
-    respInterceptor?: <T = any>(resp: Resp<T>) => any
+    respInterceptor?: (resp: Resp<any>) => any
     /** 错误拦截 */
-    respErrInterceptor?: <T = any>(err: T) => any
+    respErrInterceptor?: (err: any) => any
 }
 
 export interface Resp<T> {

@@ -31,20 +31,21 @@ export const iotHttp = new Http({
     /** 请求失败重试次数，默认 0 */
     retry: 0,
 
-    reqInterceptor: (config) => {
-        return {
-            ...config,
-            headers: {
-                ...config.headers,
-                token: 'token'
-            },
+    respInterceptor: (response: Resp<MyResp>) => {
+        if (!response.data.success) {
+            return Promise.reject(response.data.msg)
         }
+
+        return response.data.data
     },
-    respInterceptor: (resp) => {
-        return resp
+
+    reqInterceptor(config) {
+        config.headers.authorization = getLocalStorage('token') || ''
+        return config
     },
-    respErrInterceptor: (reason) => {
-        console.warn(reason)
+
+    respErrInterceptor: (error: any) => {
+        console.warn(error)
     }
     // ... 其他配置详见定义
 })

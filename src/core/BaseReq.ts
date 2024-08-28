@@ -10,13 +10,14 @@ export class BaseReq implements BaseHttpReq {
     constructor(private defaultConfig: BaseReqConstructorConfig = {}) { }
 
     async request<T, HttpResponse = Resp<T>>(config: BaseReqConfig): Promise<HttpResponse> {
+        const formatConfig = this.normalizeOpts(config)
         const {
             url: _url,
             timeout,
             respType,
             retry,
             ...rest
-        } = this.normalizeOpts(config)
+        } = formatConfig
 
         const {
             reqInterceptor,
@@ -24,7 +25,7 @@ export class BaseReq implements BaseHttpReq {
             respErrInterceptor,
         } = this.getInterceptor<HttpResponse>(config)
 
-        const { data, url } = await getReqConfig(rest, reqInterceptor, rest.method, _url)
+        const { data, url } = await getReqConfig(formatConfig, reqInterceptor, rest.method, _url)
 
         return new Promise((resolve, reject) => {
             const abort = new AbortController()
