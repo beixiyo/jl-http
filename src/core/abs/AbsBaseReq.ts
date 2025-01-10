@@ -3,83 +3,83 @@ import type { FetchType, HttpMethod, ReqBody, ReqHeaders } from '../../types'
 
 /** 请求基础接口 */
 export interface BaseHttpReq {
-    get<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse>
-    head<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse>
+  get<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse>
+  head<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse>
 
-    delete<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
-    options<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
+  delete<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
+  options<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
 
-    post<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
-    put<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
-    patch<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
+  post<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
+  put<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
+  patch<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
 }
 
 
 export type FetchOptions = Omit<RequestInit, 'method'> & {
-    method?: HttpMethod
+  method?: HttpMethod
 }
 
 export type BaseReqConfig =
-    Omit<FetchOptions, 'body'>
-    & BaseReqConstructorConfig
-    & {
-        /** 
-         * 返回类型，默认 json
-         * 如果设置为 stream，会返回一个 ReadableStream
-         */
-        respType?: FetchType
-        url: string
-        /** 
-         * 基路径，传入后比实例化时的 baseUrl 优先级高
-         * @default ''
-         */
-        baseUrl?: string
-        /** 
-         * 请求超时时间，默认 10 秒 
-         * @default 10000
-         */
-        timeout?: number
-        query?: Record<string, any>
-        body?: ReqBody
-        /**
-         * 重试请求次数
-         * @default 0
-         */
-        retry?: number
-    }
-
-export type BaseReqMethodConfig = Omit<BaseReqConfig, 'url'>
-
-export interface BaseReqConstructorConfig {
-    /** 
-     * 基路径
+  Omit<FetchOptions, 'body'>
+  & BaseReqConstructorConfig
+  & {
+    /**
+     * 返回类型，默认 json
+     * 如果设置为 stream，会返回一个 ReadableStream
+     */
+    respType?: FetchType
+    url: string
+    /**
+     * 基路径，传入后比实例化时的 baseUrl 优先级高
      * @default ''
      */
     baseUrl?: string
-    headers?: ReqHeaders
-    /** 
-     * 请求超时时间，默认 10 秒 
+    /**
+     * 请求超时时间，默认 `10秒`，单位 `ms`。传入 `-1` 则不超时
      * @default 10000
      */
     timeout?: number
+    query?: Record<string, any>
+    body?: ReqBody
     /**
      * 重试请求次数
      * @default 0
      */
     retry?: number
-    /** 请求拦截 */
-    reqInterceptor?: (config: Omit<BaseReqConfig, 'headers'> & { headers: any }) => any
-    /** 响应拦截 */
-    respInterceptor?: (resp: Resp<any>) => any
-    /** 错误拦截 */
-    respErrInterceptor?: (err: any) => any
+  }
+
+export type BaseReqMethodConfig = Omit<BaseReqConfig, 'url'>
+
+export interface BaseReqConstructorConfig {
+  /**
+   * 基路径
+   * @default ''
+   */
+  baseUrl?: string
+  headers?: ReqHeaders
+  /**
+   * 请求超时时间，默认 10 秒
+   * @default 10000
+   */
+  timeout?: number
+  /**
+   * 重试请求次数
+   * @default 0
+   */
+  retry?: number
+  /** 请求拦截 */
+  reqInterceptor?: (config: Omit<BaseReqConfig, 'headers'> & { headers: any }) => any
+  /** 响应拦截 */
+  respInterceptor?: (resp: Resp<any>) => any
+  /** 错误拦截 */
+  respErrInterceptor?: (err: any) => any
 }
 
 export interface Resp<T> {
-    /** fetch 返回的原始对象 */
-    rawResp: Response
-    /** 后端返回的数据 */
-    data: T
-    /** 如果 respType = stream，则返回一个可读流 */
-    reader?: ReadableStreamDefaultReader<Uint8Array>
+  /** fetch 返回的原始对象 */
+  rawResp: Response
+  /** 后端返回的数据 */
+  data: T
+  /** 如果 respType = stream，则返回一个可读流 */
+  reader?: ReadableStreamDefaultReader<Uint8Array>
 }
