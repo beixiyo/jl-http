@@ -123,7 +123,7 @@ export class BaseReq implements BaseHttpReq {
    * SSE 请求，默认使用 GET
    */
   async fetchSSE(url: string, config?: SSEOptions): Promise<string> {
-    const formatConfig = this.normalizeSSEOpts(config, url)
+    const formatConfig = this.normalizeSSEOpts(url, config)
     const {
       url: withPrefixUrl,
       needParseData,
@@ -148,7 +148,7 @@ export class BaseReq implements BaseHttpReq {
 
       if (!resp.ok) {
         const error = new Error(`HTTP error! status: ${resp.status}`)
-        onError(error)
+        onError?.(error)
         reject(error)
         return promise
       }
@@ -173,10 +173,10 @@ export class BaseReq implements BaseHttpReq {
         content += needParseData
           ? BaseReq.parseSSEContent(decoder.decode(value))
           : decoder.decode(value)
-        onMessage(content)
+        onMessage?.(content)
 
         const progress = loaded / total
-        onProgress(
+        onProgress?.(
           progress > 0
             ? progress
             : -1,
@@ -185,7 +185,7 @@ export class BaseReq implements BaseHttpReq {
       }
     }
     catch (error) {
-      onError(error)
+      onError?.(error)
       reject(error)
       respErrInterceptor(error)
     }
@@ -231,7 +231,7 @@ export class BaseReq implements BaseHttpReq {
     return finalConfig
   }
 
-  private normalizeSSEOpts(config: SSEOptions, url: string) {
+  private normalizeSSEOpts(url: string, config: SSEOptions = {}) {
     const defaultConfig = this.defaultConfig || {}
     const {
       method = 'GET',
@@ -242,10 +242,14 @@ export class BaseReq implements BaseHttpReq {
       ...(config.headers || defaultConfig.headers || {})
     }
     if (method === 'POST') {
+      // @ts-ignore
       headers['Content-Type'] = 'application/json'
     }
 
-    const finalConfig: SSEOptions & { url: string } = {
+    const finalConfig: SSEOptions & {
+      url: string
+      method: HttpMethod
+    } = {
       method,
       headers,
       body: method === 'POST' ? JSON.stringify(config.body) : undefined,
@@ -264,6 +268,7 @@ export class BaseReq implements BaseHttpReq {
 
     const defaultConfig = this.defaultConfig
     if (defaultConfig.reqInterceptor) {
+      // @ts-ignore
       reqInterceptor = defaultConfig.reqInterceptor
     }
     if (defaultConfig.respInterceptor) {
@@ -274,6 +279,7 @@ export class BaseReq implements BaseHttpReq {
     }
 
     if (config.reqInterceptor) {
+      // @ts-ignore
       reqInterceptor = config.reqInterceptor
     }
     if (config.respInterceptor) {

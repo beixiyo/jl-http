@@ -33,6 +33,7 @@ export function genType(args?: Record<string, any>) {
 }
 
 function normalizeType(value: string) {
+  // @ts-ignore
   const type = typeMap[value]
   if (type) return type
 

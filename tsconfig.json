@@ -1,27 +1,28 @@
 {
-    "compilerOptions": {
-        "target": "ESNext",
-        "module": "ESNext",
-        "moduleResolution": "Bundler",
-        "esModuleInterop": true,
-        "emitDeclarationOnly": true,
-        "lib": [
-            "ESNext",
-            "DOM",
-            "DOM.Iterable"
-        ],
-        "baseUrl": ".",
-        "paths": {
-            "@/*": [
-                "./src/*"
-            ],
-        },
-        "outDir": "dist",
-        "declaration": true,
-        "declarationDir": "./dist/typings",
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "emitDeclarationOnly": true,
+    "lib": [
+      "ESNext",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
     },
-    "include": [
-        "src/**/*.ts",
-        "src/**/*.d.ts",
-    ]
+    "outDir": "dist",
+    "declaration": true,
+    "declarationDir": "./dist/typings",
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+  ]
 }
