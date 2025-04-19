@@ -1,9 +1,11 @@
-import type { BaseHttpReq, BaseReqMethodConfig, BaseReqConstructorConfig, Resp } from './AbsBaseReq'
+import type { BaseHttpReq, BaseReqMethodConfig, BaseReqConstructorConfig, Resp } from './AbsBaseReqType'
 import type { HttpMethod, ReqBody } from '../../types'
 import { deepCompare } from '../../tools'
 
 
-/** 带缓存控制的请求基类 */
+/**
+ * 带缓存控制的请求基类
+ */
 export abstract class AbsCacheReq implements BaseHttpReq {
 
   abstract http: BaseHttpReq
@@ -167,7 +169,9 @@ export abstract class AbsCacheReq implements BaseHttpReq {
     return this.http.patch<T, HttpResponse>(url, data, config)
   }
 
-  /** 统一的缓存请求方法 */
+  /**
+   * 统一的缓存请求方法
+   */
   async cacheReq<T, HttpResponse = Resp<T>>(
     method: Lowercase<HttpMethod>,
     url: string,

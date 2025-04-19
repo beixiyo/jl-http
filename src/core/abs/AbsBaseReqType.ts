@@ -1,8 +1,11 @@
 import type { FetchType, HttpMethod, ReqBody, ReqHeaders } from '../../types'
 
 
-/** 请求基础接口 */
+/**
+ * 请求基础接口
+ */
 export interface BaseHttpReq {
+
   get<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse>
   head<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse>
 
@@ -12,6 +15,7 @@ export interface BaseHttpReq {
   post<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
   put<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
   patch<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
+
 }
 
 
@@ -49,6 +53,22 @@ export type BaseReqConfig =
   }
 
 export type BaseReqMethodConfig = Omit<BaseReqConfig, 'url'>
+
+export type SSEOptions = {
+  onMessage?: (content: string) => void
+  /**
+   * 计算进度，接口必须有 content-length 响应头
+   */
+  onProgress?: (progress: number, content: string) => void
+  onError?: (error: any) => void
+
+  /**
+   * 是否解析数据，删除 data: 内容
+   * @default true
+   */
+  needParseData?: boolean
+}
+  & Omit<BaseReqConfig, 'url' | 'retry' | 'respType' | 'timeout'>
 
 export interface BaseReqConstructorConfig {
   /**

@@ -4,7 +4,7 @@ import type { BaseCacheConstructorConfig } from './abs/AbsCacheReq'
 
 export type { BaseReq } from './BaseReq'
 export type { AbsCacheReq } from './abs/AbsCacheReq'
-export type { BaseReqMethodConfig, BaseHttpReq, Resp } from './abs/AbsBaseReq'
+export type { BaseReqMethodConfig, BaseHttpReq, Resp } from './abs/AbsBaseReqType'
 export type { BaseCacheReqMethodConfig, BaseCacheConstructorConfig } from './abs/AbsCacheReq'
 
 

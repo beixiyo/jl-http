@@ -1,4 +1,4 @@
-import type { BaseReqConstructorConfig, BaseReqConfig, BaseReqMethodConfig, Resp, BaseHttpReq } from './abs/AbsBaseReq'
+import type { BaseReqConstructorConfig, BaseReqConfig, BaseReqMethodConfig, Resp, BaseHttpReq, SSEOptions } from './abs/AbsBaseReqType'
 import { TIME_OUT } from '../constants'
 import type { HttpMethod, ReqBody, RespData } from '../types'
 import { getType, retryReq } from '../tools'
@@ -119,6 +119,88 @@ export class BaseReq implements BaseHttpReq {
     return this.request({ url, method: 'PATCH', body: data, ...config })
   }
 
+  /**
+   * SSE 请求，默认使用 GET
+   */
+  async fetchSSE(url: string, config?: SSEOptions): Promise<string> {
+    const {
+      url: _url,
+      needParseData,
+      onError,
+      onMessage,
+      onProgress,
+      ...rest
+    } = this.normalizeSSEOpts(config, url)
+    const { promise, reject, resolve } = Promise.withResolvers<string>()
+
+    try {
+      const resp = await fetch(
+        _url,
+        rest as any
+      )
+
+      if (!resp.ok) {
+        const error = new Error(`HTTP error! status: ${resp.status}`)
+        onError(error)
+        reject(error)
+        return promise
+      }
+
+      const reader = resp.body!.getReader()
+      const decoder = new TextDecoder()
+      const total = resp.headers.get('content-length')
+        ? Number(resp.headers.get('content-length'))
+        : 0
+
+      let content = ''
+      let loaded = 0
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) {
+          resolve(content)
+          break
+        }
+
+        loaded += value.length
+        content += needParseData
+          ? BaseReq.parseSSEContent(decoder.decode(value))
+          : decoder.decode(value)
+        onMessage(content)
+
+        const progress = loaded / total
+        onProgress(
+          progress > 0
+            ? progress
+            : -1,
+          content
+        )
+      }
+    }
+    catch (error) {
+      onError(error)
+      reject(error)
+    }
+
+    return promise
+  }
+
+  static parseSSEContent(content: string) {
+    const matches = content.match(/data:([\s\S]*?)(?=\ndata:|$)/g)
+    if (!matches)
+      return ''
+
+    const json = matches
+      .filter(item => item.startsWith('data:{'))
+      .map(item => item
+        .replace(/^data:/, '')
+        .replace(/\n/g, ''),
+      )
+      .join(',')
+
+    return json
+  }
+
   private normalizeOpts(config: BaseReqConfig) {
     const {
       respType = 'json',
@@ -127,7 +209,7 @@ export class BaseReq implements BaseHttpReq {
 
     const defaultConfig = this.defaultConfig || {}
 
-    return {
+    const finalConfig = {
       respType,
       method,
       headers: config.headers || defaultConfig.headers || {},
@@ -136,7 +218,35 @@ export class BaseReq implements BaseHttpReq {
       retry: defaultConfig.retry ?? config.retry ?? 0,
       ...config,
       url: (defaultConfig.baseUrl || config.baseUrl || '') + config.url,
-    } as Required<BaseReqConfig>
+    }
+
+    return finalConfig
+  }
+
+  private normalizeSSEOpts(config: SSEOptions, url: string) {
+    const defaultConfig = this.defaultConfig || {}
+    const {
+      method = 'GET',
+    } = config
+
+    const headers = {
+      'Accept': 'text/event-stream',
+      ...(config.headers || defaultConfig.headers || {})
+    }
+    if (method === 'POST') {
+      headers['Content-Type'] = 'application/json'
+    }
+
+    const finalConfig: SSEOptions & { url: string } = {
+      method,
+      headers,
+      body: method === 'POST' ? JSON.stringify(config.body) : undefined,
+      needParseData: true,
+      ...config,
+      url: (defaultConfig.baseUrl || config.baseUrl || '') + url,
+    }
+
+    return finalConfig
   }
 
   private getInterceptor<T>(config: BaseReqConfig) {
