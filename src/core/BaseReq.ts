@@ -1,7 +1,7 @@
 import type { BaseReqConstructorConfig, BaseReqConfig, BaseReqMethodConfig, Resp, BaseHttpReq, SSEOptions } from './abs/AbsBaseReqType'
 import { TIME_OUT } from '../constants'
 import type { HttpMethod, ReqBody, RespData } from '../types'
-import { getType, retryReq } from '../tools'
+import { retryReq } from '../tools'
 import qs from 'query-string'
 
 
@@ -165,15 +165,18 @@ export class BaseReq implements BaseHttpReq {
       while (true) {
         const { done, value } = await reader.read()
         if (done) {
-          resolve(content)
+          needParseData
+            ? resolve?.(BaseReq.parseSSEContent(content))
+            : resolve?.(content)
           break
         }
 
         loaded += value.length
-        content += needParseData
-          ? BaseReq.parseSSEContent(decoder.decode(value))
-          : decoder.decode(value)
-        onMessage?.(content)
+        content += decoder.decode(value)
+
+        needParseData
+          ? onMessage?.(BaseReq.parseSSEContent(content))
+          : onMessage?.(content)
 
         const progress = loaded / total
         onProgress?.(
@@ -252,7 +255,6 @@ export class BaseReq implements BaseHttpReq {
     } = {
       method,
       headers,
-      body: method === 'POST' ? JSON.stringify(config.body) : undefined,
       needParseData: true,
       ...config,
       url: (defaultConfig.baseUrl || config.baseUrl || '') + url,
@@ -299,7 +301,7 @@ export class BaseReq implements BaseHttpReq {
 
 
 function parseBody(data: any) {
-  if (getType(data) === 'object') {
+  if (typeof data === 'object') {
     return {
       body: JSON.stringify(data),
       headers: {
@@ -337,9 +339,11 @@ async function getReqConfig(
     }
   }
 
+  const { body, headers } = parseBody(config.body)
+  Object.assign(config.headers || {}, headers)
   const data = await reqInterceptor({
     ...config,
-    ...parseBody(config.body)
+    body: body,
   })
 
   return {

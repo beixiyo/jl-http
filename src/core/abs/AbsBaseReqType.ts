@@ -56,6 +56,9 @@ export type BaseReqConfig =
 export type BaseReqMethodConfig = Omit<BaseReqConfig, 'url'>
 
 export type SSEOptions = {
+  /**
+   * 每次都会拿到之前到现在累加的所有内容
+   */
   onMessage?: (content: string) => void
   /**
    * 计算进度，接口必须有 content-length 响应头
