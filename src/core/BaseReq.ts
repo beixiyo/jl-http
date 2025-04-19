@@ -12,7 +12,7 @@ export class BaseReq implements BaseHttpReq {
   async request<T, HttpResponse = Resp<T>>(config: BaseReqConfig): Promise<HttpResponse> {
     const formatConfig = this.normalizeOpts(config)
     const {
-      url: _url,
+      url: withPrefixUrl,
       timeout,
       respType,
       retry,
@@ -25,7 +25,7 @@ export class BaseReq implements BaseHttpReq {
       respErrInterceptor,
     } = this.getInterceptor<HttpResponse>(config)
 
-    const { data, url } = await getReqConfig(formatConfig, reqInterceptor, rest.method, _url)
+    const { data, url } = await getReqConfig(formatConfig, reqInterceptor, rest.method, withPrefixUrl)
 
     return new Promise((resolve, reject) => {
       const abort = new AbortController()
@@ -123,20 +123,27 @@ export class BaseReq implements BaseHttpReq {
    * SSE 请求，默认使用 GET
    */
   async fetchSSE(url: string, config?: SSEOptions): Promise<string> {
+    const formatConfig = this.normalizeSSEOpts(config, url)
     const {
-      url: _url,
+      url: withPrefixUrl,
       needParseData,
       onError,
       onMessage,
       onProgress,
       ...rest
-    } = this.normalizeSSEOpts(config, url)
+    } = formatConfig
     const { promise, reject, resolve } = Promise.withResolvers<string>()
+
+    const {
+      reqInterceptor,
+      respErrInterceptor,
+    } = this.getInterceptor(formatConfig)
+    const { data, url: withQueryUrl } = await getReqConfig(formatConfig, reqInterceptor, rest.method, withPrefixUrl)
 
     try {
       const resp = await fetch(
-        _url,
-        rest as any
+        withQueryUrl,
+        data
       )
 
       if (!resp.ok) {
@@ -180,6 +187,7 @@ export class BaseReq implements BaseHttpReq {
     catch (error) {
       onError(error)
       reject(error)
+      respErrInterceptor(error)
     }
 
     return promise
@@ -188,7 +196,7 @@ export class BaseReq implements BaseHttpReq {
   static parseSSEContent(content: string) {
     const matches = content.match(/data:([\s\S]*?)(?=\ndata:|$)/g)
     if (!matches)
-      return ''
+      return '[]'
 
     const json = matches
       .filter(item => item.startsWith('data:{'))
@@ -198,7 +206,7 @@ export class BaseReq implements BaseHttpReq {
       )
       .join(',')
 
-    return json
+    return `[${json}]`
   }
 
   private normalizeOpts(config: BaseReqConfig) {

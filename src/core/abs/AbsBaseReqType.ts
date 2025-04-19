@@ -16,6 +16,7 @@ export interface BaseHttpReq {
   put<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
   patch<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
 
+  fetchSSE(url: string, config?: SSEOptions): Promise<string>
 }
 
 
@@ -64,6 +65,7 @@ export type SSEOptions = {
 
   /**
    * 是否解析数据，删除 data: 内容
+   * 开启的话，会解析出 [...] 字符串，可用作 JSON 解析
    * @default true
    */
   needParseData?: boolean
