@@ -3,8 +3,8 @@ import { TIME_OUT } from '../constants'
 import type { HttpMethod, ReqBody, RespData } from '../types'
 import { retryReq } from '../tools'
 import qs from 'query-string'
-import { Http } from '.'
 import { StreamJsonParser } from '@jl-org/tool'
+import { parseSSEContent } from '@/tools/parseSSEContent'
 
 
 export class BaseReq implements BaseHttpReq {
@@ -191,7 +191,7 @@ export class BaseReq implements BaseHttpReq {
           let currentContent = decoder.decode(value)
 
           if (needParseData) {
-            currentContent = Http.parseSSEContent({
+            currentContent = parseSSEContent({
               content: currentContent,
               handleResult: res => res
             })
