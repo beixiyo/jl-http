@@ -180,8 +180,12 @@ export class BaseReq implements BaseHttpReq {
         }
 
         loaded += value.length
-        const currentContent = decoder.decode(value)
-        allContent += currentContent
+        let currentContent = decoder.decode(value)
+
+        if (needParseData) {
+          currentContent = Http.parseSSEContent({ content: currentContent })
+          allContent += currentContent
+        }
 
         if (needParseJSON) {
           currentJson ??= currentJsonParser.append(currentContent)
@@ -191,19 +195,12 @@ export class BaseReq implements BaseHttpReq {
           allJsonParser.clear()
         }
 
-        needParseData
-          ? onMessage?.({
-            allContent: Http.parseSSEContent({ content: allContent }),
-            currentContent: Http.parseSSEContent({ content: currentContent }),
-            allJson,
-            currentJson
-          })
-          : onMessage?.({
-            allContent,
-            currentContent,
-            allJson,
-            currentJson
-          })
+        onMessage?.({
+          allContent,
+          currentContent,
+          allJson,
+          currentJson
+        })
 
         const progress = loaded / total
         onProgress?.(
