@@ -3,6 +3,7 @@ import { TIME_OUT } from '../constants'
 import type { HttpMethod, ReqBody, RespData } from '../types'
 import { retryReq } from '../tools'
 import qs from 'query-string'
+import { Http } from '.'
 
 
 export class BaseReq implements BaseHttpReq {
@@ -166,17 +167,21 @@ export class BaseReq implements BaseHttpReq {
         const { done, value } = await reader.read()
         if (done) {
           needParseData
-            ? resolve?.(BaseReq.parseSSEContent(content))
+            ? resolve?.(Http.parseSSEContent({ content }))
             : resolve?.(content)
           break
         }
 
         loaded += value.length
-        content += decoder.decode(value)
+        const currentContent = decoder.decode(value)
+        content += currentContent
 
         needParseData
-          ? onMessage?.(BaseReq.parseSSEContent(content))
-          : onMessage?.(content)
+          ? onMessage?.(
+            Http.parseSSEContent({ content }),
+            Http.parseSSEContent({ content: currentContent }),
+          )
+          : onMessage?.(content, currentContent)
 
         const progress = loaded / total
         onProgress?.(
@@ -194,22 +199,6 @@ export class BaseReq implements BaseHttpReq {
     }
 
     return promise
-  }
-
-  static parseSSEContent(content: string) {
-    const matches = content.match(/data:([\s\S]*?)(?=\ndata:|$)/g)
-    if (!matches)
-      return '[]'
-
-    const json = matches
-      .filter(item => item.startsWith('data:{'))
-      .map(item => item
-        .replace(/^data:/, '')
-        .replace(/\n/g, ''),
-      )
-      .join(',')
-
-    return `[${json}]`
   }
 
   private normalizeOpts(config: BaseReqConfig) {
