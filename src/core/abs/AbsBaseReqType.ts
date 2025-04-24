@@ -61,9 +61,9 @@ export type OnMessageParam = {
   /** 每次返回的一段数据 */
   currentContent: string
   /** 尝试把数据拼接成 JSON */
-  allJson: any | null
+  allJson: any[]
   /** 尝试把当前数据拼接成 JSON */
-  currentJson: any | null
+  currentJson: any[]
 }
 
 export type SSEOptions = {

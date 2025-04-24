@@ -53,7 +53,7 @@ type ParseSSEContentParam = {
    */
   joinStr?: string
   /**
-   * 处理结果的函数
+   * 处理结果的函数，默认使用数组包起来
    * @default (result: string) => `[${result}]`
    */
   handleResult?: (result: string) => string

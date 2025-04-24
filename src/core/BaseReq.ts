@@ -143,8 +143,18 @@ export class BaseReq implements BaseHttpReq {
     } = this.getInterceptor(formatConfig)
     const { data, url: withQueryUrl } = await getReqConfig(formatConfig, reqInterceptor, rest.method, withPrefixUrl)
 
-    const allJsonParser = new StreamJsonParser()
-    const currentJsonParser = new StreamJsonParser()
+    const jsonParser = new StreamJsonParser()
+
+    /**
+     * 判断是否要给数据包装上 []
+     */
+    function handleDataWrapper(content: string) {
+      // 说明要解析 JSON
+      if (needParseData) {
+        return `[${content}]`
+      }
+      return content
+    }
 
     try {
       const resp = await fetch(
@@ -167,15 +177,14 @@ export class BaseReq implements BaseHttpReq {
 
       let allContent = ''
       let loaded = 0
-      let allJson: any = null
-      let currentJson: any = null
+      let currentJson: any[] = []
+      const allJson: any[] = []
+      let isFirstConcat = true
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) {
-          needParseData
-            ? resolve?.(Http.parseSSEContent({ content: allContent }))
-            : resolve?.(allContent)
+          resolve?.(handleDataWrapper(allContent))
           break
         }
 
@@ -183,23 +192,41 @@ export class BaseReq implements BaseHttpReq {
         let currentContent = decoder.decode(value)
 
         if (needParseData) {
-          currentContent = Http.parseSSEContent({ content: currentContent })
-          allContent += currentContent
+          currentContent = Http.parseSSEContent({
+            content: currentContent,
+            handleResult: res => res
+          })
+        }
+
+        if (isFirstConcat) {
+          allContent = currentContent
+          isFirstConcat = false
+        }
+        else {
+          // 说明要拼接 JSON，拼接上逗号
+          if (needParseData) {
+            allContent += `,${currentContent}`
+          }
         }
 
         if (needParseJSON) {
-          currentJson ??= currentJsonParser.append(currentContent)
-          allJson ??= allJsonParser.append(allContent)
-
-          currentJsonParser.clear()
-          allJsonParser.clear()
+          const data = jsonParser.append(`[${currentContent}]`)
+          if (data) {
+            currentJson = data
+            if (Array.isArray(data)) {
+              allJson.push(...data)
+            }
+            else {
+              allJson.push(data)
+            }
+          }
         }
 
         onMessage?.({
-          allContent,
-          currentContent,
-          allJson,
-          currentJson
+          allContent: handleDataWrapper(allContent),
+          currentContent: handleDataWrapper(currentContent),
+          allJson: needParseJSON ? allJson : [],
+          currentJson: needParseJSON ? currentJson : [],
         })
 
         const progress = loaded / total
@@ -207,7 +234,7 @@ export class BaseReq implements BaseHttpReq {
           progress > 0
             ? progress
             : -1,
-          allContent
+          handleDataWrapper(allContent)
         )
       }
     }
