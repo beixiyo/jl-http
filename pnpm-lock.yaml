@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@jl-org/tool':
+        specifier: ^1.8.6
+        version: 1.8.6
       query-string:
         specifier: ^9.0.0
         version: 9.0.0
@@ -41,6 +44,9 @@ importers:
         version: 2.6.2
 
 packages:
+
+  '@jl-org/tool@1.8.6':
+    resolution: {integrity: sha512-VjwxWE6KbjBGhOcJGKDH8eK0LyqE6sCIze0eslEqeS40mR25far2lXC860xhIisQPpGoPcOVHn0tS9eavDqB7w==}
 
   '@jridgewell/gen-mapping@0.3.5':
     resolution: {integrity: sha512-IzL8ZoEDIBRWEzlCcRhOaCupYyN5gdIK+Q6fbFdPDg6HqX6jpkItn7DFIpW9LQzXG6Df9sA7+OKnq0qlz/GaQg==}
@@ -496,6 +502,8 @@ packages:
 
 snapshots:
 
+  '@jl-org/tool@1.8.6': {}
+
   '@jridgewell/gen-mapping@0.3.5':
     dependencies:
       '@jridgewell/set-array': 1.2.1
@@ -532,8 +540,9 @@ snapshots:
 
   '@rollup/plugin-alias@5.1.0(rollup@4.16.1)':
     dependencies:
-      rollup: 4.16.1
       slash: 4.0.0
+    optionalDependencies:
+      rollup: 4.16.1
 
   '@rollup/plugin-node-resolve@15.2.3(rollup@4.16.1)':
     dependencies:
@@ -543,28 +552,32 @@ snapshots:
       is-builtin-module: 3.2.1
       is-module: 1.0.0
       resolve: 1.22.8
+    optionalDependencies:
       rollup: 4.16.1
 
   '@rollup/plugin-terser@0.4.4(rollup@4.16.1)':
     dependencies:
-      rollup: 4.16.1
       serialize-javascript: 6.0.2
       smob: 1.5.0
       terser: 5.30.3
+    optionalDependencies:
+      rollup: 4.16.1
 
   '@rollup/plugin-typescript@11.1.6(rollup@4.16.1)(tslib@2.6.2)(typescript@5.4.5)':
     dependencies:
       '@rollup/pluginutils': 5.1.0(rollup@4.16.1)
       resolve: 1.22.8
+      typescript: 5.4.5
+    optionalDependencies:
       rollup: 4.16.1
       tslib: 2.6.2
-      typescript: 5.4.5
 
   '@rollup/pluginutils@5.1.0(rollup@4.16.1)':
     dependencies:
       '@types/estree': 1.0.5
       estree-walker: 2.0.2
       picomatch: 2.3.1
+    optionalDependencies:
       rollup: 4.16.1
 
   '@rollup/rollup-android-arm-eabi@4.16.1':

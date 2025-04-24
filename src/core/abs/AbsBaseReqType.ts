@@ -55,13 +55,22 @@ export type BaseReqConfig =
 
 export type BaseReqMethodConfig = Omit<BaseReqConfig, 'url'>
 
+export type OnMessageParam = {
+  /** 所有数据 */
+  allContent: string
+  /** 每次返回的一段数据 */
+  currentContent: string
+  /** 尝试把数据拼接成 JSON */
+  allJson: any | null
+  /** 尝试把当前数据拼接成 JSON */
+  currentJson: any | null
+}
+
 export type SSEOptions = {
   /**
    * 每次都会拿到之前到现在累加的所有内容
-   * @param allContent 所有内容
-   * @param currentContent 当前内容
    */
-  onMessage?: (allContent: string, currentContent: string) => void
+  onMessage?: (data: OnMessageParam) => void
   /**
    * 计算进度，接口必须有 content-length 响应头
    */
@@ -74,6 +83,12 @@ export type SSEOptions = {
    * @default true
    */
   needParseData?: boolean
+
+  /**
+   * 是否解析 JSON，开启后，会解析出 JSON 对象，放入 onMessage 回调
+   * @default false
+   */
+  needParseJSON?: boolean
 }
   & Omit<BaseReqConfig, 'url' | 'retry' | 'respType' | 'timeout'>
 

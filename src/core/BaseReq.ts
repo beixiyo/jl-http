@@ -4,6 +4,7 @@ import type { HttpMethod, ReqBody, RespData } from '../types'
 import { retryReq } from '../tools'
 import qs from 'query-string'
 import { Http } from '.'
+import { StreamJsonParser } from '@jl-org/tool'
 
 
 export class BaseReq implements BaseHttpReq {
@@ -131,6 +132,7 @@ export class BaseReq implements BaseHttpReq {
       onError,
       onMessage,
       onProgress,
+      needParseJSON,
       ...rest
     } = formatConfig
     const { promise, reject, resolve } = Promise.withResolvers<string>()
@@ -140,6 +142,9 @@ export class BaseReq implements BaseHttpReq {
       respErrInterceptor,
     } = this.getInterceptor(formatConfig)
     const { data, url: withQueryUrl } = await getReqConfig(formatConfig, reqInterceptor, rest.method, withPrefixUrl)
+
+    const allJsonParser = new StreamJsonParser()
+    const currentJsonParser = new StreamJsonParser()
 
     try {
       const resp = await fetch(
@@ -160,35 +165,52 @@ export class BaseReq implements BaseHttpReq {
         ? Number(resp.headers.get('content-length'))
         : 0
 
-      let content = ''
+      let allContent = ''
       let loaded = 0
+      let allJson: any = null
+      let currentJson: any = null
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) {
           needParseData
-            ? resolve?.(Http.parseSSEContent({ content }))
-            : resolve?.(content)
+            ? resolve?.(Http.parseSSEContent({ content: allContent }))
+            : resolve?.(allContent)
           break
         }
 
         loaded += value.length
         const currentContent = decoder.decode(value)
-        content += currentContent
+        allContent += currentContent
+
+        if (needParseJSON) {
+          currentJson ??= currentJsonParser.append(currentContent)
+          allJson ??= allJsonParser.append(allContent)
+
+          currentJsonParser.clear()
+          allJsonParser.clear()
+        }
 
         needParseData
-          ? onMessage?.(
-            Http.parseSSEContent({ content }),
-            Http.parseSSEContent({ content: currentContent }),
-          )
-          : onMessage?.(content, currentContent)
+          ? onMessage?.({
+            allContent: Http.parseSSEContent({ content: allContent }),
+            currentContent: Http.parseSSEContent({ content: currentContent }),
+            allJson,
+            currentJson
+          })
+          : onMessage?.({
+            allContent,
+            currentContent,
+            allJson,
+            currentJson
+          })
 
         const progress = loaded / total
         onProgress?.(
           progress > 0
             ? progress
             : -1,
-          content
+          allContent
         )
       }
     }
@@ -245,6 +267,7 @@ export class BaseReq implements BaseHttpReq {
       method,
       headers,
       needParseData: true,
+      needParseJSON: false,
       ...config,
       url: (defaultConfig.baseUrl || config.baseUrl || '') + url,
     }
