@@ -135,7 +135,6 @@ export class BaseReq implements BaseHttpReq {
       needParseJSON,
       ...rest
     } = formatConfig
-    const { promise, reject, resolve } = Promise.withResolvers<string>()
 
     const {
       reqInterceptor,
@@ -156,95 +155,94 @@ export class BaseReq implements BaseHttpReq {
       return content
     }
 
-    try {
-      const resp = await fetch(
-        withQueryUrl,
-        data
-      )
+    return new Promise<string>(async (resolve, reject) => {
+      try {
+        const resp = await fetch(
+          withQueryUrl,
+          data
+        )
 
-      if (!resp.ok) {
-        const error = new Error(`HTTP error! status: ${resp.status}`)
+        if (!resp.ok) {
+          const error = new Error(`HTTP error! status: ${resp.status}`)
+          onError?.(error)
+          reject(error)
+        }
+
+        const reader = resp.body!.getReader()
+        const decoder = new TextDecoder()
+        const total = resp.headers.get('content-length')
+          ? Number(resp.headers.get('content-length'))
+          : 0
+
+        let allContent = ''
+        let loaded = 0
+        let currentJson: any[] = []
+        const allJson: any[] = []
+        let isFirstConcat = true
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) {
+            resolve?.(handleDataWrapper(allContent))
+            break
+          }
+
+          loaded += value.length
+          let currentContent = decoder.decode(value)
+
+          if (needParseData) {
+            currentContent = Http.parseSSEContent({
+              content: currentContent,
+              handleResult: res => res
+            })
+          }
+
+          if (isFirstConcat) {
+            allContent = currentContent
+            isFirstConcat = false
+          }
+          else {
+            // 说明要拼接 JSON，拼接上逗号
+            if (needParseData) {
+              allContent += `,${currentContent}`
+            }
+          }
+
+          if (needParseJSON) {
+            const data = jsonParser.append(`[${currentContent}]`)
+            if (data) {
+              currentJson = data
+              if (Array.isArray(data)) {
+                allJson.push(...data)
+              }
+              else {
+                allJson.push(data)
+              }
+            }
+          }
+
+          onMessage?.({
+            allContent: handleDataWrapper(allContent),
+            currentContent: handleDataWrapper(currentContent),
+            allJson: needParseJSON ? allJson : [],
+            currentJson: needParseJSON ? currentJson : [],
+          })
+
+          const progress = loaded / total
+          onProgress?.(
+            progress > 0
+              ? progress
+              : -1,
+            handleDataWrapper(allContent)
+          )
+        }
+      }
+      catch (error) {
         onError?.(error)
         reject(error)
-        return promise
+        respErrInterceptor(error)
       }
-
-      const reader = resp.body!.getReader()
-      const decoder = new TextDecoder()
-      const total = resp.headers.get('content-length')
-        ? Number(resp.headers.get('content-length'))
-        : 0
-
-      let allContent = ''
-      let loaded = 0
-      let currentJson: any[] = []
-      const allJson: any[] = []
-      let isFirstConcat = true
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) {
-          resolve?.(handleDataWrapper(allContent))
-          break
-        }
-
-        loaded += value.length
-        let currentContent = decoder.decode(value)
-
-        if (needParseData) {
-          currentContent = Http.parseSSEContent({
-            content: currentContent,
-            handleResult: res => res
-          })
-        }
-
-        if (isFirstConcat) {
-          allContent = currentContent
-          isFirstConcat = false
-        }
-        else {
-          // 说明要拼接 JSON，拼接上逗号
-          if (needParseData) {
-            allContent += `,${currentContent}`
-          }
-        }
-
-        if (needParseJSON) {
-          const data = jsonParser.append(`[${currentContent}]`)
-          if (data) {
-            currentJson = data
-            if (Array.isArray(data)) {
-              allJson.push(...data)
-            }
-            else {
-              allJson.push(data)
-            }
-          }
-        }
-
-        onMessage?.({
-          allContent: handleDataWrapper(allContent),
-          currentContent: handleDataWrapper(currentContent),
-          allJson: needParseJSON ? allJson : [],
-          currentJson: needParseJSON ? currentJson : [],
-        })
-
-        const progress = loaded / total
-        onProgress?.(
-          progress > 0
-            ? progress
-            : -1,
-          handleDataWrapper(allContent)
-        )
-      }
-    }
-    catch (error) {
-      onError?.(error)
-      reject(error)
-      respErrInterceptor(error)
-    }
-
-    return promise
+    })
   }
 
   private normalizeOpts(config: BaseReqConfig) {
