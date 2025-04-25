@@ -6,7 +6,6 @@ export type { BaseReq } from './BaseReq'
 export type { AbsCacheReq } from './abs/AbsCacheReq'
 export type { BaseReqMethodConfig, BaseHttpReq, Resp } from './abs/AbsBaseReqType'
 export type { BaseCacheReqMethodConfig, BaseCacheConstructorConfig } from './abs/AbsCacheReq'
-export * from '@/tools/parseSSEContent'
 
 
 export class Http extends AbsCacheReq {

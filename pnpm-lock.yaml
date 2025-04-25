@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@jl-org/tool':
-        specifier: ^1.8.6
-        version: 1.8.6
       query-string:
         specifier: ^9.0.0
         version: 9.0.0
@@ -44,9 +41,6 @@ importers:
         version: 2.6.2
 
 packages:
-
-  '@jl-org/tool@1.8.6':
-    resolution: {integrity: sha512-VjwxWE6KbjBGhOcJGKDH8eK0LyqE6sCIze0eslEqeS40mR25far2lXC860xhIisQPpGoPcOVHn0tS9eavDqB7w==}
 
   '@jridgewell/gen-mapping@0.3.5':
     resolution: {integrity: sha512-IzL8ZoEDIBRWEzlCcRhOaCupYyN5gdIK+Q6fbFdPDg6HqX6jpkItn7DFIpW9LQzXG6Df9sA7+OKnq0qlz/GaQg==}
@@ -501,8 +495,6 @@ packages:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
 snapshots:
-
-  '@jl-org/tool@1.8.6': {}
 
   '@jridgewell/gen-mapping@0.3.5':
     dependencies:

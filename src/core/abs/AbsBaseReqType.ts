@@ -1,4 +1,4 @@
-import type { FetchType, HttpMethod, ReqBody, ReqHeaders } from '../../types'
+import type { FetchType, HttpMethod, ReqBody, ReqHeaders, SSEData } from '../../types'
 
 
 /**
@@ -16,7 +16,7 @@ export interface BaseHttpReq {
   put<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
   patch<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
 
-  fetchSSE(url: string, config?: SSEOptions): Promise<string>
+  fetchSSE(url: string, config?: SSEOptions): Promise<SSEData>
 }
 
 
@@ -55,26 +55,15 @@ export type BaseReqConfig =
 
 export type BaseReqMethodConfig = Omit<BaseReqConfig, 'url'>
 
-export type OnMessageParam = {
-  /** 所有数据 */
-  allContent: string
-  /** 每次返回的一段数据 */
-  currentContent: string
-  /** 尝试把数据拼接成 JSON */
-  allJson: any[]
-  /** 尝试把当前数据拼接成 JSON */
-  currentJson: any[]
-}
-
 export type SSEOptions = {
   /**
    * 每次都会拿到之前到现在累加的所有内容
    */
-  onMessage?: (data: OnMessageParam) => void
+  onMessage?: (data: SSEData) => void
   /**
    * 计算进度，接口必须有 content-length 响应头
    */
-  onProgress?: (progress: number, content: string) => void
+  onProgress?: (progress: number) => void
   onError?: (error: any) => void
 
   /**

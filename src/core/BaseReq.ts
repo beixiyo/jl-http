@@ -1,14 +1,11 @@
-import type { BaseReqConstructorConfig, BaseReqConfig, BaseReqMethodConfig, Resp, BaseHttpReq, SSEOptions } from './abs/AbsBaseReqType'
-import { TIME_OUT } from '../constants'
-import type { HttpMethod, ReqBody, RespData } from '../types'
-import { retryReq } from '../tools'
+import type { HttpMethod, ReqBody, RespData, SSEData } from '../types'
+import type { BaseHttpReq, BaseReqConfig, BaseReqConstructorConfig, BaseReqMethodConfig, Resp, SSEOptions } from './abs/AbsBaseReqType'
 import qs from 'query-string'
-import { StreamJsonParser } from '@jl-org/tool'
-import { parseSSEContent } from '@/tools/parseSSEContent'
-
+import { TIME_OUT } from '../constants'
+import { retryReq } from '../tools'
+import { SSEStreamProcessor } from '../tools/SSEStreamProcessor'
 
 export class BaseReq implements BaseHttpReq {
-
   constructor(private defaultConfig: BaseReqConstructorConfig = {}) { }
 
   async request<T, HttpResponse = Resp<T>>(config: BaseReqConfig): Promise<HttpResponse> {
@@ -33,7 +30,7 @@ export class BaseReq implements BaseHttpReq {
       const abort = new AbortController()
       const reason: RespData = {
         msg: `${url} 请求超时（Request Timeout）`,
-        code: 408
+        code: 408,
       }
 
       if (rest.signal) {
@@ -55,11 +52,10 @@ export class BaseReq implements BaseHttpReq {
       resolve(res)
     })
 
-
     async function _req(signal: AbortSignal) {
       return fetch(url, {
         ...data,
-        signal: rest.signal || signal
+        signal: rest.signal || signal,
       })
         .then(async (response) => {
           if (hasHttpErr(response.status)) {
@@ -100,7 +96,6 @@ export class BaseReq implements BaseHttpReq {
     return this.request({ url, method: 'HEAD', ...config })
   }
 
-
   delete<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
     return this.request({ url, method: 'DELETE', body: data, ...config })
   }
@@ -124,13 +119,13 @@ export class BaseReq implements BaseHttpReq {
   /**
    * SSE 请求，默认使用 GET
    */
-  async fetchSSE(url: string, config?: SSEOptions): Promise<string> {
+  async fetchSSE(url: string, config?: SSEOptions): Promise<SSEData> {
     const formatConfig = this.normalizeSSEOpts(url, config)
     const {
       url: withPrefixUrl,
       needParseData,
       onError,
-      onMessage,
+      onMessage: onMsg,
       onProgress,
       needParseJSON,
       ...rest
@@ -142,24 +137,11 @@ export class BaseReq implements BaseHttpReq {
     } = this.getInterceptor(formatConfig)
     const { data, url: withQueryUrl } = await getReqConfig(formatConfig, reqInterceptor, rest.method, withPrefixUrl)
 
-    const jsonParser = new StreamJsonParser()
-
-    /**
-     * 判断是否要给数据包装上 []
-     */
-    function handleDataWrapper(content: string) {
-      // 说明要解析 JSON
-      if (needParseData) {
-        return `[${content}]`
-      }
-      return content
-    }
-
-    return new Promise<string>(async (resolve, reject) => {
+    return new Promise<SSEData>(async (resolve, reject) => {
       try {
         const resp = await fetch(
           withQueryUrl,
-          data
+          data,
         )
 
         if (!resp.ok) {
@@ -168,72 +150,46 @@ export class BaseReq implements BaseHttpReq {
           reject(error)
         }
 
+        const sseData: SSEData = {
+          currentJson: [],
+          currentContent: '',
+          allJson: [],
+          allContent: '',
+        }
+
+        const sseParser = new SSEStreamProcessor({
+          onMessage: (data) => {
+            Object.assign(sseData, { ...data })
+            onMsg?.(data)
+          },
+          needParseData,
+          needParseJSON,
+        })
         const reader = resp.body!.getReader()
         const decoder = new TextDecoder()
+
         const total = resp.headers.get('content-length')
           ? Number(resp.headers.get('content-length'))
           : 0
 
-        let allContent = ''
         let loaded = 0
-        let currentJson: any[] = []
-        const allJson: any[] = []
-        let isFirstConcat = true
 
         while (true) {
           const { done, value } = await reader.read()
           if (done) {
-            resolve?.(handleDataWrapper(allContent))
+            resolve?.(sseData)
             break
           }
 
           loaded += value.length
-          let currentContent = decoder.decode(value)
-
-          if (needParseData) {
-            currentContent = parseSSEContent({
-              content: currentContent,
-              handleResult: res => res
-            })
-          }
-
-          if (isFirstConcat) {
-            allContent = currentContent
-            isFirstConcat = false
-          }
-          else {
-            // 说明要拼接 JSON，拼接上逗号
-            if (needParseData) {
-              allContent += `,${currentContent}`
-            }
-          }
-
-          if (needParseJSON) {
-            const data = jsonParser.append(`[${currentContent}]`)
-            if (data) {
-              currentJson = data
-              if (Array.isArray(data)) {
-                allJson.push(...data)
-              }
-              else {
-                allJson.push(data)
-              }
-            }
-          }
-
-          onMessage?.({
-            allContent: handleDataWrapper(allContent),
-            currentContent: handleDataWrapper(currentContent),
-            allJson: needParseJSON ? allJson : [],
-            currentJson: needParseJSON ? currentJson : [],
-          })
+          const currentContent = decoder.decode(value)
+          sseParser.processChunk(currentContent)
 
           const progress = loaded / total
           onProgress?.(
             progress > 0
               ? progress
               : -1,
-            handleDataWrapper(allContent)
           )
         }
       }
@@ -274,8 +230,8 @@ export class BaseReq implements BaseHttpReq {
     } = config
 
     const headers = {
-      'Accept': 'text/event-stream',
-      ...(config.headers || defaultConfig.headers || {})
+      Accept: 'text/event-stream',
+      ...(config.headers || defaultConfig.headers || {}),
     }
     if (method === 'POST') {
       // @ts-ignore
@@ -298,9 +254,9 @@ export class BaseReq implements BaseHttpReq {
   }
 
   private getInterceptor<T>(config: BaseReqConfig) {
-    let reqInterceptor = async (config: BaseReqMethodConfig) => config,
-      respInterceptor = async (config: T) => config,
-      respErrInterceptor: any = () => { }
+    let reqInterceptor = async (config: BaseReqMethodConfig) => config
+    let respInterceptor = async (config: T) => config
+    let respErrInterceptor: any = () => { }
 
     const defaultConfig = this.defaultConfig
     if (defaultConfig.reqInterceptor) {
@@ -333,19 +289,18 @@ export class BaseReq implements BaseHttpReq {
   }
 }
 
-
 function parseBody(data: any) {
   if (typeof data === 'object') {
     return {
       body: JSON.stringify(data),
       headers: {
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+      },
     }
   }
 
   return {
-    body: data
+    body: data,
   }
 }
 
@@ -356,7 +311,7 @@ async function getReqConfig(
   config: BaseReqMethodConfig,
   reqInterceptor: Function,
   method: HttpMethod,
-  url: string
+  url: string,
 ) {
   const query = qs.stringify(config.query || {})
 
@@ -369,7 +324,7 @@ async function getReqConfig(
       data,
       url: query
         ? `${url}?${query}`
-        : url
+        : url,
     }
   }
 
@@ -377,14 +332,14 @@ async function getReqConfig(
   Object.assign(config.headers || {}, headers)
   const data = await reqInterceptor({
     ...config,
-    body: body,
+    body,
   })
 
   return {
     data,
     url: query
       ? `${url}?${query}`
-      : url
+      : url,
   }
 }
 
