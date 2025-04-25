@@ -245,7 +245,7 @@ export class BaseReq implements BaseHttpReq {
       method,
       headers,
       needParseData: true,
-      needParseJSON: false,
+      needParseJSON: true,
       ...config,
       url: (defaultConfig.baseUrl || config.baseUrl || '') + url,
     }

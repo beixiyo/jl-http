@@ -1,5 +1,5 @@
 import type { BaseHttpReq, BaseReqMethodConfig, BaseReqConstructorConfig, Resp, SSEOptions } from './AbsBaseReqType'
-import type { HttpMethod, ReqBody } from '../../types'
+import type { HttpMethod, ReqBody, SSEData } from '../../types'
 import { deepCompare } from '../../tools'
 
 
@@ -169,7 +169,7 @@ export abstract class AbsCacheReq implements BaseHttpReq {
     return this.http.patch<T, HttpResponse>(url, data, config)
   }
 
-  fetchSSE(url: string, config?: SSEOptions): Promise<string> {
+  fetchSSE(url: string, config?: SSEOptions): Promise<SSEData> {
     return this.http.fetchSSE(url, config)
   }
 

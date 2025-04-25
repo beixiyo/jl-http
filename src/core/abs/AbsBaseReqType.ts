@@ -67,15 +67,14 @@ export type SSEOptions = {
   onError?: (error: any) => void
 
   /**
-   * 是否解析数据，删除 data: 内容
-   * 开启的话，会解析出 [...] 字符串，可用作 JSON 解析
+   * 是否解析 SSE 数据，删除 data: 内容
    * @default true
    */
   needParseData?: boolean
 
   /**
    * 是否解析 JSON，开启后，会解析出 JSON 对象，放入 onMessage 回调
-   * @default false
+   * @default true
    */
   needParseJSON?: boolean
 }
