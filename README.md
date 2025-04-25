@@ -103,7 +103,7 @@ const data = await iotHttp.fetchSSE('/ai/chat', {
   },
   // 是否解析数据，删除 data: 前缀（默认为 true）
   needParseData: true,
-  // 是否解析 JSON（默认为 false）
+  // 是否解析 JSON（默认为 true）
   needParseJSON: true
   // 每次接收到新数据时触发
   onMessage: ({ currentContent, allContent, currentJson, allJson }) => {
@@ -115,12 +115,12 @@ const data = await iotHttp.fetchSSE('/ai/chat', {
     console.log('累积 JSON:', allJson)
   },
   // 跟踪进度
-  onProgress: (progress, content) => {
+  onProgress: (progress) => {
     console.log(`进度: ${progress * 100}%`)
   },
   // 错误处理
   onError: (error) => {
-    console.error('SSE错误:', error)
+    console.error(error)
   },
 })
 
