@@ -285,9 +285,14 @@ export class SSEStreamProcessor {
       doneSignal,
       onMessage: ({
         content,
-        isEnd
+        isEnd,
+        remainingBuffer: newRemainingBuffer,
       }) => {
-        streamEnded = isEnd
+        if (isEnd) {
+          streamEnded = true
+        }
+        remainingBuffer = newRemainingBuffer
+
         if (content) {
           rawJsonPayloads.push(content) // 存储本轮原始内容
 
