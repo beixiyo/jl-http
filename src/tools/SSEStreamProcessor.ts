@@ -14,6 +14,9 @@ export class SSEStreamProcessor {
   private allRawPayloadsString: string = '' // 所有处理过的载荷/块的拼接
   private isEnd: boolean = false
 
+  /** 原始 SSE 数据 */
+  private rawSSEData = ''
+
   /**
    * 创建 StreamProcessor 实例
    * @param config 处理器的配置选项
@@ -41,6 +44,10 @@ export class SSEStreamProcessor {
    * @returns 当前步骤的处理结果
    */
   processChunk(chunk: string): ProcessChunkResult {
+    this.rawSSEData += this.config.needParseData
+      ? SSEStreamProcessor.parseSSEPrefix({ content: chunk, prefix: this.config.dataPrefix })
+      : chunk
+
     /** 如果流已结束，则不再处理新块 */
     if (this.isEnd) {
       console.warn('流已结束')
@@ -90,7 +97,7 @@ export class SSEStreamProcessor {
           }
         }
         catch (error) {
-          console.error(`非 SSE 模式 JSON 解析失败: "${currentRawPayload.substring(0, 100)}..."`, error)
+          console.error(`非 SSE 模式 JSON 解析失败: "${currentRawPayload.slice(0, 100)}..."`, error)
         }
       }
     }
@@ -110,6 +117,7 @@ export class SSEStreamProcessor {
         currentJson: Object.freeze([...parsedObjects]), // 传递不可变副本
         allContent: this.allRawPayloadsString,
         allJson: Object.freeze([...this.allJsonObjects]), // 传递不可变副本
+        rawSSEData: this.rawSSEData,
       })
     }
     else if (streamEndedThisChunk && !this.isEnd) {
@@ -133,7 +141,7 @@ export class SSEStreamProcessor {
     const remainingChunk = this.buffer
     this.buffer = '' // 清空缓冲区
 
-    console.warn('警告：处理剩余缓冲区内容:', JSON.stringify(`${remainingChunk.substring(0, 100)}...`))
+    console.warn('警告：处理剩余缓冲区内容:', JSON.stringify(`${remainingChunk.slice(0, 100)}...`))
 
     let currentRawPayload = ''
     const parsedObjects: any[] = []
@@ -148,17 +156,15 @@ export class SSEStreamProcessor {
       const lines = remainingChunk.split('\n')
       for (const line of lines) {
         const trimmedLine = line.trim()
-        if (trimmedLine.startsWith(this.config.dataPrefix)) {
-          const prefixLength = trimmedLine.startsWith(`${this.config.dataPrefix} `)
-            ? this.config.dataPrefix.length + 1
-            : this.config.dataPrefix.length
-          const payload = trimmedLine.substring(prefixLength).trim()
+        const payload = SSEStreamProcessor.parseSSEPrefix({
+          content: trimmedLine,
+          prefix: this.config.dataPrefix,
+        })
 
-          if (payload === this.config.doneSignal) {
-            streamEndedInRemainder = true
-          }
-          payloadPart += payload
+        if (payload === this.config.doneSignal) {
+          streamEndedInRemainder = true
         }
+        payloadPart += payload
       }
       processedPayload = payloadPart.trim()
     }
@@ -184,7 +190,7 @@ export class SSEStreamProcessor {
           this.successfullyParsedRawJson.push(processedPayload)
         }
         catch (error) {
-          console.error(`处理剩余缓冲区 JSON 解析失败: "${processedPayload.substring(0, 100)}..."`, error)
+          console.error(`处理剩余缓冲区 JSON 解析失败: "${processedPayload.slice(0, 100)}..."`, error)
         }
       }
     }
@@ -207,6 +213,7 @@ export class SSEStreamProcessor {
         currentJson: Object.freeze([...parsedObjects]),
         allContent: this.allRawPayloadsString,
         allJson: Object.freeze([...this.allJsonObjects]),
+        rawSSEData: this.rawSSEData,
       })
 
       return this.getCurrentStateAsResult(currentRawPayload, parsedObjects)
@@ -275,25 +282,23 @@ export class SSEStreamProcessor {
       if (separatorIndex === -1)
         break // 没有完整消息了
 
-      const messageBlock = remainingBuffer.substring(0, separatorIndex)
-      remainingBuffer = remainingBuffer.substring(separatorIndex + separator.length)
+      const messageBlock = remainingBuffer.slice(0, separatorIndex)
+      remainingBuffer = remainingBuffer.slice(separatorIndex + separator.length)
 
       const lines = messageBlock.split('\n')
       let currentPayload = '' // 用于拼接当前消息块内的多行 data
 
       for (const line of lines) {
         const trimmedLine = line.trim()
-        if (trimmedLine.startsWith(dataPrefix)) {
-          const prefixLength = trimmedLine.startsWith(`${dataPrefix} `)
-            ? dataPrefix.length + 1
-            : dataPrefix.length
-          const payload = trimmedLine.substring(prefixLength).trim()
+        const payload = SSEStreamProcessor.parseSSEPrefix({
+          content: trimmedLine,
+          prefix: this.config.dataPrefix,
+        })
 
-          if (payload === doneSignal) {
-            streamEnded = true
-          }
-          currentPayload += payload // 拼接载荷
+        if (payload === doneSignal) {
+          streamEnded = true
         }
+        currentPayload += payload // 拼接载荷
       }
 
       /** 处理拼接好的当前消息块载荷 */
@@ -313,7 +318,7 @@ export class SSEStreamProcessor {
             this.successfullyParsedRawJson.push(finalPayloadForBlock)
           }
           catch (error) {
-            console.error(`SSE JSON 解析失败: "${finalPayloadForBlock.substring(0, 100)}..."`, error)
+            console.error(`SSE JSON 解析失败: "${finalPayloadForBlock.slice(0, 100)}..."`, error)
             /** 解析失败，不添加到 successfullyParsedRawJson */
           }
         }
@@ -326,6 +331,35 @@ export class SSEStreamProcessor {
       streamEnded,
       remainingBuffer,
     }
+  }
+
+  static parseSSEPrefix(
+    {
+      content,
+      prefix = 'data:',
+      trim = true,
+    }: {
+      content: string,
+      prefix?: string
+      trim?: boolean
+    }
+  ) {
+    if (!content.startsWith(prefix)) {
+      return content // 如果不以指定前缀开头，直接返回原始内容
+    }
+
+    /**
+     * 有两种格式
+     * 1. data:xxx
+     * 2. data: xxx
+     */
+    const prefixLength = content.startsWith(`${prefix} `)
+      ? prefix.length + 1
+      : prefix.length
+
+    return trim
+      ? content.slice(prefixLength).trim()
+      : content.slice(prefixLength)
   }
 
   /**

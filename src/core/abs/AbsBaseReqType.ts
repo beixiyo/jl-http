@@ -61,6 +61,11 @@ export type SSEOptions = {
    */
   onMessage?: (data: SSEData) => void
   /**
+   * 原始 SSE 数据
+   */
+  onRawMessage?: (data: string) => void
+
+  /**
    * 计算进度，接口必须有 content-length 响应头
    */
   onProgress?: (progress: number) => void

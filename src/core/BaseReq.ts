@@ -126,6 +126,7 @@ export class BaseReq implements BaseHttpReq {
       needParseData,
       onError,
       onMessage: onMsg,
+      onRawMessage,
       onProgress,
       needParseJSON,
       ...rest
@@ -150,11 +151,13 @@ export class BaseReq implements BaseHttpReq {
           reject(error)
         }
 
+        let rawSSEData = ''
         const sseData: SSEData = {
           currentJson: [],
           currentContent: '',
           allJson: [],
           allContent: '',
+          rawSSEData: '',
         }
 
         const sseParser = new SSEStreamProcessor({
@@ -177,13 +180,26 @@ export class BaseReq implements BaseHttpReq {
         while (true) {
           const { done, value } = await reader.read()
           if (done) {
+            /**
+             * 确保一定正确且有值
+             * 因为不传递 onMsg 时，是不会触发 SSEStreamProcessor 的
+             */
+            sseData.rawSSEData = rawSSEData
             resolve?.(sseData)
             break
           }
 
           loaded += value.length
           const currentContent = decoder.decode(value)
-          sseParser.processChunk(currentContent)
+          const parsedCurrentContent = needParseData
+            ? SSEStreamProcessor.parseSSEPrefix({ content: currentContent })
+            : currentContent
+
+          rawSSEData += parsedCurrentContent
+
+          // 当有 onMsg 才需要解析
+          onMsg && sseParser.processChunk(currentContent)
+          onRawMessage?.(parsedCurrentContent)
 
           const progress = loaded / total
           onProgress?.(
