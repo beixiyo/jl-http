@@ -15,7 +15,7 @@ export class SSEStreamProcessor {
   private isEnd: boolean = false
 
   /** 原始 SSE 数据 */
-  private rawSSEData = ''
+  private rawSSEData: string[] = []
 
   /**
    * 创建 StreamProcessor 实例
@@ -44,9 +44,10 @@ export class SSEStreamProcessor {
    * @returns 当前步骤的处理结果
    */
   processChunk(chunk: string): ProcessChunkResult {
-    this.rawSSEData += this.config.needParseData
-      ? SSEStreamProcessor.parseSSEPrefix({ content: chunk, prefix: this.config.dataPrefix })
-      : chunk
+    const data = this.config.needParseData
+      ? SSEStreamProcessor.parseSSEPrefix({ content: chunk, dataPrefix: this.config.dataPrefix })
+      : [chunk]
+    this.rawSSEData.push(...data) // 存储原始 SSE 数据
 
     /** 如果流已结束，则不再处理新块 */
     if (this.isEnd) {
@@ -158,7 +159,7 @@ export class SSEStreamProcessor {
         const trimmedLine = line.trim()
         const payload = SSEStreamProcessor.parseSSEPrefix({
           content: trimmedLine,
-          prefix: this.config.dataPrefix,
+          dataPrefix: this.config.dataPrefix,
         })
 
         if (payload === this.config.doneSignal) {
@@ -277,53 +278,37 @@ export class SSEStreamProcessor {
     let streamEnded = false
     const { separator, dataPrefix, doneSignal, needParseJSON } = this.config
 
-    while (true) {
-      const separatorIndex = remainingBuffer.indexOf(separator)
-      if (separatorIndex === -1)
-        break // 没有完整消息了
+    SSEStreamProcessor.parseSSEMessages({
+      content: remainingBuffer,
+      separator,
+      dataPrefix,
+      doneSignal,
+      onMessage: ({
+        content,
+        isEnd
+      }) => {
+        streamEnded = isEnd
+        if (content) {
+          rawJsonPayloads.push(content) // 存储本轮原始内容
 
-      const messageBlock = remainingBuffer.slice(0, separatorIndex)
-      remainingBuffer = remainingBuffer.slice(separatorIndex + separator.length)
-
-      const lines = messageBlock.split('\n')
-      let currentPayload = '' // 用于拼接当前消息块内的多行 data
-
-      for (const line of lines) {
-        const trimmedLine = line.trim()
-        const payload = SSEStreamProcessor.parseSSEPrefix({
-          content: trimmedLine,
-          prefix: this.config.dataPrefix,
-        })
-
-        if (payload === doneSignal) {
-          streamEnded = true
-        }
-        currentPayload += payload // 拼接载荷
-      }
-
-      /** 处理拼接好的当前消息块载荷 */
-      const finalPayloadForBlock = currentPayload.trim()
-
-      if (finalPayloadForBlock) {
-        rawJsonPayloads.push(finalPayloadForBlock) // 存储本轮原始载荷
-
-        if (needParseJSON) {
-          try {
-            const parsed = JSON.parse(finalPayloadForBlock)
-            const itemsToAdd = Array.isArray(parsed)
-              ? parsed
-              : [parsed] // 处理载荷本身是数组的情况
-            parsedObjects.push(...itemsToAdd)
-            // *** 关键：只有成功解析，才将原始字符串加入用于最终数组构建的列表 ***
-            this.successfullyParsedRawJson.push(finalPayloadForBlock)
-          }
-          catch (error) {
-            console.error(`SSE JSON 解析失败: "${finalPayloadForBlock.slice(0, 100)}..."`, error)
-            /** 解析失败，不添加到 successfullyParsedRawJson */
+          if (needParseJSON) {
+            try {
+              const parsed = JSON.parse(content)
+              const itemsToAdd = Array.isArray(parsed)
+                ? parsed
+                : [parsed] // 处理载荷本身是数组的情况
+              parsedObjects.push(...itemsToAdd)
+              // *** 关键：只有成功解析，才将原始字符串加入用于最终数组构建的列表 ***
+              this.successfullyParsedRawJson.push(content)
+            }
+            catch (error) {
+              console.error(`SSE JSON 解析失败: "${content.slice(0, 100)}..."`, error)
+              /** 解析失败，不添加到 successfullyParsedRawJson */
+            }
           }
         }
       }
-    } // while 结束
+    })
 
     return {
       parsedObjects,
@@ -336,15 +321,15 @@ export class SSEStreamProcessor {
   static parseSSEPrefix(
     {
       content,
-      prefix = 'data:',
+      dataPrefix = 'data:',
       trim = true,
     }: {
       content: string,
-      prefix?: string
+      dataPrefix?: string
       trim?: boolean
     }
   ) {
-    if (!content.startsWith(prefix)) {
+    if (!content.startsWith(dataPrefix)) {
       return content // 如果不以指定前缀开头，直接返回原始内容
     }
 
@@ -353,13 +338,94 @@ export class SSEStreamProcessor {
      * 1. data:xxx
      * 2. data: xxx
      */
-    const prefixLength = content.startsWith(`${prefix} `)
-      ? prefix.length + 1
-      : prefix.length
+    const prefixLength = content.startsWith(`${dataPrefix} `)
+      ? dataPrefix.length + 1
+      : dataPrefix.length
 
     return trim
       ? content.slice(prefixLength).trim()
       : content.slice(prefixLength)
+  }
+
+  /**
+   * 解析包含 SSE 消息的缓冲区字符串，将多段数据解析成数组，并且确保每段数据完整
+   * 核心逻辑是使用 separator 分割消息块，并处理 dataPrefix 和 doneSignal
+   */
+  static parseSSEMessages(
+    params: ParseSSEContentParam
+  ): string[] {
+    const {
+      content,
+      separator = '\n\n',
+      dataPrefix = 'data:',
+      doneSignal = '[DONE]',
+      onMessage
+    } = params
+
+    const collectedPayloads: string[] = []
+    let currentBuffer = content
+    let continueParsing = true
+
+    while (continueParsing) {
+      const separatorIndex = currentBuffer.indexOf(separator)
+
+      // 如果找不到分隔符，则停止循环
+      if (separatorIndex === -1) {
+        continueParsing = false
+        break
+      }
+
+      const messageBlock = currentBuffer.slice(0, separatorIndex)
+      // 更新缓冲区，移除已处理的消息块和分隔符
+      const remainingBuffer = currentBuffer.slice(separatorIndex + separator.length)
+
+      const lines = messageBlock.split('\n')
+      let currentPayload = '' // 用于拼接当前消息块内的多行 data
+      let blockContainsEndSignal = false
+
+      for (const line of lines) {
+        const trimmedLine = line.trim()
+        // 使用 parseSSEPrefix 处理每一行
+        const payloadPart = SSEStreamProcessor.parseSSEPrefix({
+          content: trimmedLine,
+          dataPrefix: dataPrefix,
+          trim: false, // 先不 trim，最后统一 trim
+        })
+
+        // 检查是否是结束信号，注意：结束信号本身也可能带有 data: 前缀
+        if (payloadPart.trim() === doneSignal) {
+          blockContainsEndSignal = true
+        }
+
+        if (payloadPart === doneSignal) {
+          // 如果是结束信号行，也记录下来，但不加入 payload
+        }
+        else {
+          currentPayload += payloadPart
+        }
+      }
+
+      const finalPayloadForBlock = currentPayload.trim() // 对整个块的拼接结果进行 trim
+
+      // 调用回调，传递解析信息和剩余的缓冲区
+      onMessage?.({
+        separatorIndex,
+        content: finalPayloadForBlock,
+        isEnd: blockContainsEndSignal,
+        remainingBuffer: remainingBuffer, // 传递更新后的缓冲区
+      })
+
+      // 收集有效内容
+      if (finalPayloadForBlock) {
+        collectedPayloads.push(finalPayloadForBlock)
+      }
+
+      // 更新 currentBuffer 以便下一次迭代
+      currentBuffer = remainingBuffer
+    } // while 结束
+
+    // 返回所有收集到的内容
+    return collectedPayloads
   }
 
   /**
@@ -410,6 +476,38 @@ export interface SSEStreamProcessorConfig {
    * 消息回调函数，在处理完包含有效数据的块或剩余缓冲区后触发。
    */
   onMessage?: (data: SSEData) => void
+}
+
+export interface ParseSSEContentParam {
+  content: string
+  onMessage?: (
+    data: {
+      /** 匹配到分隔符的索引位置 */
+      separatorIndex: number
+      /** 匹配到的内容 */
+      content: string
+      /** 是否是结束信号 */
+      isEnd: boolean
+      /** 剩余的缓冲区 */
+      remainingBuffer: string
+    }
+  ) => void
+
+  /**
+   * 以什么作为分隔符切割
+   * @default '\n\n'
+   */
+  separator?: string
+  /**
+   * 以什么作为数据前缀
+   * @default 'data:'
+   */
+  dataPrefix?: string
+  /**
+   * 以什么作为结束信号
+   * @default '[DONE]'
+   */
+  doneSignal?: string
 }
 
 /**

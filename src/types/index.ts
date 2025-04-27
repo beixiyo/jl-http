@@ -29,5 +29,5 @@ export type SSEData = {
   /** 累积的所有 JSON 对象数组 (只读) */
   allJson: readonly any[]
   /** 原始 SSE 拼接的字符串，未经过任何处理 */
-  rawSSEData: string
+  rawSSEData: string[]
 }

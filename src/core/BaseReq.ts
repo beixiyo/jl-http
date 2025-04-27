@@ -151,13 +151,13 @@ export class BaseReq implements BaseHttpReq {
           reject(error)
         }
 
-        let rawSSEData = ''
+        const rawSSEData: string[] = []
         const sseData: SSEData = {
           currentJson: [],
           currentContent: '',
           allJson: [],
           allContent: '',
-          rawSSEData: '',
+          rawSSEData: [],
         }
 
         const sseParser = new SSEStreamProcessor({
@@ -192,10 +192,10 @@ export class BaseReq implements BaseHttpReq {
           loaded += value.length
           const currentContent = decoder.decode(value)
           const parsedCurrentContent = needParseData
-            ? SSEStreamProcessor.parseSSEPrefix({ content: currentContent })
-            : currentContent
+            ? SSEStreamProcessor.parseSSEMessages({ content: currentContent })
+            : [currentContent]
 
-          rawSSEData += parsedCurrentContent
+          rawSSEData.push(...parsedCurrentContent)
 
           // 当有 onMsg 才需要解析
           onMsg && sseParser.processChunk(currentContent)
