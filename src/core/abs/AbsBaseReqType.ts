@@ -61,9 +61,14 @@ export type SSEOptions = {
    */
   onMessage?: (data: SSEData) => void
   /**
-   * 原始 SSE 数据
+   * 原始 SSE 数据，按照数组分段存储，较好处理
    */
-  onRawMessage?: (data: SSEData['rawSSEData']) => void
+  onRawMessage?: (data: {
+    /** 当前原始 SSE 拼接的数据，未经过任何处理 */
+    currentRawSSEData: string[]
+    /** 累积原始 SSE 拼接的数据，未经过任何处理 */
+    allRawSSEData: string[]
+  }) => void
 
   /**
    * 计算进度，接口必须有 content-length 响应头

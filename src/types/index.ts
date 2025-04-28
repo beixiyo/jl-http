@@ -24,10 +24,9 @@ export type SSEData = {
   currentContent: string
   /** 当前处理块/缓冲区中解析出的 JSON 对象数组 (只读) */
   currentJson: readonly any[]
+
   /** 累积的所有原始有效载荷字符串 */
   allContent: string
   /** 累积的所有 JSON 对象数组 (只读) */
   allJson: readonly any[]
-  /** 原始 SSE 拼接的字符串，未经过任何处理 */
-  rawSSEData: string[]
 }

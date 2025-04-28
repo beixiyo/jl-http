@@ -14,9 +14,6 @@ export class SSEStreamProcessor {
   private allRawPayloadsString: string = '' // 所有处理过的载荷/块的拼接
   private isEnd: boolean = false
 
-  /** 原始 SSE 数据 */
-  private rawSSEData: string[] = []
-
   /**
    * 创建 StreamProcessor 实例
    * @param config 处理器的配置选项
@@ -44,11 +41,6 @@ export class SSEStreamProcessor {
    * @returns 当前步骤的处理结果
    */
   processChunk(chunk: string): ProcessChunkResult {
-    const data = this.config.needParseData
-      ? SSEStreamProcessor.parseSSEPrefix({ content: chunk, dataPrefix: this.config.dataPrefix })
-      : [chunk]
-    this.rawSSEData.push(...data) // 存储原始 SSE 数据
-
     /** 如果流已结束，则不再处理新块 */
     if (this.isEnd) {
       console.warn('流已结束')
@@ -118,7 +110,6 @@ export class SSEStreamProcessor {
         currentJson: Object.freeze([...parsedObjects]), // 传递不可变副本
         allContent: this.allRawPayloadsString,
         allJson: Object.freeze([...this.allJsonObjects]), // 传递不可变副本
-        rawSSEData: this.rawSSEData,
       })
     }
     else if (streamEndedThisChunk && !this.isEnd) {
@@ -214,7 +205,6 @@ export class SSEStreamProcessor {
         currentJson: Object.freeze([...parsedObjects]),
         allContent: this.allRawPayloadsString,
         allJson: Object.freeze([...this.allJsonObjects]),
-        rawSSEData: this.rawSSEData,
       })
 
       return this.getCurrentStateAsResult(currentRawPayload, parsedObjects)
@@ -307,7 +297,7 @@ export class SSEStreamProcessor {
               this.successfullyParsedRawJson.push(content)
             }
             catch (error) {
-              console.error(`SSE JSON 解析失败: "${content.slice(0, 100)}..."`, error)
+              console.warn(`SSE JSON 解析失败: "${content.slice(0, 100)}..."`, error)
               /** 解析失败，不添加到 successfullyParsedRawJson */
             }
           }
