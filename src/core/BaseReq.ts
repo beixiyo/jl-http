@@ -304,6 +304,15 @@ export class BaseReq implements BaseHttpReq {
 }
 
 function parseBody(data: any) {
+  if (data instanceof FormData) {
+    return {
+      body: data,
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  }
+
   if (typeof data === 'object') {
     return {
       body: JSON.stringify(data),
