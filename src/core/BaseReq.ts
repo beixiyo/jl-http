@@ -229,9 +229,9 @@ export class BaseReq implements BaseHttpReq {
       headers: config.headers || defaultConfig.headers || {},
       timeout: config.timeout || defaultConfig.timeout || TIME_OUT,
       signal: config.signal,
-      retry: defaultConfig.retry ?? config.retry ?? 0,
+      retry: config.retry ?? defaultConfig.retry ?? 0,
       ...config,
-      url: (defaultConfig.baseUrl || config.baseUrl || '') + config.url,
+      url: (config.baseUrl || defaultConfig.baseUrl || '') + config.url,
     }
 
     return finalConfig
@@ -261,7 +261,7 @@ export class BaseReq implements BaseHttpReq {
       needParseData: true,
       needParseJSON: true,
       ...config,
-      url: (defaultConfig.baseUrl || config.baseUrl || '') + url,
+      url: (config.baseUrl || defaultConfig.baseUrl || '') + url,
     }
 
     return finalConfig
