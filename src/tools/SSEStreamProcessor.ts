@@ -388,16 +388,16 @@ export class SSEStreamProcessor {
 
       for (const line of lines) {
         const trimmedLine = line.trim()
+        if (!trimmedLine.startsWith(dataPrefix) && ignoreInvalidDataPrefix) {
+          continue
+        }
+
         // 使用 parseSSEPrefix 处理每一行
         const payloadPart = SSEStreamProcessor.parseSSEPrefix({
           content: trimmedLine,
           dataPrefix: dataPrefix,
           trim: false, // 先不 trim，最后统一 trim
         })
-
-        if (!payloadPart.startsWith(dataPrefix) && ignoreInvalidDataPrefix) {
-          continue
-        }
 
         // 检查是否是结束信号，注意：结束信号本身也可能带有 data: 前缀
         if (payloadPart.trim() === doneSignal) {

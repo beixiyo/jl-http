@@ -131,6 +131,9 @@ export class BaseReq implements BaseHttpReq {
       needParseJSON,
       ignoreInvalidDataPrefix,
       handleData,
+      separator,
+      dataPrefix,
+      doneSignal,
       ...rest
     } = formatConfig
 
@@ -171,7 +174,10 @@ export class BaseReq implements BaseHttpReq {
           handleData,
           needParseData,
           needParseJSON,
-          ignoreInvalidDataPrefix
+          ignoreInvalidDataPrefix,
+          separator,
+          dataPrefix,
+          doneSignal,
         })
 
         const reader = resp.body!.getReader()
@@ -196,7 +202,14 @@ export class BaseReq implements BaseHttpReq {
           loaded += value.length
           const currentContent = decoder.decode(value)
           const parsedCurrentSSEData = needParseData
-            ? SSEStreamProcessor.parseSSEMessages({ content: currentContent, handleData, ignoreInvalidDataPrefix })
+            ? SSEStreamProcessor.parseSSEMessages({
+              content: currentContent,
+              handleData,
+              ignoreInvalidDataPrefix,
+              separator,
+              dataPrefix,
+              doneSignal,
+            })
             : [currentContent]
 
           rawSSEData.push(...parsedCurrentSSEData)
@@ -277,6 +290,9 @@ export class BaseReq implements BaseHttpReq {
       needParseData: true,
       needParseJSON: true,
       ignoreInvalidDataPrefix: true,
+      separator: '\n\n',
+      dataPrefix: 'data:',
+      doneSignal: '[DONE]',
       handleData(currentContent) {
         return currentContent
       },

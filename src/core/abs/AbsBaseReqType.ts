@@ -97,6 +97,21 @@ export type SSEOptions = {
    */
   needParseJSON?: boolean
   /**
+   * 以什么作为分隔符切割
+   * @default '\n\n'
+   */
+  separator?: SSEStreamProcessorConfig['separator']
+  /**
+   * 以什么作为数据前缀
+   * @default 'data:'
+   */
+  dataPrefix?: SSEStreamProcessorConfig['dataPrefix']
+  /**
+   * 以什么作为结束信号
+   * @default '[DONE]'
+   */
+  doneSignal?: SSEStreamProcessorConfig['doneSignal']
+  /**
    * 是否忽略无效数据前缀 (如不以 dataPrefix(data: 开头))
    * @default true
    */
