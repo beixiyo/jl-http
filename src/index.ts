@@ -1,3 +1,5 @@
+import './plugins/index'
+
 export type { SSEData, HttpMethod } from './types'
 
 export * from './core'

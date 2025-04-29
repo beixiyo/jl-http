@@ -1,5 +1,5 @@
 import type { SSEStreamProcessorConfig } from '@/tools/SSEStreamProcessor'
-import type { FetchType, HttpMethod, ReqBody, ReqHeaders, SSEData } from '../../types'
+import type { FetchType, HttpMethod, ReqBody, ReqHeaders, SSEData } from '@/types'
 
 
 /**
@@ -17,12 +17,17 @@ export interface BaseHttpReq {
   put<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
   patch<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
 
-  fetchSSE(url: string, config?: SSEOptions): Promise<SSEData>
+  fetchSSE(url: string, config?: SSEOptions): Promise<FetchSSEReturn>
 }
 
 
 export type FetchOptions = Omit<RequestInit, 'method'> & {
   method?: HttpMethod
+}
+
+export type FetchSSEReturn = {
+  cancel: () => void
+  promise: Promise<SSEData>
 }
 
 export type BaseReqConfig =

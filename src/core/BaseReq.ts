@@ -1,9 +1,9 @@
-import type { HttpMethod, ReqBody, RespData, SSEData } from '../types'
-import type { BaseHttpReq, BaseReqConfig, BaseReqConstructorConfig, BaseReqMethodConfig, Resp, SSEOptions } from './abs/AbsBaseReqType'
+import type { HttpMethod, ReqBody, RespData, SSEData } from '@/types'
+import type { BaseHttpReq, BaseReqConfig, BaseReqConstructorConfig, BaseReqMethodConfig, FetchSSEReturn, Resp, SSEOptions } from './abs/AbsBaseReqType'
 import qs from 'query-string'
-import { TIME_OUT } from '../constants'
-import { retryReq } from '../tools'
-import { SSEStreamProcessor } from '../tools/SSEStreamProcessor'
+import { TIME_OUT } from '@/constants'
+import { retryReq } from '@/tools'
+import { SSEStreamProcessor } from '@/tools/SSEStreamProcessor'
 
 export class BaseReq implements BaseHttpReq {
   constructor(private defaultConfig: BaseReqConstructorConfig = {}) { }
@@ -119,7 +119,7 @@ export class BaseReq implements BaseHttpReq {
   /**
    * SSE 请求，默认使用 GET
    */
-  async fetchSSE(url: string, config?: SSEOptions): Promise<SSEData> {
+  async fetchSSE(url: string, config?: SSEOptions): Promise<FetchSSEReturn> {
     const formatConfig = this.normalizeSSEOpts(url, config)
     const {
       url: withPrefixUrl,
@@ -139,13 +139,14 @@ export class BaseReq implements BaseHttpReq {
     } = this.getInterceptor(formatConfig)
     const { data, url: withQueryUrl } = await getReqConfig(formatConfig, reqInterceptor, rest.method, withPrefixUrl)
 
-    return new Promise<SSEData>(async (resolve, reject) => {
-      try {
-        const resp = await fetch(
-          withQueryUrl,
-          data,
-        )
+    const { promise, resolve, reject } = Promise.withResolvers<SSEData>()
+    let cancelFn: Function = () => { }
 
+    fetch(
+      withQueryUrl,
+      data,
+    )
+      .then(async (resp) => {
         if (!resp.ok) {
           const error = new Error(`HTTP error! status: ${resp.status}`)
           onError?.(error)
@@ -172,6 +173,9 @@ export class BaseReq implements BaseHttpReq {
         })
         const reader = resp.body!.getReader()
         const decoder = new TextDecoder()
+        cancelFn = () => {
+          reader.cancel()
+        }
 
         const total = resp.headers.get('content-length')
           ? Number(resp.headers.get('content-length'))
@@ -208,13 +212,20 @@ export class BaseReq implements BaseHttpReq {
               : -1,
           )
         }
-      }
-      catch (error) {
+      })
+      .catch((error) => {
         onError?.(error)
         reject(error)
         respErrInterceptor(error)
+      })
+
+    return {
+      promise,
+      cancel: () => {
+        cancelFn()
+        reject(new Error('Request canceled by user'))
       }
-    })
+    }
   }
 
   private normalizeOpts(config: BaseReqConfig) {
