@@ -96,7 +96,7 @@ iotHttp.cachePost(
 
 ```ts
 // 实时处理流式数据
-const { promise, cancel } = iotHttp.fetchSSE('/ai/chat', {
+const { promise, cancel } = await iotHttp.fetchSSE('/ai/chat', {
   method: 'POST',
   body: {
     messages: [{ role: 'user', content: '你好' }]
