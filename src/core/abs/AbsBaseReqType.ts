@@ -1,3 +1,4 @@
+import type { SSEStreamProcessorConfig } from '@/tools/SSEStreamProcessor'
 import type { FetchType, HttpMethod, ReqBody, ReqHeaders, SSEData } from '../../types'
 
 
@@ -69,6 +70,10 @@ export type SSEOptions = {
     /** 累积原始 SSE 拼接的数据，未经过任何处理 */
     allRawSSEData: string[]
   }) => void
+  /**
+   * 处理数据的自定义函数，用于对提取的数据进行进一步处理
+   */
+  handleData?: SSEStreamProcessorConfig['handleData']
 
   /**
    * 计算进度，接口必须有 content-length 响应头

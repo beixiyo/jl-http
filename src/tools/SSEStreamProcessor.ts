@@ -26,6 +26,9 @@ export class SSEStreamProcessor {
       dataPrefix: 'data:',
       doneSignal: '[DONE]',
       onMessage: () => { },
+      handleData(currentContent) {
+        return currentContent
+      },
     }
 
     this.config = {
@@ -273,6 +276,7 @@ export class SSEStreamProcessor {
       separator,
       dataPrefix,
       doneSignal,
+      handleData: this.config.handleData,
       onMessage: ({
         content,
         isEnd,
@@ -347,15 +351,16 @@ export class SSEStreamProcessor {
    * 核心逻辑是使用 separator 分割消息块，并处理 dataPrefix 和 doneSignal
    */
   static parseSSEMessages(
-    params: ParseSSEContentParam
+    config: ParseSSEContentParam
   ): string[] {
     const {
       content,
       separator = '\n\n',
       dataPrefix = 'data:',
       doneSignal = '[DONE]',
-      onMessage
-    } = params
+      onMessage,
+      handleData
+    } = config
 
     const collectedPayloads: string[] = []
     let currentBuffer = content
@@ -396,7 +401,9 @@ export class SSEStreamProcessor {
           // 如果是结束信号行，也记录下来，但不加入 payload
         }
         else {
-          currentPayload += payloadPart
+          currentPayload += handleData
+            ? handleData(payloadPart)
+            : payloadPart
         }
       }
 
@@ -471,6 +478,10 @@ export interface SSEStreamProcessorConfig {
    * 消息回调函数，在处理完包含有效数据的块或剩余缓冲区后触发。
    */
   onMessage?: (data: SSEData) => void
+  /**
+   * 处理数据的自定义函数，用于对提取的数据进行进一步处理
+   */
+  handleData?: (currentContent: string) => string
 }
 
 export interface ParseSSEContentParam {
@@ -489,20 +500,25 @@ export interface ParseSSEContentParam {
   ) => void
 
   /**
+   * 处理数据的自定义函数，用于对提取的数据进行进一步处理
+   */
+  handleData?: SSEStreamProcessorConfig['handleData']
+
+  /**
    * 以什么作为分隔符切割
    * @default '\n\n'
    */
-  separator?: string
+  separator?: SSEStreamProcessorConfig['separator']
   /**
    * 以什么作为数据前缀
    * @default 'data:'
    */
-  dataPrefix?: string
+  dataPrefix?: SSEStreamProcessorConfig['dataPrefix']
   /**
    * 以什么作为结束信号
    * @default '[DONE]'
    */
-  doneSignal?: string
+  doneSignal?: SSEStreamProcessorConfig['doneSignal']
 }
 
 /**

@@ -129,6 +129,7 @@ export class BaseReq implements BaseHttpReq {
       onRawMessage,
       onProgress,
       needParseJSON,
+      handleData,
       ...rest
     } = formatConfig
 
@@ -165,6 +166,7 @@ export class BaseReq implements BaseHttpReq {
             Object.assign(sseData, { ...data })
             onMsg?.(data)
           },
+          handleData,
           needParseData,
           needParseJSON,
         })
@@ -187,7 +189,7 @@ export class BaseReq implements BaseHttpReq {
           loaded += value.length
           const currentContent = decoder.decode(value)
           const parsedCurrentSSEData = needParseData
-            ? SSEStreamProcessor.parseSSEMessages({ content: currentContent })
+            ? SSEStreamProcessor.parseSSEMessages({ content: currentContent, handleData })
             : [currentContent]
 
           rawSSEData.push(...parsedCurrentSSEData)
@@ -260,6 +262,9 @@ export class BaseReq implements BaseHttpReq {
       headers,
       needParseData: true,
       needParseJSON: true,
+      handleData(currentContent) {
+        return currentContent
+      },
       ...config,
       url: (config.baseUrl || defaultConfig.baseUrl || '') + url,
     }
