@@ -91,12 +91,16 @@ export type SSEOptions = {
    * @default true
    */
   needParseData?: boolean
-
   /**
    * 是否解析 JSON，开启后，会解析出 JSON 对象，放入 onMessage 回调
    * @default true
    */
   needParseJSON?: boolean
+  /**
+   * 是否忽略无效数据前缀 (如不以 dataPrefix(data: 开头))
+   * @default true
+   */
+  ignoreInvalidDataPrefix?: boolean
 }
   & Omit<BaseReqConfig, 'url' | 'retry' | 'respType' | 'timeout'>
 

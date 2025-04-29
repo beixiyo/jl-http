@@ -22,6 +22,7 @@ export class SSEStreamProcessor {
     const defaultConfig: Required<SSEStreamProcessorConfig> = {
       needParseData: true,
       needParseJSON: true,
+      ignoreInvalidDataPrefix: true,
       separator: '\n\n',
       dataPrefix: 'data:',
       doneSignal: '[DONE]',
@@ -269,14 +270,15 @@ export class SSEStreamProcessor {
     const rawJsonPayloads: string[] = [] // 存储本轮解析出的所有原始载荷
     let remainingBuffer = this.buffer
     let streamEnded = false
-    const { separator, dataPrefix, doneSignal, needParseJSON } = this.config
+    const { separator, dataPrefix, doneSignal, needParseJSON, handleData, ignoreInvalidDataPrefix } = this.config
 
     SSEStreamProcessor.parseSSEMessages({
       content: remainingBuffer,
       separator,
       dataPrefix,
       doneSignal,
-      handleData: this.config.handleData,
+      ignoreInvalidDataPrefix,
+      handleData,
       onMessage: ({
         content,
         isEnd,
@@ -358,6 +360,7 @@ export class SSEStreamProcessor {
       separator = '\n\n',
       dataPrefix = 'data:',
       doneSignal = '[DONE]',
+      ignoreInvalidDataPrefix = true,
       onMessage,
       handleData
     } = config
@@ -391,6 +394,10 @@ export class SSEStreamProcessor {
           dataPrefix: dataPrefix,
           trim: false, // 先不 trim，最后统一 trim
         })
+
+        if (!payloadPart.startsWith(dataPrefix) && ignoreInvalidDataPrefix) {
+          continue
+        }
 
         // 检查是否是结束信号，注意：结束信号本身也可能带有 data: 前缀
         if (payloadPart.trim() === doneSignal) {
@@ -482,6 +489,11 @@ export interface SSEStreamProcessorConfig {
    * 处理数据的自定义函数，用于对提取的数据进行进一步处理
    */
   handleData?: (currentContent: string) => string
+  /**
+   * 是否忽略无效数据前缀 (如不以 dataPrefix(data: 开头))
+   * @default true
+   */
+  ignoreInvalidDataPrefix?: boolean
 }
 
 export interface ParseSSEContentParam {
@@ -519,6 +531,12 @@ export interface ParseSSEContentParam {
    * @default '[DONE]'
    */
   doneSignal?: SSEStreamProcessorConfig['doneSignal']
+
+  /**
+   * 是否忽略无效数据前缀 (如不以 dataPrefix(data: 开头))
+   * @default true
+   */
+  ignoreInvalidDataPrefix?: boolean
 }
 
 /**
