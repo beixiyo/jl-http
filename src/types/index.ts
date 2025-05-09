@@ -23,10 +23,15 @@ export type SSEData = {
   /** 当前处理块/缓冲区中提取的原始有效载荷字符串 */
   currentContent: string
   /** 当前处理块/缓冲区中解析出的 JSON 对象数组 (只读) */
-  currentJson: readonly any[]
+  currentJson: readonly SSEJson[]
 
   /** 累积的所有原始有效载荷字符串 */
   allContent: string
   /** 累积的所有 JSON 对象数组 (只读) */
-  allJson: readonly any[]
+  allJson: readonly SSEJson[]
+}
+
+type SSEJson = {
+  __internal__event: string
+  [key: string]: any
 }
