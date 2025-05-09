@@ -96,6 +96,7 @@ export type SSEOptions = {
    * @default true
    */
   needParseJSON?: boolean
+
   /**
    * 以什么作为分隔符切割
    * @default '\n\n'
@@ -106,13 +107,15 @@ export type SSEOptions = {
    * @default 'data:'
    */
   dataPrefix?: SSEStreamProcessorConfig['dataPrefix']
+
   /**
    * 以什么作为结束信号
    * @default '[DONE]'
    */
   doneSignal?: SSEStreamProcessorConfig['doneSignal']
   /**
-   * 是否忽略无效数据前缀 (如不以 dataPrefix(data: 开头))
+   * 是否忽略无效数据前缀 (如不以 dataPrefix(data: 开头))。
+   * 通常用来忽略事件名，如 event:xxx。
    * @default true
    */
   ignoreInvalidDataPrefix?: boolean
