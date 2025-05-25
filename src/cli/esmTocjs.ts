@@ -1,6 +1,5 @@
-import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-
 
 export function esmTocjs(path: string) {
   const content = readFileSync(path, 'utf-8')

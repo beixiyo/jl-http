@@ -17,11 +17,13 @@ const typeMap = {
 }
 
 export function genType(args?: Record<string, any>) {
-  if (!args) return ''
+  if (!args)
+    return ''
 
   let ts = '{'
   for (const k in args) {
-    if (!Object.hasOwnProperty.call(args, k)) continue
+    if (!Object.hasOwnProperty.call(args, k))
+      continue
 
     const value = args[k]
     const type = normalizeType(value)
@@ -35,10 +37,11 @@ export function genType(args?: Record<string, any>) {
 function normalizeType(value: string) {
   // @ts-ignore
   const type = typeMap[value]
-  if (type) return type
+  if (type)
+    return type
 
   if (typeof value === 'string') {
-    let match = value.match(/.+?\[\]/g)
+    const match = value.match(/.+?\[\]/g)
     if (match?.[0]) {
       return match[0]
     }
@@ -49,7 +52,6 @@ function normalizeType(value: string) {
     ? 'any[]'
     : finaltype
 }
-
 
 // console.log(genType({
 //     a: 'string',

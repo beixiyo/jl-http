@@ -1,13 +1,11 @@
-import type { BaseHttpReq, BaseReqMethodConfig, BaseReqConstructorConfig, Resp, SSEOptions, FetchSSEReturn } from './AbsBaseReqType'
-import type { HttpMethod, ReqBody, SSEData } from '../../types'
+import type { HttpMethod, ReqBody } from '../../types'
+import type { BaseHttpReq, BaseReqConstructorConfig, BaseReqMethodConfig, FetchSSEReturn, Resp, SSEOptions } from './AbsBaseReqType'
 import { deepCompare } from '../../tools'
-
 
 /**
  * 带缓存控制的请求基类
  */
 export abstract class AbsCacheReq implements BaseHttpReq {
-
   abstract http: BaseHttpReq
   /** 缓存过期时间，默认 1 秒 */
   protected _cacheTimeout = 1000
@@ -24,12 +22,14 @@ export abstract class AbsCacheReq implements BaseHttpReq {
     this.clearCachePeriodically()
 
     const { cacheTimeout } = config
-    if (cacheTimeout === undefined) return
+    if (cacheTimeout === undefined)
+      return
     this.cacheTimeout = cacheTimeout
   }
 
   static getErrMsg(status: number | string, msg?: string) {
-    if (msg != undefined) return msg
+    if (msg != undefined)
+      return msg
 
     if (status == 400) {
       return '请求参数错误'
@@ -67,7 +67,7 @@ export abstract class AbsCacheReq implements BaseHttpReq {
     const { url, ...rest } = data
     this.cacheMap.set(url, {
       time: performance.now(),
-      ...rest
+      ...rest,
     })
   }
 
@@ -86,7 +86,7 @@ export abstract class AbsCacheReq implements BaseHttpReq {
       return cache
     }
 
-    // 比较相同则返回缓存
+    /** 比较相同则返回缓存 */
     if (deepCompare(params, cache?.params)) {
       return cache.cacheData
     }
@@ -117,18 +117,19 @@ export abstract class AbsCacheReq implements BaseHttpReq {
           this.clearOneCache(url)
         }
       },
-      gap
+      gap,
     )
   }
 
   protected clearOneCache(url: string) {
     const cache = this.cacheMap.get(url)
-    // 没匹配到
-    if (!cache) return AbsCacheReq.NO_MATCH_TAG
+    /** 没匹配到 */
+    if (!cache)
+      return AbsCacheReq.NO_MATCH_TAG
 
     const now = performance.now()
     const { cacheTimeout = this._cacheTimeout, time } = cache
-    // 超时则删除
+    /** 超时则删除 */
     if (now - time > cacheTimeout) {
       this.cacheMap.delete(url)
       return AbsCacheReq.CACHE_TIMEOUT_TAG
@@ -147,7 +148,6 @@ export abstract class AbsCacheReq implements BaseHttpReq {
     return this.http.head<T, HttpResponse>(url, config)
   }
 
-
   delete<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
     return this.http.delete<T, HttpResponse>(url, data, config)
   }
@@ -155,7 +155,6 @@ export abstract class AbsCacheReq implements BaseHttpReq {
   options<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
     return this.http.options<T, HttpResponse>(url, data, config)
   }
-
 
   post<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
     return this.http.post<T, HttpResponse>(url, data, config)
@@ -180,7 +179,7 @@ export abstract class AbsCacheReq implements BaseHttpReq {
     method: Lowercase<HttpMethod>,
     url: string,
     data?: ReqBody,
-    config?: BaseCacheReqMethodConfig
+    config?: BaseCacheReqMethodConfig,
   ): Promise<HttpResponse> {
     const needBody = !['get', 'head'].includes(method)
     const params = needBody
@@ -205,7 +204,7 @@ export abstract class AbsCacheReq implements BaseHttpReq {
       url,
       cacheData,
       params,
-      cacheTimeout
+      cacheTimeout,
     })
     return cacheData
   }
@@ -231,7 +230,6 @@ export abstract class AbsCacheReq implements BaseHttpReq {
   }
 }
 
-
 export interface BaseCacheConstructorConfig extends BaseReqConstructorConfig {
   /** 缓存过期时间，默认 1 秒 */
   cacheTimeout?: number
@@ -244,9 +242,9 @@ export interface BaseCacheReqMethodConfig extends BaseReqMethodConfig {
 
 export type Cache = {
   /** 缓存那一刻的时间 */
-  time: number,
-  params?: any,
+  time: number
+  params?: any
   /** 缓存的数据 */
-  cacheData: any,
+  cacheData: any
   cacheTimeout?: number
 }

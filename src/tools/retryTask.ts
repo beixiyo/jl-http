@@ -1,4 +1,4 @@
-import { wait } from '@/tools/tools'
+import { wait } from '@/tools/tool'
 
 export class RetryError extends Error {
   public readonly attempts: number

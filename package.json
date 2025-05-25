@@ -1,6 +1,6 @@
 {
   "name": "@jl-org/http",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "一个能中断请求、缓存（幂等）请求、重试请求、并发请求，生成模板代码的库",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -24,7 +24,8 @@
     }
   },
   "scripts": {
-    "build": "rollup -c && tsc-alias"
+    "build": "rollup -c && tsc-alias",
+    "lint": "eslint --fix"
   },
   "keywords": [
     "http",
@@ -33,6 +34,8 @@
   "author": "CJL <2662442385@qq.com>",
   "license": "MIT",
   "devDependencies": {
+    "@antfu/eslint-config": "^4.13.2",
+    "@jl-org/eslint-plugins": "^1.0.0",
     "@rollup/plugin-alias": "^5.1.0",
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-terser": "^0.4.4",

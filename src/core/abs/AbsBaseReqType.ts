@@ -1,25 +1,23 @@
 import type { SSEStreamProcessorConfig } from '@/tools/SSEStreamProcessor'
 import type { FetchType, HttpMethod, ReqBody, ReqHeaders, SSEData } from '@/types'
 
-
 /**
  * 请求基础接口
  */
 export interface BaseHttpReq {
 
-  get<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse>
-  head<T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig): Promise<HttpResponse>
+  get: <T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig) => Promise<HttpResponse>
+  head: <T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig) => Promise<HttpResponse>
 
-  delete<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
-  options<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
+  delete: <T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig) => Promise<HttpResponse>
+  options: <T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig) => Promise<HttpResponse>
 
-  post<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
-  put<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
-  patch<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse>
+  post: <T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig) => Promise<HttpResponse>
+  put: <T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig) => Promise<HttpResponse>
+  patch: <T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig) => Promise<HttpResponse>
 
-  fetchSSE(url: string, config?: SSEOptions): Promise<FetchSSEReturn>
+  fetchSSE: (url: string, config?: SSEOptions) => Promise<FetchSSEReturn>
 }
-
 
 export type FetchOptions = Omit<RequestInit, 'method'> & {
   method?: HttpMethod
@@ -120,7 +118,7 @@ export type SSEOptions = {
    */
   ignoreInvalidDataPrefix?: boolean
 }
-  & Omit<BaseReqConfig, 'url' | 'retry' | 'respType' | 'timeout'>
+& Omit<BaseReqConfig, 'url' | 'retry' | 'respType' | 'timeout'>
 
 export interface BaseReqConstructorConfig {
   /**

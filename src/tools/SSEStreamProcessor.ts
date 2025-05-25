@@ -258,11 +258,11 @@ export class SSEStreamProcessor {
                 ? parsed
                 : [parsed]
 
-              // 添加事件名
+              /** 添加事件名 */
               for (const item of itemsToAdd) {
                 if (isObj(item)) {
                   // @ts-ignore
-                  item['__internal__event'] = event
+                  item.__internal__event = event
                 }
               }
 
@@ -273,7 +273,7 @@ export class SSEStreamProcessor {
             }
           }
         }
-      }
+      },
     })
 
     return {
@@ -290,10 +290,10 @@ export class SSEStreamProcessor {
       dataPrefix = 'data:',
       trim = true,
     }: {
-      content: string,
+      content: string
       dataPrefix?: string
       trim?: boolean
-    }
+    },
   ) {
     if (!content.startsWith(dataPrefix)) {
       return content // 如果不以指定前缀开头，直接返回原始内容
@@ -318,7 +318,7 @@ export class SSEStreamProcessor {
    * 核心逻辑是使用 separator 分割消息块，并处理 dataPrefix 和 doneSignal
    */
   static parseSSEMessages(
-    config: ParseSSEContentParam
+    config: ParseSSEContentParam,
   ): string[] {
     const {
       content,
@@ -328,7 +328,7 @@ export class SSEStreamProcessor {
       doneSignal = '[DONE]',
       ignoreInvalidDataPrefix = true,
       onMessage,
-      handleData
+      handleData,
     } = config
 
     const collectedPayloads: string[] = []
@@ -338,14 +338,14 @@ export class SSEStreamProcessor {
     while (continueParsing) {
       const separatorIndex = currentBuffer.indexOf(separator)
 
-      // 如果找不到分隔符，则停止循环
+      /** 如果找不到分隔符，则停止循环 */
       if (separatorIndex === -1) {
         continueParsing = false
         break
       }
 
       const messageBlock = currentBuffer.slice(0, separatorIndex)
-      // 更新缓冲区，移除已处理的消息块和分隔符
+      /** 更新缓冲区，移除已处理的消息块和分隔符 */
       const remainingBuffer = currentBuffer.slice(separatorIndex + separator.length)
 
       const lines = messageBlock.split('\n')
@@ -365,14 +365,14 @@ export class SSEStreamProcessor {
           continue
         }
 
-        // 使用 parseSSEPrefix 处理每一行
+        /** 使用 parseSSEPrefix 处理每一行 */
         const payloadPart = SSEStreamProcessor.parseSSEPrefix({
           content: trimmedLine,
-          dataPrefix: dataPrefix,
-          trim: true
+          dataPrefix,
+          trim: true,
         })
 
-        // 检查是否是结束信号，注意：结束信号本身也可能带有 data: 前缀
+        /** 检查是否是结束信号，注意：结束信号本身也可能带有 data: 前缀 */
         if (payloadPart === doneSignal) {
           blockContainsEndSignal = true
         }
@@ -385,25 +385,25 @@ export class SSEStreamProcessor {
 
       const finalPayloadForBlock = currentPayload
 
-      // 调用回调，传递解析信息和剩余的缓冲区
+      /** 调用回调，传递解析信息和剩余的缓冲区 */
       onMessage?.({
         separatorIndex,
         event: currentEventName,
         content: finalPayloadForBlock,
         isEnd: blockContainsEndSignal,
-        remainingBuffer: remainingBuffer, // 传递更新后的缓冲区
+        remainingBuffer, // 传递更新后的缓冲区
       })
 
-      // 收集有效内容
+      /** 收集有效内容 */
       if (finalPayloadForBlock) {
         collectedPayloads.push(finalPayloadForBlock)
       }
 
-      // 更新 currentBuffer 以便下一次迭代
+      /** 更新 currentBuffer 以便下一次迭代 */
       currentBuffer = remainingBuffer
     } // while 结束
 
-    // 返回所有收集到的内容
+    /** 返回所有收集到的内容 */
     return collectedPayloads
   }
 
@@ -423,7 +423,6 @@ export class SSEStreamProcessor {
     }
   }
 }
-
 
 export interface SSEStreamProcessorConfig {
   /**

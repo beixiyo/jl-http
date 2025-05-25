@@ -1,14 +1,13 @@
-import { defineConfig } from 'rollup'
-import terser from '@rollup/plugin-terser'
-import { nodeResolve } from '@rollup/plugin-node-resolve'
-import typescript from '@rollup/plugin-typescript'
-import alias from '@rollup/plugin-alias'
-import clear from 'rollup-plugin-clear'
 import { fileURLToPath } from 'node:url'
-
+import alias from '@rollup/plugin-alias'
+import { nodeResolve } from '@rollup/plugin-node-resolve'
+import terser from '@rollup/plugin-terser'
+import typescript from '@rollup/plugin-typescript'
+import { defineConfig } from 'rollup'
+import clear from 'rollup-plugin-clear'
 
 const plugins = [
-  nodeResolve(),  // 开启`node_modules`查找模块功能
+  nodeResolve(), // 开启`node_modules`查找模块功能
   terser(),
   typescript(),
   clear({
@@ -21,10 +20,10 @@ const plugins = [
       {
         find: '@',
         replacement: fileURLToPath(
-          new URL('src', import.meta.url)
-        )
+          new URL('src', import.meta.url),
+        ),
       },
-    ]
+    ],
   }),
 ]
 
@@ -44,9 +43,8 @@ export default defineConfig([
       outputFormat('cli/index.cjs', 'cjs'),
     ],
     plugins,
-  }
+  },
 ])
-
 
 /**
  * @param {string} file 文件路径
@@ -56,6 +54,8 @@ export default defineConfig([
  */
 function outputFormat(file, format, name) {
   return {
-    file, format, name
+    file,
+    format,
+    name,
   }
 }

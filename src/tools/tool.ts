@@ -2,6 +2,22 @@
 export const getType = (data: any) => (Object.prototype.toString.call(data) as string).slice(8, -1).toLowerCase()
 
 /**
+ * 等待指定时间后返回 Promise
+ *
+ * @example
+ * ```ts
+ * await wait(2000)
+ * ```
+ *
+ * @param durationMS 等待时间，默认 1000 毫秒
+ */
+export function wait(durationMS = 1000) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, durationMS)
+  })
+}
+
+/**
  * 深度比较对象 `Map | Set`无法使用
  * 支持循环引用比较
  */
@@ -49,5 +65,6 @@ export function deepCompare(o1: any, o2: any, seen = new WeakMap()) {
   return true
 }
 
-export const isObj = (data: any): data is object =>
-  typeof data === 'object' && data !== null
+export function isObj(data: any): data is object {
+  return typeof data === 'object' && data !== null
+}

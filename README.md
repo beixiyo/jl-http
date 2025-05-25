@@ -164,15 +164,15 @@ controller.abort()
  *          每个结果对象表示对应任务的完成状态（成功或失败）。
  *          结果数组的顺序与输入 tasks 数组的顺序一致。
  */
-export declare function concurrentTask<T>(tasks: (() => Promise<T>)[], maxConcurrency?: number): Promise<TaskResult<T>[]>;
+export declare function concurrentTask<T>(tasks: (() => Promise<T>)[], maxConcurrency?: number): Promise<TaskResult<T>[]>
 
 export type TaskResult<T> = {
-    status: 'fulfilled';
-    value: T;
+  status: 'fulfilled'
+  value: T
 } | {
-    status: 'rejected';
-    reason: Error;
-};
+  status: 'rejected'
+  reason: Error
+}
 ```
 
 ---

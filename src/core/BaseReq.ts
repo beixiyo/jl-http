@@ -1,5 +1,5 @@
-import type { HttpMethod, ReqBody, RespData, SSEData } from '@/types'
 import type { BaseHttpReq, BaseReqConfig, BaseReqConstructorConfig, BaseReqMethodConfig, FetchSSEReturn, Resp, SSEOptions } from './abs/AbsBaseReqType'
+import type { HttpMethod, ReqBody, RespData, SSEData } from '@/types'
 import qs from 'query-string'
 import { TIME_OUT } from '@/constants'
 import { retryTask } from '@/tools'
@@ -203,18 +203,18 @@ export class BaseReq implements BaseHttpReq {
           const currentContent = decoder.decode(value)
           const parsedCurrentSSEData = needParseData
             ? SSEStreamProcessor.parseSSEMessages({
-              content: currentContent,
-              handleData,
-              ignoreInvalidDataPrefix,
-              separator,
-              dataPrefix,
-              doneSignal,
-            })
+                content: currentContent,
+                handleData,
+                ignoreInvalidDataPrefix,
+                separator,
+                dataPrefix,
+                doneSignal,
+              })
             : [currentContent]
 
           rawSSEData.push(...parsedCurrentSSEData)
 
-          // 当有 onMsg 才需要解析
+          /** 当有 onMsg 才需要解析 */
           onMsg && sseParser.processChunk(currentContent)
           onRawMessage?.({
             allRawSSEData: rawSSEData,
@@ -240,7 +240,7 @@ export class BaseReq implements BaseHttpReq {
       cancel: () => {
         cancelFn()
         reject(new Error('Request canceled by user'))
-      }
+      },
     }
   }
 

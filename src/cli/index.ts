@@ -1,14 +1,14 @@
 #!/usr/bin/env node
-import { writeFileSync, rm } from 'node:fs'
-import { resolve } from 'node:path'
-import { genType } from './genType'
-import { esmTocjs, writeTempFile } from './esmTocjs'
+/* eslint-disable ts/no-require-imports */
 import type { Config } from '@/tools/defineConfig'
+import { rm, writeFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { esmTocjs, writeTempFile } from './esmTocjs'
+import { genType } from './genType'
 
-
-const tempPath = 'node_modules/@jl-org/.http',
-  tempFile = 'temp.cjs',
-  filename = resolve(process.cwd(), tempPath + '/' + tempFile)
+const tempPath = 'node_modules/@jl-org/.http'
+const tempFile = 'temp.cjs'
+const filename = resolve(process.cwd(), `${tempPath}/${tempFile}`)
 
 parseCommand()
 
@@ -49,7 +49,6 @@ function genCode(config: Config) {
 
   return code
 
-
   function enter() {
     code += '\n'
   }
@@ -59,23 +58,32 @@ function genCode(config: Config) {
 
   function genServiceCode() {
     config.fns?.forEach((item) => {
-      if (Object.keys(item).length <= 0) return
+      if (Object.keys(item).length <= 0)
+        return
       enter()
       tab()
       const type = genType(item.args)
       code += item.comment
         ? `/** ${item.comment} */\n\t`
         : ''
-      code += `static ${item.isAsync ? 'async ' : ''}${item.name}(${type ? `data: ${type}` : ''}) {`
+      code += `static ${item.isAsync
+        ? 'async '
+        : ''}${item.name}(${type
+        ? `data: ${type}`
+        : ''}) {`
 
       enter()
       tab()
       tab()
       if (['get', 'head'].includes(item.method)) {
-        code += `return ${requestFnName}.${item.method}('${item.url}'${type ? `, { query: data }` : ''})`
+        code += `return ${requestFnName}.${item.method}('${item.url}'${type
+          ? `, { query: data }`
+          : ''})`
       }
       else {
-        code += `return ${requestFnName}.${item.method}('${item.url}'${type ? `, data` : ''})`
+        code += `return ${requestFnName}.${item.method}('${item.url}'${type
+          ? `, data`
+          : ''})`
       }
       enter()
 

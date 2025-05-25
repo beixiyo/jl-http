@@ -32,4 +32,3 @@ export type Fn = {
   /** 注释 */
   comment?: string
 }
-
