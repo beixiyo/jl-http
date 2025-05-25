@@ -156,11 +156,23 @@ controller.abort()
 
 ```ts
 /**
- * 并发任务数组 完成最大并发数后才会继续
- * @param tasks 任务数组
- * @param maxCount 最大并发数，默认 4
+ * 并发执行异步任务数组，并保持结果顺序。
+ * 当一个任务完成后，会自动从队列中取下一个任务执行，直到所有任务完成。
+ * @param tasks 要执行的异步任务函数数组。每个函数应返回一个 Promise。
+ * @param maxConcurrency 最大并发数。默认为 4。
+ * @returns 返回一个 Promise，该 Promise resolve 为一个结果对象数组，
+ *          每个结果对象表示对应任务的完成状态（成功或失败）。
+ *          结果数组的顺序与输入 tasks 数组的顺序一致。
  */
-export declare function concurrentTask<T>(tasks: (() => Promise<T>)[], maxCount?: number): Promise<T[]>
+export declare function concurrentTask<T>(tasks: (() => Promise<T>)[], maxConcurrency?: number): Promise<TaskResult<T>[]>;
+
+export type TaskResult<T> = {
+    status: 'fulfilled';
+    value: T;
+} | {
+    status: 'rejected';
+    reason: Error;
+};
 ```
 
 ---

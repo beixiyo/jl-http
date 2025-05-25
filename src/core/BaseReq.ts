@@ -2,7 +2,7 @@ import type { HttpMethod, ReqBody, RespData, SSEData } from '@/types'
 import type { BaseHttpReq, BaseReqConfig, BaseReqConstructorConfig, BaseReqMethodConfig, FetchSSEReturn, Resp, SSEOptions } from './abs/AbsBaseReqType'
 import qs from 'query-string'
 import { TIME_OUT } from '@/constants'
-import { retryReq } from '@/tools'
+import { retryTask } from '@/tools'
 import { SSEStreamProcessor } from '@/tools/SSEStreamProcessor'
 
 export class BaseReq implements BaseHttpReq {
@@ -47,7 +47,7 @@ export class BaseReq implements BaseHttpReq {
       }
 
       const res = retry >= 1
-        ? retryReq<HttpResponse>(() => _req(abort.signal), retry)
+        ? retryTask<HttpResponse>(() => _req(abort.signal), retry)
         : _req(abort.signal)
       resolve(res)
     })
