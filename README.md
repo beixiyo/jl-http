@@ -95,30 +95,30 @@ iotHttp.cachePost(
 ### SSE 流式数据处理
 
 ```ts
-// 实时处理流式数据
+/** 实时处理流式数据 */
 const { promise, cancel } = await iotHttp.fetchSSE('/ai/chat', {
   method: 'POST',
   body: {
     messages: [{ role: 'user', content: '你好' }]
   },
-  // 是否解析数据，删除 data: 前缀（默认为 true）
+  /** 是否解析数据，删除 data: 前缀（默认为 true） */
   needParseData: true,
-  // 是否解析 JSON（默认为 true）
-  needParseJSON: true
-  // 每次接收到新数据时触发
+  /** 是否解析 JSON（默认为 true） */
+  needParseJSON: true,
+  /** 每次接收到新数据时触发 */
   onMessage: ({ currentContent, allContent, currentJson, allJson }) => {
     console.log('当前片段:', currentContent)
     console.log('累积内容:', allContent)
 
-    // 如果启用了 needParseJSON
+    /** 如果启用了 needParseJSON */
     console.log('当前 JSON:', currentJson)
     console.log('累积 JSON:', allJson)
   },
-  // 跟踪进度
+  /** 跟踪进度 */
   onProgress: (progress) => {
     console.log(`进度: ${progress * 100}%`)
   },
-  // 错误处理
+  /** 错误处理 */
   onError: (error) => {
     console.error(error)
   },
