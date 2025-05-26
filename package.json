@@ -25,7 +25,8 @@
   },
   "scripts": {
     "build": "rollup -c && tsc-alias",
-    "lint": "eslint --fix"
+    "lint": "eslint --fix",
+    "test": "vitest"
   },
   "keywords": [
     "http",

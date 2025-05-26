@@ -18,15 +18,11 @@ export function wait(durationMS = 1000) {
 }
 
 /**
- * 深度比较对象 `Map | Set`无法使用
+ * 深度比较对象 `Map | Set` 无法使用
  * 支持循环引用比较
  */
 export function deepCompare(o1: any, o2: any, seen = new WeakMap()) {
   if (Object.is(o1, o2)) {
-    return true
-  }
-
-  if (JSON.stringify(o1) === JSON.stringify(o2)) {
     return true
   }
 
@@ -57,7 +53,8 @@ export function deepCompare(o1: any, o2: any, seen = new WeakMap()) {
     /**
      * 键不同或者值不同
      */
-    if (!keys2.includes(key) || !deepCompare((o1 as any)[key], (o2 as any)[key], seen)) {
+    // @ts-ignore
+    if (!keys2.includes(key) || !deepCompare(o1[key], o2[key], seen)) {
       return false
     }
   }

@@ -1,6 +1,8 @@
 import type { SSEData } from '@/types'
 import { isObj } from './tool'
 
+export const EVENT_KEY = '__internal__event'
+
 /**
  * 用于处理数据流（支持 SSE 和 JSON 解析配置）
  */
@@ -260,9 +262,9 @@ export class SSEStreamProcessor {
 
               /** 添加事件名 */
               for (const item of itemsToAdd) {
-                if (isObj(item)) {
+                if (isObj(item) && !Array.isArray(item)) {
                   // @ts-ignore
-                  item.__internal__event = event
+                  item[EVENT_KEY] = event
                 }
               }
 
