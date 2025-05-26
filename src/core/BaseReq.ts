@@ -33,6 +33,7 @@ export class BaseReq implements BaseHttpReq {
         code: 408,
       }
 
+      /** 同步外部 */
       if (rest.signal) {
         rest.signal.addEventListener('abort', () => {
           abort.abort()
@@ -49,7 +50,7 @@ export class BaseReq implements BaseHttpReq {
       const res = retry >= 1
         ? retryTask<HttpResponse>(() => _req(abort.signal), retry)
         : _req(abort.signal)
-      resolve(res)
+      res.then(resolve).catch(reject)
     })
 
     async function _req(signal: AbortSignal) {
