@@ -6,45 +6,62 @@ import typescript from '@rollup/plugin-typescript'
 import { defineConfig } from 'rollup'
 import clear from 'rollup-plugin-clear'
 
-const plugins = [
-  nodeResolve(), // 开启`node_modules`查找模块功能
-  terser(),
-  typescript(),
-  clear({
-    targets: ['dist'],
-    watch: true,
-  }),
-
-  alias({
-    entries: [
-      {
-        find: '@',
-        replacement: fileURLToPath(
-          new URL('src', import.meta.url),
-        ),
-      },
-    ],
-  }),
-]
-
 export default defineConfig([
   {
     input: './src/index.ts',
     output: [
       outputFormat('dist/index.cjs', 'cjs'),
       outputFormat('dist/index.js', 'es'),
-      outputFormat('dist/index.browser.js', 'iife', '_jlHttp'),
     ],
-    plugins,
+    plugins: createPlugins({
+      needClear: true,
+    }),
   },
+
+  /**
+   * Cli 打包
+   */
   {
     input: './src/cli/index.ts',
     output: [
       outputFormat('cli/index.cjs', 'cjs'),
     ],
-    plugins,
+    plugins: createPlugins(),
   },
 ])
+
+/**
+ *
+ * @param {CreatePluginsOpts} opts
+ */
+function createPlugins(opts = {}) {
+  return [
+    nodeResolve(), // 开启`node_modules`查找模块功能
+    terser(),
+    opts.needClear && clear({
+      targets: ['dist'],
+      watch: true,
+    }),
+
+    typescript({
+      include: ['src/**/*.ts', 'src/**/*.d.ts'],
+    }),
+
+    alias({
+      entries: [
+        {
+          find: '@',
+          replacement: fileURLToPath(
+            new URL('src', import.meta.url),
+          ),
+        },
+      ],
+    }),
+
+    ...(opts.extraPlugins || []),
+
+  ].filter(Boolean)
+}
 
 /**
  * @param {string} file 文件路径
@@ -59,3 +76,9 @@ function outputFormat(file, format, name) {
     name,
   }
 }
+
+/**
+ * @typedef CreatePluginsOpts
+ * @property {boolean} needClear - 是否使用清除插件
+ * @property {any} extraPlugins - 其他插件
+ */
