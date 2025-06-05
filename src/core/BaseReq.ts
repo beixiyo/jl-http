@@ -261,7 +261,7 @@ export class BaseReq implements BaseHttpReq {
       signal: config.signal,
       retry: config.retry ?? defaultConfig.retry ?? 0,
       ...config,
-      url: (config.baseUrl || defaultConfig.baseUrl || '') + config.url,
+      url: (config.baseUrl ?? defaultConfig.baseUrl ?? '') + config.url,
     }
 
     return finalConfig
