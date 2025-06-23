@@ -82,9 +82,6 @@ export default defineConfig({
       '@': resolve(__dirname, '../jl-http/src'),
     },
 
-    // 监听模式配置
-    watch: false,
-
     // 失败时的行为
     bail: 0, // 不在第一个失败时停止
 
