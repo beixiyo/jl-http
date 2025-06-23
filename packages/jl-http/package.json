@@ -1,0 +1,55 @@
+{
+  "name": "@jl-org/http",
+  "version": "1.0.8",
+  "description": "一个能中断请求、缓存（幂等）请求、重试请求、并发请求，生成模板代码的库",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "type": "module",
+  "types": "dist/typings/index.d.ts",
+  "files": [
+    "/dist",
+    "/cli/index.cjs"
+  ],
+  "bin": {
+    "jl-http": "cli/index.cjs"
+  },
+  "exports": {
+    "require": {
+      "types": "./dist/typings/index.d.ts",
+      "default": "./dist/index.cjs"
+    },
+    "import": {
+      "types": "./dist/typings/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "rollup -c && tsc-alias",
+    "lint": "eslint --fix",
+    "prepublishOnly": "npm run build",
+    "postpublish": "npm run clean"
+  },
+  "keywords": [
+    "http",
+    "request"
+  ],
+  "author": "CJL <2662442385@qq.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@rollup/plugin-alias": "^5.1.0",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-typescript": "^11.1.6",
+    "rollup": "^4.16.1",
+    "rollup-plugin-clear": "^2.0.7",
+    "tsc-alias": "^1.8.8",
+    "tslib": "^2.6.2"
+  },
+  "dependencies": {
+    "query-string": "^9.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://github.com/beixiyo/jl-http"
+}
