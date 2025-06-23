@@ -1,4 +1,19 @@
+import type { ServerResponse, IncomingMessage } from 'http'
 import type { Plugin } from 'vite'
+
+function writeSSEHeader(res: ServerResponse<IncomingMessage>) {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Cache-Control',
+  })
+}
+
+function writeData(res: ServerResponse<IncomingMessage>, data: any) {
+  res.write(`data: ${JSON.stringify(data)}\n\n`)
+}
 
 /**
  * SSE 插件，为开发服务器提供模拟的 SSE 接口
@@ -10,13 +25,7 @@ export function ssePlugin(): Plugin {
       // 基础 SSE 流接口
       server.middlewares.use('/api/sse/stream', (req, res) => {
         // 设置 SSE 响应头
-        res.writeHead(200, {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'Cache-Control',
-        })
+        writeSSEHeader(res)
 
         let counter = 0
         const maxMessages = 10
@@ -36,7 +45,7 @@ export function ssePlugin(): Plugin {
               progress: counter / maxMessages,
             }
 
-            res.write(`data: ${JSON.stringify(data)}\n\n`)
+            writeData(res, data)
           }
           else {
             // 发送完成消息
@@ -57,64 +66,18 @@ export function ssePlugin(): Plugin {
       // 聊天模拟 SSE 接口
       server.middlewares.use('/api/sse/chat', (req, res) => {
         if (req.method === 'POST') {
-          let body = ''
-          req.on('data', chunk => {
-            body += chunk.toString()
-          })
+          writeSSEHeader(res)
 
-          req.on('end', () => {
-            try {
-              const requestData = JSON.parse(body)
-              const message = requestData.message || '你好'
+          const st = Date.now()
 
-              // 设置 SSE 响应头
-              res.writeHead(200, {
-                'Content-Type': 'text/event-stream',
-                'Cache-Control': 'no-cache',
-                'Connection': 'keep-alive',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type',
-              })
-
-              // 模拟 AI 回复的流式响应
-              const response = `针对您的问题"${message}"，我来为您详细解答。这是一个模拟的 AI 助手回复，用于测试 SSE 流式数据传输功能。`
-              const words = response.split('')
-              let index = 0
-
-              res.write('data: {"type": "start", "message": "开始生成回复"}\n\n')
-
-              const interval = setInterval(() => {
-                if (index < words.length) {
-                  const char = words[index]
-                  const data = {
-                    type: 'delta',
-                    content: char,
-                    index: index,
-                    total: words.length,
-                    progress: (index + 1) / words.length,
-                  }
-
-                  res.write(`data: ${JSON.stringify(data)}\n\n`)
-                  index++
-                }
-                else {
-                  res.write('data: {"type": "finish", "message": "回复生成完成"}\n\n')
-                  res.write('data: [DONE]\n\n')
-                  clearInterval(interval)
-                  res.end()
-                }
-              }, 50) // 每50ms发送一个字符
-
-              req.on('close', () => {
-                clearInterval(interval)
-                res.end()
-              })
+          const interval = setInterval(() => {
+            writeData(res, { content: 'hello world' })
+            if (Date.now() - st > 3000) {
+              res.write('data: [DONE]\n\n')
+              clearInterval(interval)
+              res.end()
             }
-            catch (error) {
-              res.writeHead(400, { 'Content-Type': 'application/json' })
-              res.end(JSON.stringify({ error: '请求体格式错误' }))
-            }
-          })
+          }, 100)
         }
         else {
           res.writeHead(405, { 'Content-Type': 'application/json' })
@@ -128,13 +91,7 @@ export function ssePlugin(): Plugin {
         const max = parseInt(url.searchParams.get('max') || '20')
         const interval_ms = parseInt(url.searchParams.get('interval') || '500')
 
-        res.writeHead(200, {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'Cache-Control',
-        })
+        writeSSEHeader(res)
 
         let count = 0
 
@@ -149,7 +106,7 @@ export function ssePlugin(): Plugin {
               timestamp: Date.now(),
             }
 
-            res.write(`data: ${JSON.stringify(data)}\n\n`)
+            writeData(res, data)
           }
           else {
             res.write('data: [DONE]\n\n')
@@ -166,13 +123,7 @@ export function ssePlugin(): Plugin {
 
       // 随机数据 SSE 接口
       server.middlewares.use('/api/sse/random', (req, res) => {
-        res.writeHead(200, {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'Cache-Control',
-        })
+        writeSSEHeader(res)
 
         let messageCount = 0
         const maxMessages = 15
@@ -190,7 +141,7 @@ export function ssePlugin(): Plugin {
               status: messageCount < maxMessages ? 'streaming' : 'complete',
             }
 
-            res.write(`data: ${JSON.stringify(data)}\n\n`)
+            writeData(res, data)
           }
           else {
             res.write('data: [DONE]\n\n')
