@@ -4,6 +4,7 @@ import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Input } from '@/components/Input'
 import { Select } from '@/components/Select'
+import { NumberInput } from '@/components/Input/NumberInput'
 
 /** 创建 HTTP 实例 */
 const http = new Http({
@@ -29,7 +30,7 @@ export default function HttpBasicTest() {
   const [url, setUrl] = useState('/posts/1')
   const [method, setMethod] = useState<'GET' | 'POST' | 'PUT' | 'DELETE'>('GET')
   const [requestBody, setRequestBody] = useState('{"title": "测试标题", "body": "测试内容", "userId": 1}')
-  const [timeout, setTimeout] = useState(5000)
+  const [timeout, setTimeoutValue] = useState(5000)
   const [respType, setRespType] = useState<'json' | 'text' | 'blob'>('json')
 
   const handleRequest = async () => {
@@ -141,7 +142,7 @@ export default function HttpBasicTest() {
               <label className="mb-2 block text-sm font-medium">请求 URL</label>
               <Input
                 value={ url }
-                onChange={ e => setUrl(e.target.value) }
+                onChange={ setUrl }
                 placeholder="输入请求路径"
               />
             </div>
@@ -160,10 +161,9 @@ export default function HttpBasicTest() {
 
             <div>
               <label className="mb-2 block text-sm font-medium">超时时间 (ms)</label>
-              <Input
-                type="number"
+              <NumberInput
                 value={ timeout }
-                onChange={ e => setTimeout(Number(e.target.value)) }
+                onChange={ setTimeoutValue }
                 placeholder="超时时间"
               />
             </div>
@@ -229,7 +229,7 @@ export default function HttpBasicTest() {
           {testCases.map((testCase, index) => (
             <Button
               key={ index }
-              variant="outline"
+              designStyle="outlined"
               onClick={ () => loadTestCase(testCase) }
               className="justify-start text-left"
             >

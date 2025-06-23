@@ -440,7 +440,7 @@ export default function HttpComprehensiveTest() {
             </Button>
             <Button
               onClick={ clearAll }
-              variant="outline"
+              designStyle="outlined"
               disabled={ globalLoading }
             >
               清空重置
@@ -516,7 +516,7 @@ export default function HttpComprehensiveTest() {
       <Card className="p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold">执行日志</h2>
-          <Button onClick={ () => setLogs([]) } variant="outline" size="sm">
+          <Button onClick={ () => setLogs([]) } designStyle="outlined" size="sm">
             清空日志
           </Button>
         </div>

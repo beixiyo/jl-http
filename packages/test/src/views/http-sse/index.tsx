@@ -1,9 +1,9 @@
 import type { SSEData } from '@jl-org/http'
-import { Http } from '@jl-org/http'
-import { useRef, useState } from 'react'
+import { Http, type SSEOptions } from '@jl-org/http'
+import { useCallback, useRef, useState } from 'react'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
-import { Input } from '@/components/Input'
+import { Input, Textarea } from '@/components/Input'
 import { Select } from '@/components/Select'
 import { cn } from '@/utils'
 
@@ -45,18 +45,18 @@ export default function HttpSSETest() {
   const [logs, setLogs] = useState<SSELog[]>([])
   const [messages, setMessages] = useState<SSEMessage[]>([])
   const [currentConnection, setCurrentConnection] = useState<{ cancel: () => void } | null>(null)
-  const [sseUrl, setSseUrl] = useState('https://httpbin.org/stream/10')
+  const [sseUrl, setSseUrl] = useState('/api/sse/stream')
   const [method, setMethod] = useState<'GET' | 'POST'>('GET')
   const [requestBody, setRequestBody] = useState('{"message": "Hello SSE"}')
   const [needParseData, setNeedParseData] = useState(true)
   const [needParseJSON, setNeedParseJSON] = useState(false)
   const [dataPrefix, setDataPrefix] = useState('data:')
-  const [separator, setSeparator] = useState('\\n\\n')
+  const [separator, setSeparator] = useState('\n\n')
   const [doneSignal, setDoneSignal] = useState('[DONE]')
   const logIdRef = useRef(0)
   const messageIdRef = useRef(0)
 
-  const addLog = (log: Omit<SSELog, 'id' | 'timestamp'>) => {
+  const addLog = useCallback((log: Omit<SSELog, 'id' | 'timestamp'>) => {
     const newLog: SSELog = {
       ...log,
       id: ++logIdRef.current,
@@ -64,17 +64,17 @@ export default function HttpSSETest() {
     }
     setLogs(prev => [newLog, ...prev])
     return newLog
-  }
+  }, [])
 
-  const updateLog = (id: number, updates: Partial<SSELog>) => {
+  const updateLog = useCallback((id: number, updates: Partial<SSELog>) => {
     setLogs(prev => prev.map(log =>
       log.id === id
         ? { ...log, ...updates }
         : log,
     ))
-  }
+  }, [])
 
-  const addMessage = (content: string, jsonData?: any, isComplete = false) => {
+  const addMessage = useCallback((content: string, jsonData?: any, isComplete = false) => {
     const newMessage: SSEMessage = {
       id: ++messageIdRef.current,
       timestamp: new Date().toLocaleTimeString(),
@@ -83,9 +83,9 @@ export default function HttpSSETest() {
       isComplete,
     }
     setMessages(prev => [newMessage, ...prev])
-  }
+  }, [])
 
-  const startSSEConnection = async () => {
+  const startSSEConnection = useCallback(async () => {
     if (currentConnection) {
       currentConnection.cancel()
       setCurrentConnection(null)
@@ -105,15 +105,16 @@ export default function HttpSSETest() {
     })
 
     try {
-      const config = {
+      const config: SSEOptions = {
         method,
         needParseData,
         needParseJSON,
         dataPrefix,
-        separator: separator.replace('\\n', '\n').replace('\\r', '\r'),
+        separator,
         doneSignal,
         ...(method === 'POST' && { body: JSON.parse(requestBody || '{}') }),
         onMessage: (data: SSEData) => {
+          console.log('SSE onMessage 收到数据:', data)
           const duration = Date.now() - startTime
           updateLog(log.id, {
             status: 'streaming',
@@ -124,6 +125,7 @@ export default function HttpSSETest() {
 
           /** 添加新消息 */
           if (data.currentContent) {
+            console.log('添加新消息:', data.currentContent)
             addMessage(
               data.currentContent,
               data.currentJson.length > 0
@@ -133,13 +135,15 @@ export default function HttpSSETest() {
           }
         },
         onProgress: (progress: number) => {
+          console.log('SSE onProgress:', progress)
           updateLog(log.id, {
-            progress: progress > 0
+            progress: progress > 0 && progress !== Infinity
               ? progress
               : 0,
           })
         },
         onError: (error: any) => {
+          console.error('SSE onError:', error)
           const duration = Date.now() - startTime
           updateLog(log.id, {
             status: 'error',
@@ -188,47 +192,68 @@ export default function HttpSSETest() {
       }
       setCurrentConnection(null)
     }
-  }
+  }, [
+    currentConnection,
+    sseUrl,
+    method,
+    needParseData,
+    needParseJSON,
+    dataPrefix,
+    separator,
+    doneSignal,
+    requestBody,
+    addLog,
+    updateLog,
+    addMessage,
+  ])
 
-  const cancelConnection = () => {
+  const cancelConnection = useCallback(() => {
     if (currentConnection) {
       currentConnection.cancel()
       setCurrentConnection(null)
     }
-  }
+  }, [currentConnection])
 
-  const clearLogs = () => {
+  const clearLogs = useCallback(() => {
     cancelConnection()
     setLogs([])
     setMessages([])
     logIdRef.current = 0
     messageIdRef.current = 0
-  }
+  }, [cancelConnection])
 
   const sseEndpoints = [
     {
-      name: 'HTTPBin Stream',
-      url: 'https://httpbin.org/stream/10',
+      name: '基础数据流',
+      url: '/api/sse/stream',
       method: 'GET' as const,
-      parseData: false,
+      parseData: true,
       parseJSON: true,
-      description: '10条JSON流数据',
+      description: '本地模拟的基础SSE数据流',
     },
     {
-      name: 'HTTPBin SSE',
-      url: 'https://httpbin.org/stream-bytes/1024',
-      method: 'GET' as const,
-      parseData: false,
-      parseJSON: false,
-      description: '1KB字节流',
-    },
-    {
-      name: '模拟聊天 SSE',
-      url: 'https://api.example.com/chat/stream',
+      name: '聊天对话流',
+      url: '/api/sse/chat',
       method: 'POST' as const,
       parseData: true,
       parseJSON: true,
-      description: '模拟AI聊天流（可能不可用）',
+      description: '模拟AI聊天的流式回复',
+    },
+    {
+      name: '计数器流',
+      url: '/api/sse/counter?max=20&interval=500',
+      method: 'GET' as const,
+      parseData: true,
+      parseJSON: true,
+      description: '数字计数器数据流',
+    },
+    {
+      name: '随机数据流',
+      url: '/api/sse/random',
+      method: 'GET' as const,
+      parseData: true,
+      parseJSON: true,
+      description: '随机传感器数据流',
     },
     {
       name: '自定义端点',
@@ -240,14 +265,14 @@ export default function HttpSSETest() {
     },
   ]
 
-  const loadEndpoint = (endpoint: typeof sseEndpoints[0]) => {
+  const loadEndpoint = useCallback((endpoint: typeof sseEndpoints[0]) => {
     if (endpoint.url) {
       setSseUrl(endpoint.url)
     }
     setMethod(endpoint.method)
     setNeedParseData(endpoint.parseData)
     setNeedParseJSON(endpoint.parseJSON)
-  }
+  }, [])
 
   const getStatusColor = (status: SSELog['status']) => {
     switch (status) {
@@ -284,6 +309,16 @@ export default function HttpSSETest() {
         <p className="text-gray-600 dark:text-gray-400">
           测试 jl-http 的 SSE 流式数据处理功能，包括实时数据接收、数据解析、连接管理等特性
         </p>
+        <div className="mt-4 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
+          <p className="text-sm text-blue-800 dark:text-blue-200">
+            💡 <strong>提示</strong>: 本页面提供了多个本地模拟的 SSE 接口用于测试，无需依赖外部服务。
+            你可以选择预设端点或输入自定义 URL 进行测试。
+          </p>
+          <div className="mt-2 text-xs text-blue-600 dark:text-blue-300">
+            🌐 开发服务器: <code>{ window.location.origin }</code> |
+            📡 SSE 接口: <code>/api/sse/*</code>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -296,7 +331,7 @@ export default function HttpSSETest() {
               <label className="mb-2 block text-sm font-medium">SSE 端点 URL</label>
               <Input
                 value={ sseUrl }
-                onChange={ e => setSseUrl(e.target.value) }
+                onChange={ setSseUrl }
                 placeholder="输入 SSE 端点 URL"
               />
             </div>
@@ -316,9 +351,9 @@ export default function HttpSSETest() {
             { method === 'POST' && (
               <div>
                 <label className="mb-2 block text-sm font-medium">请求体 (JSON)</label>
-                <textarea
+                <Textarea
                   value={ requestBody }
-                  onChange={ e => setRequestBody(e.target.value) }
+                  onChange={ setRequestBody }
                   className="h-20 w-full resize-none border rounded-lg p-3 text-sm font-mono"
                   placeholder="输入 JSON 格式的请求体"
                 />
@@ -358,7 +393,7 @@ export default function HttpSSETest() {
                   <label className="mb-2 block text-sm font-medium">数据前缀</label>
                   <Input
                     value={ dataPrefix }
-                    onChange={ e => setDataPrefix(e.target.value) }
+                    onChange={ setDataPrefix }
                     placeholder="data:"
                   />
                 </div>
@@ -366,7 +401,7 @@ export default function HttpSSETest() {
                   <label className="mb-2 block text-sm font-medium">分隔符</label>
                   <Input
                     value={ separator }
-                    onChange={ e => setSeparator(e.target.value) }
+                    onChange={ setSeparator }
                     placeholder="\\n\\n"
                   />
                 </div>
@@ -374,7 +409,7 @@ export default function HttpSSETest() {
                   <label className="mb-2 block text-sm font-medium">结束信号</label>
                   <Input
                     value={ doneSignal }
-                    onChange={ e => setDoneSignal(e.target.value) }
+                    onChange={ setDoneSignal }
                     placeholder="[DONE]"
                   />
                 </div>
@@ -415,43 +450,43 @@ export default function HttpSSETest() {
           <div className="max-h-96 overflow-y-auto space-y-2">
             { messages.length === 0
               ? (
-                  <p className="py-8 text-center text-gray-500">暂无消息</p>
-                )
+                <p className="py-8 text-center text-gray-500">暂无消息</p>
+              )
               : (
-                  messages.map(message => (
-                    <div
-                      key={ message.id }
-                      className={ cn(
-                        'p-3 rounded-lg border text-sm',
-                        message.isComplete
-                          ? 'bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800'
-                          : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
-                      ) }
-                    >
-                      <div className="mb-1 flex items-center justify-between">
-                        <span className="text-xs text-gray-500">{ message.timestamp }</span>
-                        { message.isComplete && (
-                          <span className="rounded bg-gray-200 px-2 py-1 text-xs dark:bg-gray-700">
-                            完成
-                          </span>
-                        ) }
-                      </div>
-                      <div className="break-all text-sm font-mono">
-                        { message.content }
-                      </div>
-                      { message.jsonData && (
-                        <details className="mt-2">
-                          <summary className="cursor-pointer text-xs text-gray-500">
-                            JSON 数据
-                          </summary>
-                          <pre className="mt-1 overflow-auto rounded bg-gray-100 p-2 text-xs dark:bg-gray-800">
-                            { JSON.stringify(message.jsonData, null, 2) }
-                          </pre>
-                        </details>
+                messages.map(message => (
+                  <div
+                    key={ message.id }
+                    className={ cn(
+                      'p-3 rounded-lg border text-sm',
+                      message.isComplete
+                        ? 'bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800'
+                        : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
+                    ) }
+                  >
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className="text-xs text-gray-500">{ message.timestamp }</span>
+                      { message.isComplete && (
+                        <span className="rounded bg-gray-200 px-2 py-1 text-xs dark:bg-gray-700">
+                          完成
+                        </span>
                       ) }
                     </div>
-                  ))
-                ) }
+                    <div className="break-all text-sm font-mono">
+                      { message.content }
+                    </div>
+                    { message.jsonData && (
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-xs text-gray-500">
+                          JSON 数据
+                        </summary>
+                        <pre className="mt-1 overflow-auto rounded bg-gray-100 p-2 text-xs dark:bg-gray-800">
+                          { JSON.stringify(message.jsonData, null, 2) }
+                        </pre>
+                      </details>
+                    ) }
+                  </div>
+                ))
+              ) }
           </div>
         </Card>
       </div>
@@ -468,64 +503,64 @@ export default function HttpSSETest() {
         <div className="space-y-3">
           { logs.length === 0
             ? (
-                <p className="py-8 text-center text-gray-500">暂无连接日志</p>
-              )
+              <p className="py-8 text-center text-gray-500">暂无连接日志</p>
+            )
             : (
-                logs.map(log => (
-                  <div
-                    key={ log.id }
-                    className={ cn('p-4 rounded-lg border', getStatusColor(log.status)) }
-                  >
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="font-medium">
-                        { log.method }
-                        { ' ' }
-                        { log.url }
-                      </span>
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className="rounded bg-white/50 px-2 py-1 dark:bg-black/20">
-                          { getStatusText(log.status) }
-                        </span>
-                        <span>
-                          耗时:
-                          { log.duration }
-                          ms
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="mb-2 text-sm text-gray-600 dark:text-gray-400">
-                      { log.timestamp }
+              logs.map(log => (
+                <div
+                  key={ log.id }
+                  className={ cn('p-4 rounded-lg border', getStatusColor(log.status)) }
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="font-medium">
+                      { log.method }
                       { ' ' }
-                      | 消息数:
-                      { log.messageCount }
-                      { log.progress > 0 && ` | 进度: ${(log.progress * 100).toFixed(1)}%` }
+                      { log.url }
+                    </span>
+                    <div className="flex items-center gap-4 text-sm">
+                      <span className="rounded bg-white/50 px-2 py-1 dark:bg-black/20">
+                        { getStatusText(log.status) }
+                      </span>
+                      <span>
+                        耗时:
+                        { log.duration }
+                        ms
+                      </span>
                     </div>
-
-                    { log.status === 'streaming' && (
-                      <div className="flex items-center text-sm text-green-600 dark:text-green-400">
-                        <div className="mr-2 h-2 w-2 animate-pulse rounded-full bg-current"></div>
-                        数据流传输中...
-                      </div>
-                    ) }
-
-                    { log.error && (
-                      <div className="text-sm text-red-600 dark:text-red-400">
-                        错误:
-                        { ' ' }
-                        { log.error }
-                      </div>
-                    ) }
                   </div>
-                ))
-              ) }
+
+                  <div className="mb-2 text-sm text-gray-600 dark:text-gray-400">
+                    { log.timestamp }
+                    { ' ' }
+                    | 消息数:
+                    { log.messageCount }
+                    { log.progress > 0 && log.progress !== Infinity && ` | 进度: ${(log.progress * 100).toFixed(1)}%` }
+                  </div>
+
+                  { log.status === 'streaming' && (
+                    <div className="flex items-center text-sm text-green-600 dark:text-green-400">
+                      <div className="mr-2 h-2 w-2 animate-pulse rounded-full bg-current"></div>
+                      数据流传输中...
+                    </div>
+                  ) }
+
+                  { log.error && (
+                    <div className="text-sm text-red-600 dark:text-red-400">
+                      错误:
+                      { ' ' }
+                      { log.error }
+                    </div>
+                  ) }
+                </div>
+              ))
+            ) }
         </div>
       </Card>
 
       {/* 预设端点 */ }
       <Card className="mt-6 p-6">
         <h2 className="mb-4 text-xl font-semibold">预设 SSE 端点</h2>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 md:grid-cols-2">
           { sseEndpoints.map((endpoint, index) => (
             <div key={ index } className="border rounded-lg p-4">
               <h3 className="mb-2 font-medium">{ endpoint.name }</h3>

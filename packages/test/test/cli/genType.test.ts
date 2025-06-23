@@ -1,4 +1,4 @@
-import { genType } from '@/tools/genType'
+import { genType } from '../../../jl-http/src/cli/tools'
 import { describe, expect, it } from 'vitest'
 
 describe('genType', () => {

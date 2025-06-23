@@ -4,6 +4,7 @@ import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Input, Textarea } from '@/components/Input'
 import { cn } from '@/utils'
+import { NumberInput } from '@/components/Input/NumberInput'
 
 /** 创建 HTTP 实例 */
 const http = new Http({
@@ -156,17 +157,16 @@ export default function HttpCacheTest() {
               <label className="mb-2 block text-sm font-medium">请求 URL</label>
               <Input
                 value={ url }
-                onChange={ e => setUrl(e.target.value) }
+                onChange={ setUrl }
                 placeholder="输入请求路径"
               />
             </div>
 
             <div>
               <label className="mb-2 block text-sm font-medium">缓存超时时间 (ms)</label>
-              <Input
-                type="number"
+              <NumberInput
                 value={ cacheTimeout }
-                onChange={ e => setCacheTimeout(Number(e.target.value)) }
+                onChange={ setCacheTimeout }
                 placeholder="缓存超时时间"
               />
             </div>
@@ -175,7 +175,7 @@ export default function HttpCacheTest() {
               <label className="mb-2 block text-sm font-medium">请求体 (JSON)</label>
               <Textarea
                 value={ requestBody }
-                onChange={ e => setRequestBody(e.target.value) }
+                onChange={ setRequestBody }
                 className="h-20 w-full resize-none border rounded-lg p-3 text-sm font-mono"
                 placeholder="输入 JSON 格式的请求体"
               />

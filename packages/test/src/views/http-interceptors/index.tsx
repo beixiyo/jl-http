@@ -2,7 +2,7 @@ import { Http } from '@jl-org/http'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
-import { Input } from '@/components/Input'
+import { Input, Textarea } from '@/components/Input'
 import { Select } from '@/components/Select'
 import { cn } from '@/utils'
 
@@ -334,7 +334,7 @@ export default function HttpInterceptorsTest() {
               <label className="mb-2 block text-sm font-medium">请求 URL</label>
               <Input
                 value={ url }
-                onChange={ e => setUrl(e.target.value) }
+                onChange={ setUrl }
                 placeholder="输入请求路径"
               />
             </div>
@@ -342,9 +342,9 @@ export default function HttpInterceptorsTest() {
             { (method === 'POST' || method === 'PUT' || method === 'DELETE') && (
               <div>
                 <label className="mb-2 block text-sm font-medium">请求体 (JSON)</label>
-                <textarea
+                <Textarea
                   value={ requestBody }
-                  onChange={ e => setRequestBody(e.target.value) }
+                  onChange={ setRequestBody }
                   className="h-20 w-full resize-none border rounded-lg p-3 text-sm font-mono"
                   placeholder="输入 JSON 格式的请求体"
                 />
@@ -355,7 +355,7 @@ export default function HttpInterceptorsTest() {
               <label className="mb-2 block text-sm font-medium">认证令牌</label>
               <Input
                 value={ authToken }
-                onChange={ e => setAuthToken(e.target.value) }
+                onChange={ setAuthToken }
                 placeholder="Bearer token"
               />
             </div>

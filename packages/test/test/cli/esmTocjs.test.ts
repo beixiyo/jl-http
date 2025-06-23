@@ -44,7 +44,7 @@ Object.defineProperty(process, 'cwd', {
 })
 
 // Import the actual functions for writeTempFile testing
-import { writeTempFile } from '@jl-org/http'
+import { writeTempFile } from '../../../jl-http/src/cli/tools'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 

@@ -5,6 +5,7 @@ import { Card } from '@/components/Card'
 import { Input } from '@/components/Input'
 import { Select } from '@/components/Select'
 import { cn } from '@/utils'
+import { NumberInput } from '@/components/Input/NumberInput'
 
 /** 创建 HTTP 实例 */
 const http = new Http({
@@ -48,7 +49,7 @@ export default function HttpRetryTest() {
   const [logs, setLogs] = useState<RetryLog[]>([])
   const [statusCode, setStatusCode] = useState('500') // 模拟服务器错误
   const [retryCount, setRetryCount] = useState(3)
-  const [timeout, setTimeout] = useState(3000)
+  const [timeout, setTimeoutValue] = useState(3000)
   const [method, setMethod] = useState<'GET' | 'POST'>('GET')
   const logIdRef = useRef(0)
 
@@ -89,17 +90,17 @@ export default function HttpRetryTest() {
         setLogs(prev => prev.map(l =>
           l.id === log.id
             ? {
-                ...l,
-                attempts: [
-                  ...l.attempts,
-                  {
-                    attempt: attemptNumber,
-                    timestamp: new Date().toLocaleTimeString(),
-                    success: false,
-                    duration: 0,
-                  },
-                ],
-              }
+              ...l,
+              attempts: [
+                ...l.attempts,
+                {
+                  attempt: attemptNumber,
+                  timestamp: new Date().toLocaleTimeString(),
+                  success: false,
+                  duration: 0,
+                },
+              ],
+            }
             : l,
         ))
 
@@ -111,13 +112,13 @@ export default function HttpRetryTest() {
         setLogs(prev => prev.map(l =>
           l.id === log.id
             ? {
-                ...l,
-                attempts: l.attempts.map((attempt, index) =>
-                  index === l.attempts.length - 1
-                    ? { ...attempt, success: true, duration }
-                    : attempt,
-                ),
-              }
+              ...l,
+              attempts: l.attempts.map((attempt, index) =>
+                index === l.attempts.length - 1
+                  ? { ...attempt, success: true, duration }
+                  : attempt,
+              ),
+            }
             : l,
         ))
         return response.data
@@ -128,18 +129,18 @@ export default function HttpRetryTest() {
         setLogs(prev => prev.map(l =>
           l.id === log.id
             ? {
-                ...l,
-                attempts: l.attempts.map((attempt, index) =>
-                  index === l.attempts.length - 1
-                    ? {
-                        ...attempt,
-                        success: false,
-                        error: error.status || error.message || '请求失败',
-                        duration,
-                      }
-                    : attempt,
-                ),
-              }
+              ...l,
+              attempts: l.attempts.map((attempt, index) =>
+                index === l.attempts.length - 1
+                  ? {
+                    ...attempt,
+                    success: false,
+                    error: error.status || error.message || '请求失败',
+                    duration,
+                  }
+                  : attempt,
+              ),
+            }
             : l,
         ))
       },
@@ -166,10 +167,10 @@ export default function HttpRetryTest() {
       setLogs(prev => prev.map(l =>
         l.id === log.id
           ? {
-              ...l,
-              finalError: err.message || '最终请求失败',
-              totalDuration,
-            }
+            ...l,
+            finalError: err.message || '最终请求失败',
+            totalDuration,
+          }
           : l,
       ))
     }
@@ -227,7 +228,7 @@ export default function HttpRetryTest() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* 配置面板 */}
+        {/* 配置面板 */ }
         <Card className="p-6">
           <h2 className="mb-4 text-xl font-semibold">重试配置</h2>
 
@@ -263,22 +264,20 @@ export default function HttpRetryTest() {
 
             <div>
               <label className="mb-2 block text-sm font-medium">重试次数</label>
-              <Input
-                type="number"
+              <NumberInput
                 value={ retryCount }
-                onChange={ e => setRetryCount(Number(e.target.value)) }
-                min="0"
-                max="10"
+                onChange={ setRetryCount }
+                min={ 0 }
+                max={ 10 }
                 placeholder="重试次数"
               />
             </div>
 
             <div>
               <label className="mb-2 block text-sm font-medium">超时时间 (ms)</label>
-              <Input
-                type="number"
+              <NumberInput
                 value={ timeout }
-                onChange={ e => setTimeout(Number(e.target.value)) }
+                onChange={ setTimeoutValue }
                 placeholder="超时时间"
               />
             </div>
@@ -293,7 +292,7 @@ export default function HttpRetryTest() {
           </div>
         </Card>
 
-        {/* 重试日志 */}
+        {/* 重试日志 */ }
         <Card className="p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xl font-semibold">重试日志</h2>
@@ -303,110 +302,110 @@ export default function HttpRetryTest() {
           </div>
 
           <div className="max-h-96 overflow-y-auto space-y-4">
-            {logs.length === 0
+            { logs.length === 0
               ? (
-                  <p className="py-8 text-center text-gray-500">暂无重试日志</p>
-                )
+                <p className="py-8 text-center text-gray-500">暂无重试日志</p>
+              )
               : (
-                  logs.map(log => (
-                    <div
-                      key={ log.id }
-                      className={ cn(
-                        'p-4 rounded-lg border',
-                        log.finalResult
-                          ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-                          : log.finalError
-                            ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-                            : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
-                      ) }
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <span className="font-medium">
-                          {log.method}
-                          {' '}
-                          {log.url}
-                        </span>
-                        <span className="text-sm text-gray-500">
-                          {log.totalDuration}
-                          ms
-                        </span>
-                      </div>
-
-                      <div className="mb-2 text-sm text-gray-600 dark:text-gray-400">
-                        最大重试:
-                        {' '}
-                        {log.maxRetries}
-                        {' '}
-                        次 | 实际尝试:
-                        {' '}
-                        {log.attempts.length}
-                        {' '}
-                        次
-                      </div>
-
-                      {/* 尝试详情 */}
-                      <div className="space-y-1">
-                        {log.attempts.map((attempt, index) => (
-                          <div
-                            key={ index }
-                            className={ cn(
-                              'text-xs p-2 rounded flex items-center justify-between',
-                              attempt.success
-                                ? 'bg-green-100 dark:bg-green-800/30 text-green-800 dark:text-green-200'
-                                : 'bg-red-100 dark:bg-red-800/30 text-red-800 dark:text-red-200',
-                            ) }
-                          >
-                            <span>
-                              尝试
-                              {' '}
-                              {attempt.attempt}
-                              :
-                              {' '}
-                              {attempt.success
-                                ? '成功'
-                                : '失败'}
-                              {attempt.error && ` (${attempt.error})`}
-                            </span>
-                            <span>
-                              {attempt.duration}
-                              ms
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-
-                      {log.finalError && (
-                        <div className="mt-2 text-sm text-red-600 dark:text-red-400">
-                          最终错误:
-                          {' '}
-                          {log.finalError}
-                        </div>
-                      )}
+                logs.map(log => (
+                  <div
+                    key={ log.id }
+                    className={ cn(
+                      'p-4 rounded-lg border',
+                      log.finalResult
+                        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                        : log.finalError
+                          ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                          : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
+                    ) }
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="font-medium">
+                        { log.method }
+                        { ' ' }
+                        { log.url }
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        { log.totalDuration }
+                        ms
+                      </span>
                     </div>
-                  ))
-                )}
+
+                    <div className="mb-2 text-sm text-gray-600 dark:text-gray-400">
+                      最大重试:
+                      { ' ' }
+                      { log.maxRetries }
+                      { ' ' }
+                      次 | 实际尝试:
+                      { ' ' }
+                      { log.attempts.length }
+                      { ' ' }
+                      次
+                    </div>
+
+                    {/* 尝试详情 */ }
+                    <div className="space-y-1">
+                      { log.attempts.map((attempt, index) => (
+                        <div
+                          key={ index }
+                          className={ cn(
+                            'text-xs p-2 rounded flex items-center justify-between',
+                            attempt.success
+                              ? 'bg-green-100 dark:bg-green-800/30 text-green-800 dark:text-green-200'
+                              : 'bg-red-100 dark:bg-red-800/30 text-red-800 dark:text-red-200',
+                          ) }
+                        >
+                          <span>
+                            尝试
+                            { ' ' }
+                            { attempt.attempt }
+                            :
+                            { ' ' }
+                            { attempt.success
+                              ? '成功'
+                              : '失败' }
+                            { attempt.error && ` (${attempt.error})` }
+                          </span>
+                          <span>
+                            { attempt.duration }
+                            ms
+                          </span>
+                        </div>
+                      )) }
+                    </div>
+
+                    { log.finalError && (
+                      <div className="mt-2 text-sm text-red-600 dark:text-red-400">
+                        最终错误:
+                        { ' ' }
+                        { log.finalError }
+                      </div>
+                    ) }
+                  </div>
+                ))
+              ) }
           </div>
         </Card>
       </div>
 
-      {/* 测试场景 */}
+      {/* 测试场景 */ }
       <Card className="mt-6 p-6">
         <h2 className="mb-4 text-xl font-semibold">重试测试场景</h2>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-4 md:grid-cols-2">
-          {testScenarios.map((scenario, index) => (
+          { testScenarios.map((scenario, index) => (
             <div key={ index } className="border rounded-lg p-4">
-              <h3 className="mb-2 font-medium">{scenario.name}</h3>
+              <h3 className="mb-2 font-medium">{ scenario.name }</h3>
               <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">
-                {scenario.description}
+                { scenario.description }
               </p>
               <div className="mb-3 text-xs text-gray-500">
                 状态码:
-                {' '}
-                {scenario.statusCode}
-                {' '}
+                { ' ' }
+                { scenario.statusCode }
+                { ' ' }
                 | 重试:
-                {' '}
-                {scenario.retries}
+                { ' ' }
+                { scenario.retries }
               </div>
               <Button
                 onClick={ () => runTestScenario(scenario) }
@@ -417,11 +416,11 @@ export default function HttpRetryTest() {
                 测试
               </Button>
             </div>
-          ))}
+          )) }
         </div>
       </Card>
 
-      {/* 功能说明 */}
+      {/* 功能说明 */ }
       <Card className="mt-6 p-6">
         <h2 className="mb-4 text-xl font-semibold">重试功能说明</h2>
         <div className="prose dark:prose-invert max-w-none">

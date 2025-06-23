@@ -5,8 +5,14 @@ import UnoCSS from 'unocss/vite'
 import AutoImport from 'unplugin-auto-import/vite'
 import { defineConfig } from 'vite'
 import { envParse } from 'vite-plugin-env-parse'
+import { ssePlugin } from './plugins/sse-plugin'
 
 export default defineConfig({
+  server: {
+    port: 5173,
+    host: true,
+  },
+
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -31,5 +37,6 @@ export default defineConfig({
       bundler: 'vite',
       editor: 'cursor',
     }),
+    ssePlugin(),
   ],
 })

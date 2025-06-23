@@ -3,7 +3,7 @@
 import type { Config } from '@/tools/defineConfig'
 import { rm, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { esmTocjs, genType, writeTempFile } from '../tools'
+import { esmTocjs, genType, writeTempFile } from './tools'
 
 const tempPath = 'node_modules/@jl-org/.http'
 const tempFile = 'temp.cjs'

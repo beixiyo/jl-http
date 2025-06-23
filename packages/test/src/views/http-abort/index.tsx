@@ -5,6 +5,7 @@ import { Card } from '@/components/Card'
 import { Input } from '@/components/Input'
 import { Select } from '@/components/Select'
 import { cn } from '@/utils'
+import { NumberInput } from '@/components/Input/NumberInput'
 
 /** 创建 HTTP 实例 */
 const http = new Http({
@@ -240,7 +241,7 @@ export default function HttpAbortTest() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* 配置面板 */}
+        {/* 配置面板 */ }
         <Card className="p-6">
           <h2 className="mb-4 text-xl font-semibold">中断配置</h2>
 
@@ -259,12 +260,11 @@ export default function HttpAbortTest() {
 
             <div>
               <label className="mb-2 block text-sm font-medium">延迟时间 (秒)</label>
-              <Input
-                type="number"
+              <NumberInput
                 value={ delay }
-                onChange={ e => setDelay(Number(e.target.value)) }
-                min="1"
-                max="30"
+                onChange={ setDelay }
+                min={ 1 }
+                max={ 30 }
                 placeholder="延迟时间"
               />
               <p className="mt-1 text-xs text-gray-500">
@@ -274,10 +274,9 @@ export default function HttpAbortTest() {
 
             <div>
               <label className="mb-2 block text-sm font-medium">超时时间 (ms)</label>
-              <Input
-                type="number"
+              <NumberInput
                 value={ timeoutValue }
-                onChange={ e => setTimeoutValue(Number(e.target.value)) }
+                onChange={ setTimeoutValue }
                 placeholder="超时时间"
               />
             </div>
@@ -307,7 +306,7 @@ export default function HttpAbortTest() {
           </div>
         </Card>
 
-        {/* 请求日志 */}
+        {/* 请求日志 */ }
         <Card className="p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xl font-semibold">请求日志</h2>
@@ -317,100 +316,100 @@ export default function HttpAbortTest() {
           </div>
 
           <div className="max-h-96 overflow-y-auto space-y-3">
-            {logs.length === 0
+            { logs.length === 0
               ? (
-                  <p className="py-8 text-center text-gray-500">暂无请求日志</p>
-                )
+                <p className="py-8 text-center text-gray-500">暂无请求日志</p>
+              )
               : (
-                  logs.map(log => (
-                    <div
-                      key={ log.id }
-                      className={ cn('p-4 rounded-lg border', getStatusColor(log.status)) }
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <span className="font-medium">
-                          {log.method}
-                          {' '}
-                          {log.url}
+                logs.map(log => (
+                  <div
+                    key={ log.id }
+                    className={ cn('p-4 rounded-lg border', getStatusColor(log.status)) }
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="font-medium">
+                        { log.method }
+                        { ' ' }
+                        { log.url }
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded bg-white/50 px-2 py-1 text-sm dark:bg-black/20">
+                          { getStatusText(log.status) }
                         </span>
-                        <div className="flex items-center gap-2">
-                          <span className="rounded bg-white/50 px-2 py-1 text-sm dark:bg-black/20">
-                            {getStatusText(log.status)}
-                          </span>
-                          {log.status === 'pending' && (
-                            <Button
-                              size="sm"
-                              designStyle="outlined"
-                              onClick={ () => abortRequest(log.id) }
-                            >
-                              中断
-                            </Button>
-                          )}
-                        </div>
+                        { log.status === 'pending' && (
+                          <Button
+                            size="sm"
+                            designStyle="outlined"
+                            onClick={ () => abortRequest(log.id) }
+                          >
+                            中断
+                          </Button>
+                        ) }
                       </div>
-
-                      <div className="mb-2 text-sm text-gray-600 dark:text-gray-400">
-                        {log.timestamp}
-                        {' '}
-                        | 耗时:
-                        {log.duration}
-                        ms
-                      </div>
-
-                      {log.abortType !== 'none' && (
-                        <div className="mb-2 text-sm">
-                          中断类型:
-                          {' '}
-                          {
-                            log.abortType === 'manual'
-                              ? '手动中断'
-                              : log.abortType === 'timeout'
-                                ? '超时中断'
-                                : log.abortType === 'signal'
-                                  ? '信号中断'
-                                  : '无'
-                          }
-                        </div>
-                      )}
-
-                      {log.status === 'pending' && (
-                        <div className="flex items-center text-sm text-blue-600 dark:text-blue-400">
-                          <div className="mr-2 h-4 w-4 animate-spin border-b-2 border-current rounded-full"></div>
-                          请求进行中...
-                        </div>
-                      )}
-
-                      {log.error && (
-                        <div className="text-sm text-red-600 dark:text-red-400">
-                          错误:
-                          {' '}
-                          {log.error}
-                        </div>
-                      )}
                     </div>
-                  ))
-                )}
+
+                    <div className="mb-2 text-sm text-gray-600 dark:text-gray-400">
+                      { log.timestamp }
+                      { ' ' }
+                      | 耗时:
+                      { log.duration }
+                      ms
+                    </div>
+
+                    { log.abortType !== 'none' && (
+                      <div className="mb-2 text-sm">
+                        中断类型:
+                        { ' ' }
+                        {
+                          log.abortType === 'manual'
+                            ? '手动中断'
+                            : log.abortType === 'timeout'
+                              ? '超时中断'
+                              : log.abortType === 'signal'
+                                ? '信号中断'
+                                : '无'
+                        }
+                      </div>
+                    ) }
+
+                    { log.status === 'pending' && (
+                      <div className="flex items-center text-sm text-blue-600 dark:text-blue-400">
+                        <div className="mr-2 h-4 w-4 animate-spin border-b-2 border-current rounded-full"></div>
+                        请求进行中...
+                      </div>
+                    ) }
+
+                    { log.error && (
+                      <div className="text-sm text-red-600 dark:text-red-400">
+                        错误:
+                        { ' ' }
+                        { log.error }
+                      </div>
+                    ) }
+                  </div>
+                ))
+              ) }
           </div>
         </Card>
       </div>
 
-      {/* 测试场景 */}
+      {/* 测试场景 */ }
       <Card className="mt-6 p-6">
         <h2 className="mb-4 text-xl font-semibold">中断测试场景</h2>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-4 md:grid-cols-2">
-          {testScenarios.map((scenario, index) => (
+          { testScenarios.map((scenario, index) => (
             <div key={ index } className="border rounded-lg p-4">
-              <h3 className="mb-2 font-medium">{scenario.name}</h3>
+              <h3 className="mb-2 font-medium">{ scenario.name }</h3>
               <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">
-                {scenario.description}
+                { scenario.description }
               </p>
               <div className="mb-3 text-xs text-gray-500">
                 延迟:
-                {' '}
-                {scenario.delay}
+                { ' ' }
+                { scenario.delay }
                 s | 超时:
-                {' '}
-                {scenario.timeout}
+                { ' ' }
+                { scenario.timeout }
                 ms
               </div>
               <Button
@@ -421,11 +420,11 @@ export default function HttpAbortTest() {
                 测试
               </Button>
             </div>
-          ))}
+          )) }
         </div>
       </Card>
 
-      {/* 功能说明 */}
+      {/* 功能说明 */ }
       <Card className="mt-6 p-6">
         <h2 className="font-semibent mb-4 text-xl">中断功能说明</h2>
         <div className="prose dark:prose-invert max-w-none">

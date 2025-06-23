@@ -6,6 +6,7 @@ import { Card } from '@/components/Card'
 import { Input } from '@/components/Input'
 import { Select } from '@/components/Select'
 import { cn } from '@/utils'
+import { NumberInput } from '@/components/Input/NumberInput'
 
 /** 创建 HTTP 实例 */
 const http = new Http({
@@ -130,12 +131,12 @@ export default function HttpConcurrentTest() {
             setTaskProgress(prev => prev.map(task =>
               task.taskIndex === i
                 ? {
-                    ...task,
-                    status: 'completed',
-                    endTime,
-                    duration: endTime - startTime,
-                    result,
-                  }
+                  ...task,
+                  status: 'completed',
+                  endTime,
+                  duration: endTime - startTime,
+                  result,
+                }
                 : task,
             ))
             return result
@@ -145,12 +146,12 @@ export default function HttpConcurrentTest() {
             setTaskProgress(prev => prev.map(task =>
               task.taskIndex === i
                 ? {
-                    ...task,
-                    status: 'failed',
-                    endTime,
-                    duration: endTime - startTime,
-                    error: error.message || '任务失败',
-                  }
+                  ...task,
+                  status: 'failed',
+                  endTime,
+                  duration: endTime - startTime,
+                  error: error.message || '任务失败',
+                }
                 : task,
             ))
             throw error
@@ -286,31 +287,29 @@ export default function HttpConcurrentTest() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* 配置面板 */}
+        {/* 配置面板 */ }
         <Card className="p-6">
           <h2 className="mb-4 text-xl font-semibold">并发配置</h2>
 
           <div className="space-y-4">
             <div>
               <label className="mb-2 block text-sm font-medium">任务数量</label>
-              <Input
-                type="number"
+              <NumberInput
                 value={ taskCount }
-                onChange={ e => setTaskCount(Number(e.target.value)) }
-                min="1"
-                max="20"
+                onChange={ setTaskCount }
+                min={ 1 }
+                max={ 20 }
                 placeholder="任务数量"
               />
             </div>
 
             <div>
               <label className="mb-2 block text-sm font-medium">最大并发数</label>
-              <Input
-                type="number"
+              <NumberInput
                 value={ maxConcurrency }
-                onChange={ e => setMaxConcurrency(Number(e.target.value)) }
-                min="1"
-                max="10"
+                onChange={ setMaxConcurrency }
+                min={ 1 }
+                max={ 10 }
                 placeholder="最大并发数"
               />
             </div>
@@ -352,144 +351,144 @@ export default function HttpConcurrentTest() {
           </div>
         </Card>
 
-        {/* 任务进度 */}
+        {/* 任务进度 */ }
         <Card className="p-6">
           <h2 className="mb-4 text-xl font-semibold">任务进度</h2>
 
           <div className="max-h-96 overflow-y-auto space-y-2">
-            {taskProgress.length === 0
+            { taskProgress.length === 0
               ? (
-                  <p className="py-8 text-center text-gray-500">暂无任务进度</p>
-                )
+                <p className="py-8 text-center text-gray-500">暂无任务进度</p>
+              )
               : (
-                  taskProgress.map(task => (
-                    <div
-                      key={ task.taskIndex }
-                      className="flex items-center justify-between border rounded-lg p-3"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="font-medium">
-                          任务
-                          {task.taskIndex + 1}
-                        </span>
-                        <span className={ cn(
-                          'px-2 py-1 rounded text-xs font-medium',
-                          getTaskStatusColor(task.status),
-                        ) }>
-                          {task.status === 'pending' && '等待中'}
-                          {task.status === 'running' && '运行中'}
-                          {task.status === 'completed' && '已完成'}
-                          {task.status === 'failed' && '失败'}
-                        </span>
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {task.duration
-                          ? `${task.duration}ms`
-                          : '-'}
-                      </div>
+                taskProgress.map(task => (
+                  <div
+                    key={ task.taskIndex }
+                    className="flex items-center justify-between border rounded-lg p-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="font-medium">
+                        任务
+                        { task.taskIndex + 1 }
+                      </span>
+                      <span className={ cn(
+                        'px-2 py-1 rounded text-xs font-medium',
+                        getTaskStatusColor(task.status),
+                      ) }>
+                        { task.status === 'pending' && '等待中' }
+                        { task.status === 'running' && '运行中' }
+                        { task.status === 'completed' && '已完成' }
+                        { task.status === 'failed' && '失败' }
+                      </span>
                     </div>
-                  ))
-                )}
+                    <div className="text-sm text-gray-500">
+                      { task.duration
+                        ? `${task.duration}ms`
+                        : '-' }
+                    </div>
+                  </div>
+                ))
+              ) }
           </div>
         </Card>
       </div>
 
-      {/* 执行日志 */}
+      {/* 执行日志 */ }
       <Card className="mt-6 p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold">执行日志</h2>
-          <Button onClick={ clearLogs } variant="outline" size="sm">
+          <Button onClick={ clearLogs } designStyle="outlined" size="sm">
             清空日志
           </Button>
         </div>
 
         <div className="space-y-4">
-          {logs.length === 0
+          { logs.length === 0
             ? (
-                <p className="py-8 text-center text-gray-500">暂无执行日志</p>
-              )
+              <p className="py-8 text-center text-gray-500">暂无执行日志</p>
+            )
             : (
-                logs.map(log => (
-                  <div
-                    key={ log.id }
-                    className={ cn(
-                      'p-4 rounded-lg border',
-                      log.status === 'completed'
-                        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-                        : log.status === 'error'
-                          ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-                          : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
-                    ) }
-                  >
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="font-medium">
-                        并发执行
-                        {' '}
-                        {log.taskCount}
-                        {' '}
-                        个任务
+              logs.map(log => (
+                <div
+                  key={ log.id }
+                  className={ cn(
+                    'p-4 rounded-lg border',
+                    log.status === 'completed'
+                      ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                      : log.status === 'error'
+                        ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                        : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
+                  ) }
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="font-medium">
+                      并发执行
+                      { ' ' }
+                      { log.taskCount }
+                      { ' ' }
+                      个任务
+                    </span>
+                    <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <span>
+                        并发数:
+                        { log.maxConcurrency }
                       </span>
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
-                        <span>
-                          并发数:
-                          {log.maxConcurrency}
-                        </span>
-                        <span>
-                          耗时:
-                          {log.duration}
-                          ms
-                        </span>
-                      </div>
+                      <span>
+                        耗时:
+                        { log.duration }
+                        ms
+                      </span>
                     </div>
-
-                    <div className="mb-2 text-sm text-gray-600 dark:text-gray-400">
-                      {log.timestamp}
-                      {' '}
-                      | 成功:
-                      {log.successCount}
-                      {' '}
-                      | 失败:
-                      {log.failureCount}
-                    </div>
-
-                    {log.status === 'running' && (
-                      <div className="flex items-center text-sm text-blue-600 dark:text-blue-400">
-                        <div className="mr-2 h-4 w-4 animate-spin border-b-2 border-current rounded-full"></div>
-                        任务执行中...
-                      </div>
-                    )}
-
-                    {log.error && (
-                      <div className="text-sm text-red-600 dark:text-red-400">
-                        错误:
-                        {' '}
-                        {log.error}
-                      </div>
-                    )}
                   </div>
-                ))
-              )}
+
+                  <div className="mb-2 text-sm text-gray-600 dark:text-gray-400">
+                    { log.timestamp }
+                    { ' ' }
+                    | 成功:
+                    { log.successCount }
+                    { ' ' }
+                    | 失败:
+                    { log.failureCount }
+                  </div>
+
+                  { log.status === 'running' && (
+                    <div className="flex items-center text-sm text-blue-600 dark:text-blue-400">
+                      <div className="mr-2 h-4 w-4 animate-spin border-b-2 border-current rounded-full"></div>
+                      任务执行中...
+                    </div>
+                  ) }
+
+                  { log.error && (
+                    <div className="text-sm text-red-600 dark:text-red-400">
+                      错误:
+                      { ' ' }
+                      { log.error }
+                    </div>
+                  ) }
+                </div>
+              ))
+            ) }
         </div>
       </Card>
 
-      {/* 测试场景 */}
+      {/* 测试场景 */ }
       <Card className="mt-6 p-6">
         <h2 className="mb-4 text-xl font-semibold">并发测试场景</h2>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-4 md:grid-cols-2">
-          {testScenarios.map((scenario, index) => (
+          { testScenarios.map((scenario, index) => (
             <div key={ index } className="border rounded-lg p-4">
-              <h3 className="mb-2 font-medium">{scenario.name}</h3>
+              <h3 className="mb-2 font-medium">{ scenario.name }</h3>
               <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">
-                {scenario.description}
+                { scenario.description }
               </p>
               <div className="mb-3 text-xs text-gray-500">
                 任务:
-                {' '}
-                {scenario.taskCount}
-                {' '}
+                { ' ' }
+                { scenario.taskCount }
+                { ' ' }
                 | 并发:
-                {' '}
-                {scenario.concurrency}
+                { ' ' }
+                { scenario.concurrency }
               </div>
               <Button
                 onClick={ () => runTestScenario(scenario) }
@@ -500,11 +499,11 @@ export default function HttpConcurrentTest() {
                 测试
               </Button>
             </div>
-          ))}
+          )) }
         </div>
       </Card>
 
-      {/* 功能说明 */}
+      {/* 功能说明 */ }
       <Card className="mt-6 p-6">
         <h2 className="mb-4 text-xl font-semibold">并发功能说明</h2>
         <div className="prose dark:prose-invert max-w-none">

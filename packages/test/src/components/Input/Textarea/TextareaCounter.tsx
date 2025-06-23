@@ -1,5 +1,5 @@
-import { memo } from 'react'
 import { cn } from '@/utils'
+import { memo } from 'react'
 import { useTextarea } from './TextareaContext'
 
 export interface TextareaCounterProps {
