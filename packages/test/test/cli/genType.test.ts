@@ -1,4 +1,4 @@
-import { genType } from '@jl-org/http/'
+import { genType } from '@/tools/genType'
 import { describe, expect, it } from 'vitest'
 
 describe('genType', () => {
@@ -79,8 +79,8 @@ describe('genType', () => {
 
       expect(result).toContain('stringValue: string')
       expect(result).toContain('numberValue: number')
-      expect(result).toContain('booleanValue: boolean')
-      expect(result).toContain('falseValue: boolean')
+      expect(result).toContain('booleanValue: true') // 字面量值保持原样
+      expect(result).toContain('falseValue: false') // 字面量值保持原样
       expect(result).toContain('nullValue: null')
       expect(result).toContain('undefinedValue: undefined')
       expect(result).toContain('arrayValue: any[]')

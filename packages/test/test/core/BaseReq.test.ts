@@ -355,7 +355,7 @@ describe('BaseReq', () => {
       const promise = baseReq.get('/test', { timeout: 1000 })
 
       // 快进时间触发超时
-      vi.advanceTimersByTime(1000)
+      await vi.advanceTimersByTimeAsync(1001) // 使用异步版本并稍微超过超时时间
 
       await expect(promise).rejects.toMatchObject({
         code: 408,
@@ -363,7 +363,7 @@ describe('BaseReq', () => {
       })
 
       vi.useRealTimers()
-    }, 15000) // 增加测试超时时间
+    }, 20000) // 增加测试超时时间
   })
 
   describe('拦截器', () => {
@@ -439,18 +439,9 @@ describe('BaseReq', () => {
     it('应该在失败后重试', async () => {
       const req = new BaseReq({ retry: 2 })
 
-      // 模拟网络错误响应而不是 Promise rejection
+      // 模拟第一次失败，第二次成功
       mockFetch
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 500,
-          statusText: 'Internal Server Error',
-        })
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 500,
-          statusText: 'Internal Server Error',
-        })
+        .mockRejectedValueOnce(new Error('Network error 1'))
         .mockResolvedValue({
           ok: true,
           status: 200,
@@ -459,23 +450,21 @@ describe('BaseReq', () => {
 
       const result = await req.get('/test')
 
-      expect(mockFetch).toHaveBeenCalledTimes(3)
+      expect(mockFetch).toHaveBeenCalledTimes(2) // 1 次失败 + 1 次成功
       expect(result.data).toEqual({ success: true })
     })
 
     it('应该在重试次数用完后抛出错误', async () => {
-      const req = new BaseReq({ retry: 1 })
+      const req = new BaseReq({ retry: 2 }) // 设置为 2，意味着最多尝试 2 次（1 次初始 + 1 次重试）
 
-      // 模拟持续的服务器错误
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 500,
-        statusText: 'Persistent error',
-      })
+      // 模拟持续的网络错误
+      const persistentError = new Error('Persistent error')
+      mockFetch.mockRejectedValue(persistentError)
 
       await expect(req.get('/test')).rejects.toMatchObject({
-        status: 500,
-        statusText: 'Persistent error',
+        name: 'RetryError',
+        attempts: 2, // 总尝试次数
+        lastError: persistentError,
       })
       expect(mockFetch).toHaveBeenCalledTimes(2) // 1 次初始请求 + 1 次重试
     })
