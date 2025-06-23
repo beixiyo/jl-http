@@ -58,7 +58,7 @@ export const cacheModule: TestModule = {
   validateConfig(config: CacheTestConfig) {
     return !!(
       config.baseUrl
-      && config.timeout > 0
+      && config.timeout && config.timeout > 0
       && config.cacheTimeout > 0
       && config.testUrl
     )

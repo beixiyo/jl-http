@@ -60,7 +60,7 @@ export const concurrentModule: TestModule = {
   validateConfig(config: ConcurrentTestConfig) {
     return !!(
       config.baseUrl
-      && config.timeout > 0
+      && config.timeout && config.timeout > 0
       && config.taskCount > 0
       && config.maxConcurrency > 0
       && config.maxConcurrency <= config.taskCount

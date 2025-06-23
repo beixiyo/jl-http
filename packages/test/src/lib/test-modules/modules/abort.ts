@@ -57,7 +57,7 @@ export const abortModule: TestModule = {
   validateConfig(config: AbortTestConfig) {
     return !!(
       config.baseUrl
-      && config.timeout > 0
+      && config.timeout && config.timeout > 0
       && config.abortDelay > 0
       && config.testUrl
     )

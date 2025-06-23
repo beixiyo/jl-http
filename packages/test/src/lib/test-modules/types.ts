@@ -56,7 +56,7 @@ export interface TestModule {
   /** 获取默认配置 */
   getDefaultConfig: () => Record<string, any>
   /** 验证配置 */
-  validateConfig: (config: Record<string, any>) => boolean
+  validateConfig: (config: any) => boolean
 }
 
 /** 测试执行器状态 */
