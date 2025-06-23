@@ -1,24 +1,14 @@
 import type { SSEData } from '@jl-org/http'
-import { Http, type SSEOptions } from '@jl-org/http'
+import { type SSEOptions } from '@jl-org/http'
 import { useCallback, useRef, useState, useEffect } from 'react'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Input, Textarea } from '@/components/Input'
 import { Select } from '@/components/Select'
 import { cn } from '@/utils'
-
-/** 创建 HTTP 实例 */
-const http = new Http({
-  baseUrl: '', // 使用不同的 SSE 服务
-  timeout: 30000,
-  reqInterceptor: (config) => {
-    console.log('SSE 请求拦截器:', config)
-    return config
-  },
-  respErrInterceptor: (error) => {
-    console.error('SSE 错误拦截器:', error)
-  },
-})
+import { TestModuleRunner } from '@/components/TestModuleRunner'
+import { createIntegratedPageProps } from '@/lib/test-modules/integration'
+import { createHttpInstance } from '@/lib/test-modules'
 
 interface SSELog {
   id: number
@@ -54,6 +44,46 @@ interface ChatMessage {
 }
 
 export default function HttpSSETest() {
+  const [showManualTest, setShowManualTest] = useState(false)
+
+  if (!showManualTest) {
+    return <AutoTestMode onSwitchToManual={() => setShowManualTest(true)} />
+  }
+
+  return <ManualTestMode onBack={() => setShowManualTest(false)} />
+}
+
+function AutoTestMode({ onSwitchToManual }: { onSwitchToManual: () => void }) {
+  const props = createIntegratedPageProps('http-sse')
+
+  return (
+    <div className="mx-auto max-w-7xl p-6">
+      <TestModuleRunner
+        {...props}
+        onTestComplete={(scenarioId, result) => {
+          console.log(`SSE 测试完成: ${scenarioId}`, result)
+        }}
+      />
+
+      {/* 切换到手动测试 */}
+      <Card className="mt-6 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold">手动测试模式</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              切换到手动测试模式，可以自定义 SSE 参数进行测试
+            </p>
+          </div>
+          <Button onClick={onSwitchToManual} designStyle="outlined">
+            切换到手动测试
+          </Button>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+function ManualTestMode({ onBack }: { onBack: () => void }) {
   const [logs, setLogs] = useState<SSELog[]>([])
   const [messages, setMessages] = useState<SSEMessage[]>([])
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
@@ -268,6 +298,21 @@ export default function HttpSSETest() {
         },
       }
 
+      // 创建 HTTP 实例
+      const http = createHttpInstance({
+        baseUrl: '', // 使用不同的 SSE 服务
+        timeout: 30000,
+        interceptors: {
+          request: (config: any) => {
+            console.log('SSE 请求拦截器:', config)
+            return config
+          },
+          error: (error: any) => {
+            console.error('SSE 错误拦截器:', error)
+          },
+        },
+      })
+
       const { promise, cancel } = await http.fetchSSE(sseUrl, config)
       setCurrentConnection({ cancel })
 
@@ -444,18 +489,26 @@ export default function HttpSSETest() {
   return (
     <div className="mx-auto max-w-7xl p-6">
       <div className="mb-8">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-            <span className="text-2xl">🚀</span>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+              <span className="text-2xl">🚀</span>
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                SSE 流式数据测试平台 - 手动模式
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                手动配置和体验实时流式数据传输的魅力 ✨
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              SSE 流式数据测试平台
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              体验实时流式数据传输的魅力 ✨
-            </p>
-          </div>
+          <Button
+            onClick={onBack}
+            designStyle="outlined"
+          >
+            返回自动测试
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">

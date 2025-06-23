@@ -1,25 +1,52 @@
-import { Http } from '@jl-org/http'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Input, Textarea } from '@/components/Input'
 import { cn } from '@/utils'
 import { NumberInput } from '@/components/Input/NumberInput'
+import { TestModuleRunner } from '@/components/TestModuleRunner'
+import { createIntegratedPageProps } from '@/lib/test-modules/integration'
+import { createHttpInstance } from '@/lib/test-modules'
 
-/** 创建 HTTP 实例 */
-const http = new Http({
-  baseUrl: 'https://jsonplaceholder.typicode.com',
-  cacheTimeout: 3000, // 默认缓存 3 秒
-  timeout: 10000,
-  reqInterceptor: (config) => {
-    console.log('缓存请求拦截器:', config)
-    return config
-  },
-  respInterceptor: (response) => {
-    console.log('缓存响应拦截器:', response)
-    return response.data
-  },
-})
+export default function HttpCacheTest() {
+  const [showManualTest, setShowManualTest] = useState(false)
+
+  if (!showManualTest) {
+    const props = createIntegratedPageProps('http-cache')
+    return (
+      <div className="mx-auto max-w-7xl p-6">
+        <TestModuleRunner
+          {...props}
+          onTestComplete={(scenarioId, result) => {
+            console.log(`缓存测试完成: ${scenarioId}`, result)
+          }}
+        />
+
+        {/* 切换到手动测试 */}
+        <Card className="mt-6 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">手动测试模式</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                切换到手动测试模式，可以自定义缓存参数进行测试
+              </p>
+            </div>
+            <Button
+              onClick={() => setShowManualTest(true)}
+              designStyle="outlined"
+            >
+              切换到手动测试
+            </Button>
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
+  return <ManualCacheTest onBack={() => setShowManualTest(false)} />
+}
+
+function ManualCacheTest({ onBack }: { onBack: () => void }) {
 
 interface RequestLog {
   id: number
@@ -32,7 +59,6 @@ interface RequestLog {
   error?: string
 }
 
-export default function HttpCacheTest() {
   const [loading, setLoading] = useState(false)
   const [logs, setLogs] = useState<RequestLog[]>([])
   const [cacheTimeout, setCacheTimeout] = useState(3000)
@@ -62,6 +88,12 @@ export default function HttpCacheTest() {
     })
 
     try {
+      const http = createHttpInstance({
+        baseUrl: 'https://jsonplaceholder.typicode.com',
+        cacheTimeout,
+        timeout: 10000,
+      })
+
       let response
       const config = { cacheTimeout }
 
@@ -140,11 +172,19 @@ export default function HttpCacheTest() {
 
   return (
     <div className="mx-auto max-w-6xl p-6">
-      <div className="mb-8">
-        <h1 className="mb-2 text-3xl font-bold">HTTP 缓存功能测试</h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          测试 jl-http 的请求缓存功能，包括缓存命中、缓存超时、缓存隔离等特性
-        </p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="mb-2 text-3xl font-bold">HTTP 缓存功能测试 - 手动模式</h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            手动配置和测试 jl-http 的请求缓存功能
+          </p>
+        </div>
+        <Button
+          onClick={onBack}
+          designStyle="outlined"
+        >
+          返回自动测试
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

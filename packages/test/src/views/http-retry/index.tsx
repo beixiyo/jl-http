@@ -1,4 +1,4 @@
-import { Http, wait } from '@jl-org/http'
+import { wait } from '@jl-org/http'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
@@ -6,10 +6,9 @@ import { Input } from '@/components/Input'
 import { Select } from '@/components/Select'
 import { cn } from '@/utils'
 import { NumberInput } from '@/components/Input/NumberInput'
-
-/** 创建 HTTP 实例 */
-const http = new Http({
-  baseUrl: 'https://httpstat.us', // 使用 httpstat.us 来模拟不同的 HTTP 状态码
+import { TestModuleRunner } from '@/components/TestModuleRunner'
+import { createIntegratedPageProps } from '@/lib/test-modules/integration'
+import { createHttpInstance } from '@/lib/test-modules'
   timeout: 5000,
   retry: 3, // 默认重试 3 次
   reqInterceptor: (config) => {
@@ -45,6 +44,46 @@ interface RetryLog {
 }
 
 export default function HttpRetryTest() {
+  const [showManualTest, setShowManualTest] = useState(false)
+
+  if (!showManualTest) {
+    return <AutoTestMode onSwitchToManual={() => setShowManualTest(true)} />
+  }
+
+  return <ManualTestMode onBack={() => setShowManualTest(false)} />
+}
+
+function AutoTestMode({ onSwitchToManual }: { onSwitchToManual: () => void }) {
+  const props = createIntegratedPageProps('http-retry')
+
+  return (
+    <div className="mx-auto max-w-7xl p-6">
+      <TestModuleRunner
+        {...props}
+        onTestComplete={(scenarioId, result) => {
+          console.log(`重试测试完成: ${scenarioId}`, result)
+        }}
+      />
+
+      {/* 切换到手动测试 */}
+      <Card className="mt-6 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold">手动测试模式</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              切换到手动测试模式，可以自定义重试参数进行测试
+            </p>
+          </div>
+          <Button onClick={onSwitchToManual} designStyle="outlined">
+            切换到手动测试
+          </Button>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+function ManualTestMode({ onBack }: { onBack: () => void }) {
   const [loading, setLoading] = useState(false)
   const [logs, setLogs] = useState<RetryLog[]>([])
   const [statusCode, setStatusCode] = useState('500') // 模拟服务器错误
@@ -78,7 +117,7 @@ export default function HttpRetryTest() {
     })
 
     /** 创建一个自定义的 HTTP 实例来跟踪重试过程 */
-    const retryHttp = new Http({
+    const retryHttp = createHttpInstance({
       baseUrl: 'https://httpstat.us',
       timeout,
       retry: retryCount,
@@ -220,11 +259,19 @@ export default function HttpRetryTest() {
 
   return (
     <div className="mx-auto max-w-6xl p-6">
-      <div className="mb-8">
-        <h1 className="mb-2 text-3xl font-bold">HTTP 重试功能测试</h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          测试 jl-http 的请求重试功能，包括重试次数、重试策略、失败处理等特性
-        </p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="mb-2 text-3xl font-bold">HTTP 重试功能测试 - 手动模式</h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            手动配置和测试 jl-http 的请求重试功能，包括重试次数、重试策略、失败处理等特性
+          </p>
+        </div>
+        <Button
+          onClick={onBack}
+          designStyle="outlined"
+        >
+          返回自动测试
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

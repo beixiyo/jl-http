@@ -1,29 +1,14 @@
-import { Http } from '@jl-org/http'
 import { useState } from 'react'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Input } from '@/components/Input'
 import { Select } from '@/components/Select'
 import { NumberInput } from '@/components/Input/NumberInput'
-
-/** 创建 HTTP 实例 */
-const http = new Http({
-  baseUrl: 'https://jsonplaceholder.typicode.com',
-  timeout: 10000,
-  reqInterceptor: (config) => {
-    console.log('请求拦截器:', config)
-    return config
-  },
-  respInterceptor: (response) => {
-    console.log('响应拦截器:', response)
-    return response.data
-  },
-  respErrInterceptor: (error) => {
-    console.error('错误拦截器:', error)
-  },
-})
+import { TestModuleRunner } from '@/components/TestModuleRunner'
+import { basicHttpModule, createHttpInstance } from '@/lib/test-modules'
 
 export default function HttpBasicTest() {
+  const [showManualTest, setShowManualTest] = useState(false)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<any>(null)
   const [error, setError] = useState<string>('')
@@ -39,6 +24,11 @@ export default function HttpBasicTest() {
     setResult(null)
 
     try {
+      const http = createHttpInstance({
+        baseUrl: 'https://jsonplaceholder.typicode.com',
+        timeout,
+      })
+
       let response
       const config = {
         timeout,
@@ -109,13 +99,59 @@ export default function HttpBasicTest() {
     setRequestBody(testCase.body)
   }
 
+  if (!showManualTest) {
+    return (
+      <div className="mx-auto max-w-7xl p-6">
+        <TestModuleRunner
+          module={basicHttpModule}
+          title="HTTP 基础功能测试"
+          description="使用标准化测试模块测试 jl-http 的基础 HTTP 请求功能，包括 GET、POST、PUT、DELETE 等方法"
+          defaultConfig={{
+            baseUrl: 'https://jsonplaceholder.typicode.com',
+            timeout: 10000,
+            retry: 2,
+          }}
+          onTestComplete={(scenarioId, result) => {
+            console.log(`测试完成: ${scenarioId}`, result)
+          }}
+        />
+
+        {/* 切换到手动测试 */}
+        <Card className="mt-6 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">手动测试模式</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                切换到手动测试模式，可以自定义请求参数进行测试
+              </p>
+            </div>
+            <Button
+              onClick={() => setShowManualTest(true)}
+              designStyle="outlined"
+            >
+              切换到手动测试
+            </Button>
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="mx-auto max-w-6xl p-6">
-      <div className="mb-8">
-        <h1 className="mb-2 text-3xl font-bold">HTTP 基础功能测试</h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          测试 jl-http 的基础 HTTP 请求功能，包括 GET、POST、PUT、DELETE 等方法
-        </p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="mb-2 text-3xl font-bold">HTTP 基础功能测试 - 手动模式</h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            手动配置和测试 jl-http 的基础 HTTP 请求功能
+          </p>
+        </div>
+        <Button
+          onClick={() => setShowManualTest(false)}
+          designStyle="outlined"
+        >
+          返回自动测试
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

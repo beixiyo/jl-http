@@ -1,4 +1,3 @@
-import { Http } from '@jl-org/http'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
@@ -6,23 +5,9 @@ import { Input } from '@/components/Input'
 import { Select } from '@/components/Select'
 import { cn } from '@/utils'
 import { NumberInput } from '@/components/Input/NumberInput'
-
-/** 创建 HTTP 实例 */
-const http = new Http({
-  baseUrl: 'https://httpbin.org', // 使用 httpbin.org 来模拟延迟请求
-  timeout: 30000, // 设置较长的超时时间，便于测试中断
-  reqInterceptor: (config) => {
-    console.log('中断请求拦截器:', config)
-    return config
-  },
-  respInterceptor: (response) => {
-    console.log('中断响应拦截器:', response)
-    return response.data
-  },
-  respErrInterceptor: (error) => {
-    console.error('中断错误拦截器:', error)
-  },
-})
+import { TestModuleRunner } from '@/components/TestModuleRunner'
+import { createIntegratedPageProps } from '@/lib/test-modules/integration'
+import { createHttpInstance } from '@/lib/test-modules'
 
 interface AbortLog {
   id: number
@@ -37,6 +22,46 @@ interface AbortLog {
 }
 
 export default function HttpAbortTest() {
+  const [showManualTest, setShowManualTest] = useState(false)
+
+  if (!showManualTest) {
+    return <AutoTestMode onSwitchToManual={() => setShowManualTest(true)} />
+  }
+
+  return <ManualTestMode onBack={() => setShowManualTest(false)} />
+}
+
+function AutoTestMode({ onSwitchToManual }: { onSwitchToManual: () => void }) {
+  const props = createIntegratedPageProps('http-abort')
+
+  return (
+    <div className="mx-auto max-w-7xl p-6">
+      <TestModuleRunner
+        {...props}
+        onTestComplete={(scenarioId, result) => {
+          console.log(`中断测试完成: ${scenarioId}`, result)
+        }}
+      />
+
+      {/* 切换到手动测试 */}
+      <Card className="mt-6 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold">手动测试模式</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              切换到手动测试模式，可以自定义中断参数进行测试
+            </p>
+          </div>
+          <Button onClick={onSwitchToManual} designStyle="outlined">
+            切换到手动测试
+          </Button>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+function ManualTestMode({ onBack }: { onBack: () => void }) {
   const [logs, setLogs] = useState<AbortLog[]>([])
   const [delay, setDelay] = useState(5) // 延迟秒数
   const [timeoutValue, setTimeoutValue] = useState(3000) // 超时时间
@@ -77,6 +102,23 @@ export default function HttpAbortTest() {
 
     const abortController = new AbortController()
     abortControllersRef.current.set(log.id, abortController)
+
+    // 创建 HTTP 实例
+    const http = createHttpInstance({
+      baseUrl: 'https://httpbin.org', // 使用 httpbin.org 来模拟延迟请求
+      timeout: 30000, // 设置较长的超时时间，便于测试中断
+      reqInterceptor: (config) => {
+        console.log('中断请求拦截器:', config)
+        return config
+      },
+      respInterceptor: (response) => {
+        console.log('中断响应拦截器:', response)
+        return response.data
+      },
+      respErrInterceptor: (error) => {
+        console.error('中断错误拦截器:', error)
+      },
+    })
 
     try {
       let response
@@ -233,11 +275,19 @@ export default function HttpAbortTest() {
 
   return (
     <div className="mx-auto max-w-6xl p-6">
-      <div className="mb-8">
-        <h1 className="mb-2 text-3xl font-bold">HTTP 请求中断功能测试</h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          测试 jl-http 的请求中断功能，包括手动中断、超时中断、信号控制等特性
-        </p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="mb-2 text-3xl font-bold">HTTP 请求中断功能测试 - 手动模式</h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            手动配置和测试 jl-http 的请求中断功能，包括手动中断、超时中断、信号控制等特性
+          </p>
+        </div>
+        <Button
+          onClick={onBack}
+          designStyle="outlined"
+        >
+          返回自动测试
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
