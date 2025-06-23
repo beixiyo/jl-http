@@ -1,19 +1,225 @@
 import type { ServerResponse, IncomingMessage } from 'http'
 import type { Plugin } from 'vite'
 
+// 连接管理器，用于跟踪活跃连接
+class ConnectionManager {
+  private connections = new Map<string, {
+    res: ServerResponse<IncomingMessage>
+    req: IncomingMessage
+    heartbeatTimer?: NodeJS.Timeout
+    dataTimer?: NodeJS.Timeout
+    timeoutTimer?: NodeJS.Timeout
+    createdAt: number
+    lastActivity: number
+  }>()
+
+  private readonly CONNECTION_TIMEOUT = 5 * 60 * 1000 // 5分钟超时
+
+  addConnection(id: string, req: IncomingMessage, res: ServerResponse<IncomingMessage>) {
+    const now = Date.now()
+
+    // 设置连接超时定时器
+    const timeoutTimer = setTimeout(() => {
+      console.log(`[SSE] 连接超时，自动清理: ${id}`)
+      this.removeConnection(id)
+    }, this.CONNECTION_TIMEOUT)
+
+    this.connections.set(id, {
+      req,
+      res,
+      createdAt: now,
+      lastActivity: now,
+      timeoutTimer
+    })
+    console.log(`[SSE] 新连接建立: ${id}, 当前连接数: ${this.connections.size}`)
+  }
+
+  // 更新连接活动时间
+  updateActivity(id: string) {
+    const conn = this.connections.get(id)
+    if (conn) {
+      conn.lastActivity = Date.now()
+
+      // 重置超时定时器
+      if (conn.timeoutTimer) {
+        clearTimeout(conn.timeoutTimer)
+      }
+      conn.timeoutTimer = setTimeout(() => {
+        console.log(`[SSE] 连接超时，自动清理: ${id}`)
+        this.removeConnection(id)
+      }, this.CONNECTION_TIMEOUT)
+    }
+  }
+
+  removeConnection(id: string) {
+    const conn = this.connections.get(id)
+    if (conn) {
+      // 清理所有定时器
+      if (conn.heartbeatTimer) {
+        clearInterval(conn.heartbeatTimer)
+        conn.heartbeatTimer = undefined
+      }
+      if (conn.dataTimer) {
+        clearInterval(conn.dataTimer)
+        conn.dataTimer = undefined
+      }
+      if (conn.timeoutTimer) {
+        clearTimeout(conn.timeoutTimer)
+        conn.timeoutTimer = undefined
+      }
+
+      // 安全关闭响应 - 修复 SSE 连接关闭逻辑
+      if (!conn.res.destroyed) {
+        try {
+          // 对于 SSE 连接，即使 headersSent 为 true 也需要关闭
+          if (!conn.res.writableEnded) {
+            conn.res.end()
+          }
+        } catch (error) {
+          console.error(`[SSE] 关闭连接时出错: ${error}`)
+        }
+      }
+
+      this.connections.delete(id)
+      console.log(`[SSE] 连接已断开: ${id}, 剩余连接数: ${this.connections.size}`)
+    }
+  }
+
+  getConnection(id: string) {
+    return this.connections.get(id)
+  }
+
+  getAllConnections() {
+    return Array.from(this.connections.entries())
+  }
+
+  // 清理所有连接
+  cleanup() {
+    for (const [id] of this.connections) {
+      this.removeConnection(id)
+    }
+  }
+}
+
+const connectionManager = new ConnectionManager()
+
+// 改进的 SSE 头部设置
 function writeSSEHeader(res: ServerResponse<IncomingMessage>) {
   res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
     'Connection': 'keep-alive',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Cache-Control',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Cache-Control, Authorization',
+    'Access-Control-Expose-Headers': 'Content-Type',
+    'X-Accel-Buffering': 'no', // 禁用 Nginx 缓冲
   })
 }
 
-function writeData(res: ServerResponse<IncomingMessage>, data: any) {
-  res.write(`data: ${JSON.stringify(data)}\n\n`)
+// 标准化的 SSE 数据写入
+function writeSSEData(res: ServerResponse<IncomingMessage>, data: any, event?: string, id?: string) {
+  try {
+    // 检查连接状态
+    if (res.destroyed || res.writableEnded || !res.writable) {
+      console.log('[SSE] 连接已关闭，跳过数据写入')
+      return false
+    }
+
+    let message = ''
+
+    if (id) {
+      message += `id: ${id}\n`
+    }
+
+    if (event) {
+      message += `event: ${event}\n`
+    }
+
+    message += `data: ${JSON.stringify(data)}\n\n`
+
+    const success = res.write(message)
+    if (!success) {
+      console.log('[SSE] 写入缓冲区已满，连接可能有问题')
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('[SSE] 写入数据时出错:', error)
+    return false
+  }
 }
+
+// 发送心跳
+function sendHeartbeat(res: ServerResponse<IncomingMessage>) {
+  return writeSSEData(res, { type: 'heartbeat', timestamp: Date.now() }, 'heartbeat')
+}
+
+// 解析请求体
+function parseRequestBody(req: IncomingMessage): Promise<any> {
+  return new Promise((resolve, reject) => {
+    let body = ''
+
+    req.on('data', chunk => {
+      body += chunk.toString()
+    })
+
+    req.on('end', () => {
+      try {
+        const data = body ? JSON.parse(body) : {}
+        resolve(data)
+      } catch (error) {
+        reject(new Error('Invalid JSON in request body'))
+      }
+    })
+
+    req.on('error', reject)
+
+    // 超时处理
+    setTimeout(() => {
+      reject(new Error('Request body parsing timeout'))
+    }, 5000)
+  })
+}
+
+// 生成模拟聊天响应
+function generateChatResponse(message: string): string {
+  const responses = [
+    `我理解您说的"${message}"。这是一个很有趣的话题。`,
+    `关于"${message}"，我想分享一些见解...`,
+    `您提到的"${message}"让我想到了几个相关的观点。`,
+    `这是一个关于"${message}"的详细回答，希望对您有帮助。`,
+  ]
+
+  const baseResponse = responses[Math.floor(Math.random() * responses.length)]
+
+  // 添加一些随机的详细内容
+  const details = [
+    '首先，我们需要考虑这个问题的多个方面。',
+    '从技术角度来看，这涉及到几个关键要素。',
+    '让我为您详细解释一下相关的概念和原理。',
+    '这个话题确实值得深入探讨，让我们一步步分析。',
+    '基于我的理解，我认为可以从以下几个维度来思考这个问题。',
+  ]
+
+  const randomDetails = details.slice(0, Math.floor(Math.random() * 3) + 1)
+
+  return `${baseResponse}\n\n${randomDetails.join('\n\n')}\n\n希望这个回答对您有所帮助！如果您还有其他问题，请随时告诉我。`
+}
+
+// 进程退出时清理所有连接
+process.on('SIGINT', () => {
+  console.log('[SSE] 正在清理所有连接...')
+  connectionManager.cleanup()
+  process.exit(0)
+})
+
+process.on('SIGTERM', () => {
+  console.log('[SSE] 正在清理所有连接...')
+  connectionManager.cleanup()
+  process.exit(0)
+})
 
 /**
  * SSE 插件，为开发服务器提供模拟的 SSE 接口
@@ -45,7 +251,7 @@ export function ssePlugin(): Plugin {
               progress: counter / maxMessages,
             }
 
-            writeData(res, data)
+            writeSSEData(res, data)
           }
           else {
             // 发送完成消息
@@ -63,25 +269,129 @@ export function ssePlugin(): Plugin {
         })
       })
 
-      // 聊天模拟 SSE 接口
-      server.middlewares.use('/api/sse/chat', (req, res) => {
-        if (req.method === 'POST') {
+      // 聊天模拟 SSE 接口 - 改进版本
+      server.middlewares.use('/api/sse/chat', async (req, res) => {
+        if (req.method !== 'POST') {
+          res.writeHead(405, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          })
+          res.end(JSON.stringify({ error: '仅支持 POST 请求' }))
+          return
+        }
+
+        // 生成唯一连接ID
+        const connectionId = `chat_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
+
+        try {
+          // 解析请求体
+          const requestBody = await parseRequestBody(req)
+          const { message = '', model = 'gpt-3.5-turbo', stream = true } = requestBody
+
+          console.log(`[SSE Chat] 新的聊天请求: ${connectionId}`, { message, model, stream })
+
+          // 设置 SSE 响应头
           writeSSEHeader(res)
 
-          const st = Date.now()
+          // 注册连接
+          connectionManager.addConnection(connectionId, req, res)
+          const connection = connectionManager.getConnection(connectionId)
 
-          const interval = setInterval(() => {
-            writeData(res, { content: 'hello world' })
-            if (Date.now() - st > 3000) {
-              res.write('data: [DONE]\n\n')
-              clearInterval(interval)
-              res.end()
+          if (!connection) {
+            throw new Error('连接注册失败')
+          }
+
+          // 发送连接确认
+          if (!writeSSEData(res, {
+            type: 'connection',
+            message: '聊天连接已建立',
+            connectionId,
+            timestamp: Date.now()
+          }, 'connection', connectionId)) {
+            throw new Error('发送连接确认失败')
+          }
+
+          // 模拟聊天响应
+          const chatResponse = generateChatResponse(message)
+          let charIndex = 0
+          let messageId = 1
+
+          // 设置心跳定时器（每30秒）
+          connection.heartbeatTimer = setInterval(() => {
+            if (!sendHeartbeat(res)) {
+              connectionManager.removeConnection(connectionId)
             }
-          }, 100)
-        }
-        else {
-          res.writeHead(405, { 'Content-Type': 'application/json' })
-          res.end(JSON.stringify({ error: '仅支持 POST 请求' }))
+          }, 30000)
+
+          // 数据传输定时器
+          connection.dataTimer = setInterval(() => {
+            if (charIndex < chatResponse.length) {
+              // 模拟逐字符流式输出
+              const chunk = chatResponse.slice(charIndex, charIndex + Math.floor(Math.random() * 5) + 1)
+              charIndex += chunk.length
+
+              const success = writeSSEData(res, {
+                id: messageId++,
+                type: 'message',
+                content: chunk,
+                isComplete: false,
+                progress: charIndex / chatResponse.length,
+                timestamp: Date.now()
+              }, 'message', `msg_${messageId}`)
+
+              if (!success) {
+                connectionManager.removeConnection(connectionId)
+                return
+              }
+
+              // 更新连接活动时间
+              connectionManager.updateActivity(connectionId)
+            } else {
+              // 发送完成消息
+              writeSSEData(res, {
+                id: messageId++,
+                type: 'complete',
+                content: '',
+                isComplete: true,
+                progress: 1,
+                timestamp: Date.now()
+              }, 'complete', `complete_${messageId}`)
+
+              // 发送结束标记
+              res.write('data: [DONE]\n\n')
+
+              // 清理连接
+              connectionManager.removeConnection(connectionId)
+            }
+          }, 50 + Math.random() * 100) // 50-150ms 随机间隔，模拟真实网络延迟
+
+          // 处理客户端断开连接
+          req.on('close', () => {
+            console.log(`[SSE Chat] 客户端主动断开连接: ${connectionId}`)
+            connectionManager.removeConnection(connectionId)
+          })
+
+          req.on('error', (error) => {
+            console.error(`[SSE Chat] 请求错误: ${connectionId}`, error)
+            connectionManager.removeConnection(connectionId)
+          })
+
+        } catch (error) {
+          console.error(`[SSE Chat] 处理聊天请求时出错: ${connectionId}`, error)
+
+          // 发送错误响应
+          if (!res.headersSent) {
+            writeSSEHeader(res)
+          }
+
+          writeSSEData(res, {
+            type: 'error',
+            error: error instanceof Error ? error.message : '未知错误',
+            timestamp: Date.now()
+          }, 'error')
+
+          // 清理连接
+          connectionManager.removeConnection(connectionId)
         }
       })
 
@@ -106,7 +416,7 @@ export function ssePlugin(): Plugin {
               timestamp: Date.now(),
             }
 
-            writeData(res, data)
+            writeSSEData(res, data)
           }
           else {
             res.write('data: [DONE]\n\n')
@@ -141,7 +451,7 @@ export function ssePlugin(): Plugin {
               status: messageCount < maxMessages ? 'streaming' : 'complete',
             }
 
-            writeData(res, data)
+            writeSSEData(res, data)
           }
           else {
             res.write('data: [DONE]\n\n')
