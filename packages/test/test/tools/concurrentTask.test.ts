@@ -1,5 +1,5 @@
+import { concurrentTask } from '@jl-org/http'
 import { describe, expect, it } from 'vitest'
-import { concurrentTask } from '@/tools'
 
 describe('concurrentTask', () => {
   it('应该处理空任务数组', async () => {

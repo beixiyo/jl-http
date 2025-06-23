@@ -7,6 +7,9 @@ import { defineConfig } from 'rollup'
 import clear from 'rollup-plugin-clear'
 
 export default defineConfig([
+  /**
+   * 主文件
+   */
   {
     input: './src/index.ts',
     output: [

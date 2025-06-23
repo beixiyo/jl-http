@@ -1,5 +1,5 @@
+import { EVENT_KEY, SSEStreamProcessor } from '@jl-org/http'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { EVENT_KEY, SSEStreamProcessor } from '@/tools'
 
 describe('sSEStreamProcessor', () => {
   let processor: SSEStreamProcessor

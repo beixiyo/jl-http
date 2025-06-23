@@ -110,6 +110,7 @@ export default antfu({
     '**/*.d.ts',
     '**/*.cjs',
     '**/*.mjs',
+    '**/test/**',
   ],
 
   /**

@@ -1,5 +1,5 @@
+import { RetryError, retryTask } from '@jl-org/http'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { RetryError, retryTask } from '@/tools'
 
 describe('retryTask', () => {
   beforeEach(() => {
