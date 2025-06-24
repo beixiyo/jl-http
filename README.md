@@ -1,22 +1,45 @@
-# 一个能中断请求、缓存（幂等）请求、重试请求、并发请求，生成模板代码的库
+# 现代化、通用的、灵活的请求库
 
-## 特性
+<p align="center">
+  <img alt="npm-version" src="https://img.shields.io/npm/v/@jl-org/http.svg" />
+  <img alt="npm-download" src="https://img.shields.io/npm/dm/@jl-org/http?logo=npm" />
+  <img alt="License" src="https://img.shields.io/npm/l/@jl-org/http?color=blue" />
+  <img alt="typescript" src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white" />
+  <img alt="github" src="https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white" />
+</p>
 
-- 支持请求中断
-- 支持请求缓存（幂等请求）
-- 支持请求重试
-- 支持并发请求
-- 支持生成模板代码
-- 支持 SSE 流式数据处理（特别适用于 AI 接口）
+> 一个功能强大的HTTP请求库，支持请求中断、缓存、重试、并发控制以及SSE流式数据处理
 
-## 使用
+## ✨ 特性
 
-**配置全部都有文档注释**
+- 🔄 **请求中断** - 随时取消进行中的请求
+- 💾 **请求缓存** - 自动缓存幂等请求，提高应用性能
+- 🔁 **请求重试** - 自动重试失败的请求，增强应用稳定性
+- 🚦 **并发控制** - 轻松管理并发请求，保持结果顺序
+- 🧩 **模板生成** - 通过CLI工具快速生成模板代码
+- 📊 **SSE流处理** - 完美支持流式数据，特别适用于AI接口
+- 📦 **轻量级** - 零外部依赖，体积小，加载快
+- 🔧 **高度可配置** - 灵活的拦截器和配置选项
+
+## 📦 安装
+
+```bash
+# npm
+npm install @jl-org/http
+
+# yarn
+yarn add @jl-org/http
+
+# pnpm
+pnpm add @jl-org/http
+```
+
+## 🚀 基本使用
 
 ```ts
 import { Http } from '@jl-org/http'
 
-/** 这里的默认配置，都可以在实际请求里设置覆盖 */
+/** 创建HTTP实例，所有默认配置都可以在实际请求中覆盖 */
 export const iotHttp = new Http({
   /** 缓存过期时间，默认 1 秒 */
   cacheTimeout: 1000,
@@ -26,11 +49,10 @@ export const iotHttp = new Http({
   /** 请求失败重试次数，默认 0 */
   retry: 0,
 
-  respInterceptor: (response: Resp<MyResp>) => {
+  respInterceptor: (response) => {
     if (!response.data.success) {
       return Promise.reject(response.data.msg)
     }
-
     return response.data.data
   },
 
@@ -39,22 +61,21 @@ export const iotHttp = new Http({
     return config
   },
 
-  respErrInterceptor: (error: any) => {
+  respErrInterceptor: (error) => {
     console.warn(error)
   }
-  // ... 其他配置详见定义
 })
 
-// get 请求，重试 5 次
+// GET请求示例
 iotHttp.get('/device/list', {
   query: {
     page: 1,
     size: 10,
   },
-  retry: 5,
+  retry: 5, // 覆盖默认重试次数
 }).then(console.log)
 
-// post 请求
+// POST请求示例
 iotHttp.post(
   '/device/add',
   {
@@ -62,20 +83,17 @@ iotHttp.post(
     type: 'type1',
   },
   {
-    timeout: 2000
+    timeout: 2000 // 覆盖默认超时时间
   }
-)
-  .then(console.log)
+).then(console.log)
 ```
 
----
+## 💾 请求缓存
 
-### 可缓存的请求
+当短时间内多次请求同一接口且参数一致时，jl-http会自动返回缓存结果而不发送新请求：
 
-- 当你在短时间内多次请求同一个接口，并且参数一致，则不会发送请求，而是直接返回上一次的结果
-- 适用于幂等请求，请注意，**缓存在内存中，如果页面刷新则会失效**
-- 每隔两秒或者调用接口时，会检查一遍缓存，如果超时则会清除缓存
 ```ts
+/** 缓存POST请求 */
 iotHttp.cachePost(
   '/device/add',
   {
@@ -83,16 +101,23 @@ iotHttp.cachePost(
     type: 'type1',
   },
   {
-    /** 缓存超时时间，默认 1000 */
+    /** 缓存超时时间，默认 1000ms */
     cacheTimeout: 2000
   }
-)
-  .then(console.log)
+).then(console.log)
+
+/** 缓存GET请求 */
+iotHttp.cacheGet('/device/list', {
+  query: { page: 1 },
+  cacheTimeout: 5000
+}).then(console.log)
 ```
 
----
+> 📝 注意：缓存存储在内存中，页面刷新后会失效。系统会每隔2秒或调用接口时自动检查并清除过期缓存。
 
-### SSE 流式数据处理
+## 🌊 SSE流式数据处理
+
+完美支持SSE流式数据，特别适用于AI接口：
 
 ```ts
 /** 实时处理流式数据 */
@@ -128,56 +153,57 @@ const data = await promise
 console.log('最终数据:', data)
 ```
 
----
+## 🛑 中断请求
 
-### 中断请求
-
-注意，配置了 *signal* 后，**超时配置无效**
-因为你的控制器覆盖了超时的控制器
+轻松取消正在进行的请求：
 
 ```ts
 const controller = new AbortController()
 
 iotHttp.get('/device/list', {
-  params: {
+  query: {
     page: 1,
     size: 10,
   },
   signal: controller.signal
 })
 
-/** 中断请求 */
+/** 在需要时中断请求 */
 controller.abort()
 ```
 
----
+> ⚠️ 注意：配置了signal后，timeout配置将无效，因为自定义控制器会覆盖超时控制器。
 
-### 并发请求
+## 🚦 并发请求控制
+
+控制并发请求数量，并保持结果顺序：
 
 ```ts
-/**
- * 并发执行异步任务数组，并保持结果顺序。
- * 当一个任务完成后，会自动从队列中取下一个任务执行，直到所有任务完成。
- * @param tasks 要执行的异步任务函数数组。每个函数应返回一个 Promise。
- * @param maxConcurrency 最大并发数。默认为 4。
- * @returns 返回一个 Promise，该 Promise resolve 为一个结果对象数组，
- *          每个结果对象表示对应任务的完成状态（成功或失败）。
- *          结果数组的顺序与输入 tasks 数组的顺序一致。
- */
-export declare function concurrentTask<T>(tasks: (() => Promise<T>)[], maxConcurrency?: number): Promise<TaskResult<T>[]>
+import { concurrentTask } from '@jl-org/http'
 
-export type TaskResult<T> = {
-  status: 'fulfilled'
-  value: T
-} | {
-  status: 'rejected'
-  reason: Error
-}
+/** 定义多个请求任务 */
+const tasks = [
+  () => iotHttp.get('/api/data1'),
+  () => iotHttp.get('/api/data2'),
+  () => iotHttp.get('/api/data3'),
+  // ...更多任务
+]
+
+/** 最多同时执行2个请求，其余排队 */
+const results = await concurrentTask(tasks, 2)
+
+/** 处理结果（结果顺序与任务顺序一致） */
+results.forEach((result, index) => {
+  if (result.status === 'fulfilled') {
+    console.log(`任务${index}成功:`, result.value)
+  }
+  else {
+    console.log(`任务${index}失败:`, result.reason)
+  }
+})
 ```
 
----
-
-### 下载资源
+## 📥 下载资源
 
 ```ts
 import { downloadByData } from '@jl-org/tool'
@@ -189,41 +215,30 @@ const data = await iotHttp.get('/getImg', {
 downloadByData(blob.data as Blob, 'test.png')
 ```
 
----
+## 🧩 CLI模板代码生成
 
-### 命令行快速生成模板代码
+快速生成API调用模板代码：
 
 ```bash
-npx jl-http <inputSrc> <outputSrc>
-
-# 例如下面的命令：会向 `./test/output.ts` 生成模板代码
+# 使用npx
 npx jl-http ./test/template.ts ./test/output.ts
 
-# 如果你用 npx 报错，那你可能需要使用对应的包管理器，比如你项目用 pnpm
+# 或使用项目的包管理器
 pnpm jl-http ./test/template.ts ./test/output.ts
 ```
 
-**模板配置文件**
-
-`./test/template.ts`
+**模板配置文件示例：**
 
 ```ts
+// template.ts
 import { defineConfig } from '@jl-org/http'
 
 export default defineConfig({
-  /** 类名 */
   className: 'Test',
-  /** 可以发送请求的对象 */
   requestFnName: 'iotHttp',
-  /** 顶部导入的路径 */
   importPath: 'import { iotHttp } from \'@/http/iotHttp\'',
-  /** 类里的函数 */
   fns: [
     {
-      /**
-       * 生成 TS 类型的代码
-       * 你可以像写 TS 一样写，也可以写字面量，字面量会被 typeof 转换
-       */
       args: {
         age: 18,
         name: 'string',
@@ -232,18 +247,12 @@ export default defineConfig({
         fn: 'function',
         isMan: true,
         isWoman: 'boolean',
-        scratch: '乱写的'
       },
-      /** 函数的名字 */
       name: 'getData',
-      /** 请求的方法，如 get | post | ... */
       method: 'get',
-      /** 请求地址 */
       url: '/getList',
-      /** 添加异步关键字 */
       isAsync: false,
-      /** 注释 */
-      comment: '我是一个高雅的文档注释'
+      comment: '获取数据列表'
     },
     {
       method: 'post',
@@ -252,27 +261,21 @@ export default defineConfig({
       isAsync: true,
       args: {
         id: 'number'
-      }
-    },
-    {
-      method: 'delete',
-      name: 'delData',
-      url: '/addList',
-      isAsync: true,
-      comment: '我是无参函数'
+      },
+      comment: '添加数据'
     }
   ],
 })
 ```
 
-上面的代码，将会生成如下的模板代码
+**生成的代码：**
 
-`./test/output.ts`
 ```ts
+// output.ts
 import { iotHttp } from '@/http/iotHttp'
 
 export class Test {
-  /** 我是一个高雅的文档注释 */
+  /** 获取数据列表 */
   static getData(data: {
     age: number
     name: string
@@ -281,20 +284,80 @@ export class Test {
     fn: Function
     isMan: true
     isWoman: boolean
-    scratch: string
   }) {
     return iotHttp.get('/getList', { query: data })
   }
 
+  /** 添加数据 */
   static async postData(data: {
     id: number
   }) {
     return iotHttp.post('/addList', data)
   }
-
-  /** 我是无参函数 */
-  static async delData() {
-    return iotHttp.delete('/addList')
-  }
 }
 ```
+
+## 📚 API文档
+
+### Http类配置选项
+
+| 选项 | 类型 | 默认值 | 描述 |
+|------|------|--------|------|
+| `baseUrl` | `string` | `''` | 请求的基础URL |
+| `timeout` | `number` | `10000` | 请求超时时间(ms) |
+| `retry` | `number` | `0` | 请求失败重试次数 |
+| `cacheTimeout` | `number` | `1000` | 缓存过期时间(ms) |
+| `headers` | `object` | `{}` | 默认请求头 |
+| `reqInterceptor` | `function` | - | 请求拦截器 |
+| `respInterceptor` | `function` | - | 响应拦截器 |
+| `respErrInterceptor` | `function` | - | 错误拦截器 |
+| `onProgress` | `function` | - | 进度回调函数 |
+
+### 请求方法
+
+- **标准请求**: `get`, `post`, `put`, `patch`, `delete`, `head`, `options`
+- **缓存请求**: `cacheGet`, `cachePost`, `cachePut`, `cachePatch`
+- **SSE请求**: `fetchSSE`
+
+### 工具函数
+
+- **并发控制**: `concurrentTask`
+
+## 🧪 测试与调试
+
+提供了完整的测试系统，包含Web页面交互式测试和自动化测试：
+
+### Web页面测试
+
+```bash
+# 进入测试目录
+cd packages/test
+
+# 启动开发服务器
+pnpm dev
+```
+
+访问 `http://localhost:5173` 可体验以下功能测试页面：
+
+- **基础HTTP请求** - `/http-basic` - 测试基础请求方法
+- **请求缓存** - `/http-cache` - 测试幂等请求缓存功能
+- **请求重试** - `/http-retry` - 测试自动重试机制
+- **请求中断** - `/http-abort` - 测试请求中断功能
+- **并发请求** - `/http-concurrent` - 测试并发控制
+- **SSE流处理** - `/http-sse` - 测试流式数据处理
+- **拦截器** - `/http-interceptors` - 测试请求响应拦截
+
+### 自动化测试
+
+```bash
+# 运行所有测试
+pnpm test
+
+# 生成测试覆盖率报告
+pnpm test:coverage
+
+# 使用UI界面运行测试
+pnpm test:ui
+```
+
+> 📊 测试覆盖率：85%+ 全局覆盖率，95%+ 核心模块覆盖率

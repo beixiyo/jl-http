@@ -16,6 +16,9 @@ dist
 dist-ssr
 *.local
 
+# copy README.md
+packages/jl-http/README.md
+
 # test
 coverage
 test-results

@@ -24,10 +24,10 @@
     }
   },
   "scripts": {
-    "build": "rollup -c && tsc-alias",
+    "build": "cp ../../README.md ./ && rollup -c && tsc-alias",
     "lint": "eslint --fix",
     "prepublishOnly": "npm run build",
-    "postpublish": "npm run clean"
+    "postpublish": "rm README.md"
   },
   "keywords": [
     "http",
