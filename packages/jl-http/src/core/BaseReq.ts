@@ -15,6 +15,7 @@ export class BaseReq implements BaseHttpReq {
       timeout,
       respType,
       retry,
+      onProgress,
       ...rest
     } = formatConfig
 
@@ -80,6 +81,32 @@ export class BaseReq implements BaseHttpReq {
               rawResp: response,
               data,
             }
+          }
+
+          /**
+           * 进度处理
+           */
+          let contentLength: number
+          if (
+            onProgress
+            && (contentLength = Number(response.headers.get('content-length'))) > 0
+          ) {
+            const res = response.clone()
+            const reader = res.body!.getReader()
+            let loaded = 0
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) {
+                break
+              }
+
+              loaded += value.length
+              const progress = Number((loaded / contentLength).toFixed(2))
+              onProgress?.(progress)
+            }
+          }
+          else if (onProgress) {
+            onProgress(-1)
           }
 
           return await respInterceptor(res as any)
@@ -260,6 +287,7 @@ export class BaseReq implements BaseHttpReq {
       timeout: config.timeout || defaultConfig.timeout || TIME_OUT,
       signal: config.signal,
       retry: config.retry ?? defaultConfig.retry ?? 0,
+      onProgress: config.onProgress || defaultConfig.onProgress,
       ...config,
       url: (config.baseUrl ?? defaultConfig.baseUrl ?? '') + config.url,
     }

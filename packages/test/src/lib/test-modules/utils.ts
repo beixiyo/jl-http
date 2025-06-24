@@ -12,15 +12,15 @@ export function createHttpInstance(config: HttpTestConfig = {}): Http {
     timeout: config.timeout || 10000,
     retry: config.retry || 2,
     cacheTimeout: config.cacheTimeout || 5000,
-    reqInterceptor: config.interceptors?.request || ((config) => {
+    reqInterceptor: config.reqInterceptor || ((config) => {
       console.log('🚀 请求发送:', config.method, config.url)
       return config
     }),
-    respInterceptor: config.interceptors?.response || ((response) => {
+    respInterceptor: config.respInterceptor || ((response) => {
       console.log('✅ 响应接收:', response.rawResp.status, response.rawResp.url)
       return response.data
     }),
-    respErrInterceptor: config.interceptors?.error || ((error) => {
+    respErrInterceptor: config.respErrInterceptor || ((error) => {
       console.error('❌ 请求错误:', error)
     }),
     ...config.headers && { headers: config.headers },

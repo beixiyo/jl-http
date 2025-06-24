@@ -2,6 +2,8 @@
  * 测试模块的核心类型定义
  */
 
+import type { BaseCacheConstructorConfig } from '@jl-org/http'
+
 /** 测试状态 */
 export type TestStatus = 'idle' | 'running' | 'success' | 'error'
 
@@ -89,18 +91,7 @@ export interface TestReport {
 }
 
 /** HTTP 测试配置 */
-export interface HttpTestConfig {
-  baseUrl?: string
-  timeout?: number
-  retry?: number
-  cacheTimeout?: number
-  headers?: Record<string, string>
-  interceptors?: {
-    request?: (config: any) => any
-    response?: (response: any) => any
-    error?: (error: any) => void
-  }
-}
+export type HttpTestConfig = BaseCacheConstructorConfig
 
 /** 并发测试配置 */
 export interface ConcurrentTestConfig extends HttpTestConfig {

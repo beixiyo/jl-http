@@ -55,6 +55,11 @@ export type BaseReqConfig =
      * @default 0
      */
     retry?: number
+    /**
+     * 请求进度回调函数，接收进度百分比值（0-1）
+     * 如果无法计算进度（如服务器未返回 content-length），则传递 -1
+     */
+    onProgress?: (progress: number) => void
   }
 
 export type BaseReqMethodConfig = Omit<BaseReqConfig, 'url'>
@@ -137,6 +142,11 @@ export interface BaseReqConstructorConfig {
    * @default 0
    */
   retry?: number
+  /**
+   * 请求进度回调函数，接收进度百分比值（0-1）
+   * 如果无法计算进度（如服务器未返回 content-length），则传递 -1
+   */
+  onProgress?: (progress: number) => void
   /** 请求拦截 */
   reqInterceptor?: (config: Omit<BaseReqConfig, 'headers'> & { headers: any }) => any
   /** 响应拦截 */

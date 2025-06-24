@@ -2,27 +2,13 @@ import { wait } from '@jl-org/http'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
-import { Input } from '@/components/Input'
 import { Select } from '@/components/Select'
 import { cn } from '@/utils'
 import { NumberInput } from '@/components/Input/NumberInput'
 import { TestModuleRunner } from '@/components/TestModuleRunner'
 import { createIntegratedPageProps } from '@/lib/test-modules/integration'
 import { createHttpInstance } from '@/lib/test-modules'
-  timeout: 5000,
-  retry: 3, // 默认重试 3 次
-  reqInterceptor: (config) => {
-    console.log('重试请求拦截器:', config)
-    return config
-  },
-  respInterceptor: (response) => {
-    console.log('重试响应拦截器:', response)
-    return response.data
-  },
-  respErrInterceptor: (error) => {
-    console.error('重试错误拦截器:', error)
-  },
-})
+
 
 interface RetryLog {
   id: number

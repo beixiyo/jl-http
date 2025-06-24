@@ -49,6 +49,8 @@ export default antfu({
       'no-case-declarations': 'off', // 允许 switch case 语句中出现变量声明
       'accessor-pairs': 'off', // 允许在 getter 和 setter 中使用 accessor pairs
       'no-alert': 'off', // 允许使用 alert()
+
+      'no-cond-assign': 'off', // 允许在条件语句中赋值
     },
   },
 
