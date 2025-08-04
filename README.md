@@ -1,14 +1,18 @@
 # 现代化、通用的、灵活的请求库
 
 <p align="center">
+  <a href="./README-EN.md">English</a>
+  <a href="./README.md">中文</a>
+</p>
+
+<p align="center">
   <img alt="npm-version" src="https://img.shields.io/npm/v/@jl-org/http.svg" />
-  <img alt="npm-download" src="https://img.shields.io/npm/dm/@jl-org/http?logo=npm" />
+  <img alt="npm-download" src="https://img.shields.io/npm/dy/@jl-org/http?logo=npm" />
   <img alt="License" src="https://img.shields.io/npm/l/@jl-org/http?color=blue" />
+  <img alt="vite" src="https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white" />
   <img alt="typescript" src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white" />
   <img alt="github" src="https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white" />
 </p>
-
-> 一个功能强大的HTTP请求库，支持请求中断、缓存、重试、并发控制以及SSE流式数据处理
 
 ## ✨ 特性
 
@@ -411,7 +415,7 @@ cd packages/test
 pnpm dev
 ```
 
-访问 `http://localhost:5173` 可体验以下功能测试页面：
+访问 http://localhost:5173 可体验以下功能测试页面：
 
 - **基础HTTP请求** - `/http-basic` - 测试基础请求方法
 - **请求缓存** - `/http-cache` - 测试幂等请求缓存功能
@@ -419,19 +423,17 @@ pnpm dev
 - **请求中断** - `/http-abort` - 测试请求中断功能
 - **并发请求** - `/http-concurrent` - 测试并发控制
 - **SSE流处理** - `/http-sse` - 测试流式数据处理
+- **进度测试** - `/http-progress` - 测试进度
 - **拦截器** - `/http-interceptors` - 测试请求响应拦截
 
 ### 自动化测试
 
 ```bash
+# 构建核心包
+pnpm build
+
 # 运行所有测试
 pnpm test
-
-# 生成测试覆盖率报告
-pnpm test:coverage
-
-# 使用UI界面运行测试
-pnpm test:ui
+# 运行 Web 页面测试
+pnpm test:page
 ```
-
-> 📊 测试覆盖率：85%+ 全局覆盖率，95%+ 核心模块覆盖率
