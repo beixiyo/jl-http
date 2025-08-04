@@ -77,12 +77,10 @@ describe('SSE 集成测试', () => {
       expect(messages[0].currentJson[0]).toEqual({
         id: 1,
         message: 'Hello',
-        __internal__event: '',
       })
       expect(messages[1].currentJson[0]).toEqual({
         id: 2,
         message: 'World',
-        __internal__event: '',
       })
 
       // 验证最终数据
@@ -363,7 +361,6 @@ describe('SSE 集成测试', () => {
       expect(messages).toHaveLength(1)
       expect(finalData.allJson[0]).toEqual({
         incomplete: 'value',
-        __internal__event: '',
       })
     })
   })

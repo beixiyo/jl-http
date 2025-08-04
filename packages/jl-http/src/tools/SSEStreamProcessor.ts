@@ -264,9 +264,9 @@ export class SSEStreamProcessor {
               for (const item of itemsToAdd) {
                 if (isObj(item) && !Array.isArray(item)) {
                   const itemData = item as SSEJson
-                  event && (itemData.__internal__event__ = event)
-                  id && (itemData.__internal__id__ = id)
-                  retry && (itemData.__internal__retry__ = retry)
+                  event && (itemData.__internal__event = event)
+                  id && (itemData.__internal__id = id)
+                  retry && (itemData.__internal__retry = retry)
                 }
               }
 

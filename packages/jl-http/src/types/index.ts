@@ -33,10 +33,10 @@ export type SSEData = {
 
 export type SSEJson = {
   /** SSE 标准事件名 */
-  __internal__event__?: string
+  __internal__event?: string
   /** SSE 标准 id */
-  __internal__id__?: string
+  __internal__id?: string
   /** SSE 标准 retry */
-  __internal__retry__?: string
+  __internal__retry?: string
   [key: string]: any
 }

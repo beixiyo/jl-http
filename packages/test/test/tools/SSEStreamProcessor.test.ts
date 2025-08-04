@@ -1,5 +1,9 @@
-import { EVENT_KEY, SSEStreamProcessor } from '@jl-org/http'
+import { SSEStreamProcessor } from '@jl-org/http'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const EVENT_KEY = '__internal__event'
+const ID_KEY = '__internal__id'
+const RETRY_KEY = '__internal__retry'
 
 describe('sSEStreamProcessor', () => {
   let processor: SSEStreamProcessor
@@ -35,7 +39,7 @@ describe('sSEStreamProcessor', () => {
       const result = processor.processChunk(chunk)
 
       expect(result.currentRawPayload).toBe('{"message": "hello"}')
-      expect(result.currentJson).toEqual([{ message: 'hello', [EVENT_KEY]: '' }])
+      expect(result.currentJson).toEqual([{ message: 'hello' }])
       expect(result.allRawPayloadsString).toBe('{"message": "hello"}')
       expect(result.isEnd).toBe(false)
       expect(onMessageSpy).toHaveBeenCalledTimes(1)
@@ -46,8 +50,8 @@ describe('sSEStreamProcessor', () => {
       const result = processor.processChunk('data: {"id": 2}\n\n')
 
       expect(result.allJson).toHaveLength(2)
-      expect(result.allJson[0]).toEqual({ id: 1, [EVENT_KEY]: '' })
-      expect(result.allJson[1]).toEqual({ id: 2, [EVENT_KEY]: '' })
+      expect(result.allJson[0]).toEqual({ id: 1 })
+      expect(result.allJson[1]).toEqual({ id: 2 })
       expect(onMessageSpy).toHaveBeenCalledTimes(2)
     })
 
@@ -175,6 +179,87 @@ describe('sSEStreamProcessor', () => {
       expect(messages[0].content).toBe('message')
     })
 
+    it('应该处理事件名、ID 和重试字段', () => {
+      const content = 'event: custom-event\nid: msg-123\nretry: 5000\ndata: {"type": "notification"}\n\n'
+      const processor = new SSEStreamProcessor({
+        onMessage: onMessageSpy,
+      })
+
+      const result = processor.processChunk(content)
+
+      expect(result.currentJson).toEqual([{
+        type: 'notification',
+        [EVENT_KEY]: 'custom-event',
+        [ID_KEY]: 'msg-123',
+        [RETRY_KEY]: '5000'
+      }])
+      expect(onMessageSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          currentJson: [{
+            type: 'notification',
+            [EVENT_KEY]: 'custom-event',
+            [ID_KEY]: 'msg-123',
+            [RETRY_KEY]: '5000'
+          }]
+        })
+      )
+    })
+
+    it('应该在多个对象中都添加内部字段', () => {
+      const content = 'event: batch\nid: batch-001\ndata: [{"item": 1}, {"item": 2}]\n\n'
+      const processor = new SSEStreamProcessor({
+        onMessage: onMessageSpy,
+      })
+
+      const result = processor.processChunk(content)
+
+      expect(result.currentJson).toEqual([
+        { item: 1, [EVENT_KEY]: 'batch', [ID_KEY]: 'batch-001' },
+        { item: 2, [EVENT_KEY]: 'batch', [ID_KEY]: 'batch-001' }
+      ])
+    })
+
+    it('应该只在对象类型中添加内部字段，不在数组中添加', () => {
+      const content = 'event: test\ndata: "simple string"\n\n'
+      const processor = new SSEStreamProcessor({
+        onMessage: onMessageSpy,
+      })
+
+      const result = processor.processChunk(content)
+
+      // 字符串类型不应该被添加内部字段
+      expect(result.currentJson).toEqual(['simple string'])
+    })
+
+    it('应该处理缺少某些字段的情况', () => {
+      const content = 'event: partial\ndata: {"value": 42}\n\n'
+      const processor = new SSEStreamProcessor({
+        onMessage: onMessageSpy,
+      })
+
+      const result = processor.processChunk(content)
+
+      expect(result.currentJson).toEqual([{
+        value: 42,
+        [EVENT_KEY]: 'partial'
+        // 注意：没有 ID_KEY 和 RETRY_KEY，因为原始消息中没有提供
+      }])
+    })
+
+    it('应该处理空事件名的情况', () => {
+      const content = 'data: {"test": true}\n\n'
+      const processor = new SSEStreamProcessor({
+        onMessage: onMessageSpy,
+      })
+
+      const result = processor.processChunk(content)
+
+      expect(result.currentJson).toEqual([{
+        test: true
+        // 注意：没有事件名时不会添加 __internal__event 字段
+      }])
+    })
+
     it('应该处理多行数据', () => {
       const content = 'data: line1\ndata: line2\n\n'
       const messages: any[] = []
@@ -242,7 +327,7 @@ describe('sSEStreamProcessor', () => {
       const chunk = 'data: [{"id": 1}, {"id": 2}]\n\n'
       const result = processor.processChunk(chunk)
 
-      expect(result.currentJson).toEqual([{ id: 1, [EVENT_KEY]: '' }, { id: 2, [EVENT_KEY]: '' }])
+      expect(result.currentJson).toEqual([{ id: 1 }, { id: 2 }])
     })
 
     it('应该冻结返回的 JSON 数组', () => {

@@ -13,7 +13,8 @@ export function esmTocjs(path: string) {
 }
 
 export function writeTempFile(cjsCode: string, tempPath: string, tempFile: string) {
-  createDir(tempPath)
+  const fullTempPath = resolve(process.cwd(), tempPath)
+  createDir(fullTempPath)
   writeFileSync(resolve(process.cwd(), `${tempPath}/${tempFile}`), cjsCode, 'utf-8')
 }
 
