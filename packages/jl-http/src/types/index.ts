@@ -31,7 +31,12 @@ export type SSEData = {
   allJson: readonly SSEJson[]
 }
 
-type SSEJson = {
-  __internal__event: string
+export type SSEJson = {
+  /** SSE 标准事件名 */
+  __internal__event__?: string
+  /** SSE 标准 id */
+  __internal__id__?: string
+  /** SSE 标准 retry */
+  __internal__retry__?: string
   [key: string]: any
 }

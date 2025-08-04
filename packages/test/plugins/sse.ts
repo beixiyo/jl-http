@@ -14,21 +14,20 @@ export function sse(server: ViteDevServer) {
     const maxMessages = 10
 
     // 发送初始连接消息
-    res.write('data: {"type": "connected", "message": "SSE 连接已建立"}\n\n')
+    res.write('event: connect\nid: 1\nretry: 1000\ndata: {"type": "connected", "message": "SSE 连接已建立"}\n\n')
 
     const interval = setInterval(() => {
       counter++
 
       if (counter <= maxMessages) {
         const data = {
-          id: counter,
           type: 'message',
           content: `这是第 ${counter} 条消息`,
           timestamp: new Date().toISOString(),
           progress: counter / maxMessages,
         }
 
-        writeSSEData(res, data)
+        writeSSEData(res, data, 'data', `msg_${counter}`, '1000')
       }
       else {
         // 发送完成消息
@@ -108,13 +107,12 @@ export function sse(server: ViteDevServer) {
           charIndex += chunk.length
 
           const success = writeSSEData(res, {
-            id: messageId++,
             type: 'message',
             content: chunk,
             isComplete: false,
             progress: charIndex / chatResponse.length,
             timestamp: Date.now()
-          }, 'message', `msg_${messageId}`)
+          }, 'message', `msg_${messageId++}`, '1000')
 
           if (!success) {
             connectionManager.removeConnection(connectionId)
@@ -123,16 +121,16 @@ export function sse(server: ViteDevServer) {
 
           // 更新连接活动时间
           connectionManager.updateActivity(connectionId)
-        } else {
+        }
+        else {
           // 发送完成消息
           writeSSEData(res, {
-            id: messageId++,
             type: 'complete',
             content: '',
             isComplete: true,
             progress: 1,
             timestamp: Date.now()
-          }, 'complete', `complete_${messageId}`)
+          }, 'complete', `complete_${messageId++}`)
 
           // 发送结束标记
           res.write('data: [DONE]\n\n')
@@ -153,7 +151,8 @@ export function sse(server: ViteDevServer) {
         connectionManager.removeConnection(connectionId)
       })
 
-    } catch (error) {
+    }
+    catch (error) {
       console.error(`[SSE Chat] 处理聊天请求时出错: ${connectionId}`, error)
 
       // 发送错误响应
@@ -193,7 +192,7 @@ export function sse(server: ViteDevServer) {
           timestamp: Date.now(),
         }
 
-        writeSSEData(res, data)
+        writeSSEData(res, data, 'data', 'counter', '1000')
       }
       else {
         res.write('data: [DONE]\n\n')
@@ -220,7 +219,6 @@ export function sse(server: ViteDevServer) {
 
       if (messageCount <= maxMessages) {
         const data = {
-          id: messageCount,
           value: Math.random(),
           temperature: Math.round(Math.random() * 40 + 10), // 10-50度
           humidity: Math.round(Math.random() * 60 + 30), // 30-90%
@@ -228,7 +226,7 @@ export function sse(server: ViteDevServer) {
           status: messageCount < maxMessages ? 'streaming' : 'complete',
         }
 
-        writeSSEData(res, data)
+        writeSSEData(res, data, 'data', `random_${messageCount}`, '1000')
       }
       else {
         res.write('data: [DONE]\n\n')
@@ -275,7 +273,7 @@ function writeSSEHeader(res: ServerResponse<IncomingMessage>) {
 
 
 // 标准化的 SSE 数据写入
-function writeSSEData(res: ServerResponse<IncomingMessage>, data: any, event?: string, id?: string) {
+function writeSSEData(res: ServerResponse<IncomingMessage>, data: any, event?: string, id?: string, retry?: string) {
   try {
     // 检查连接状态
     if (res.destroyed || res.writableEnded || !res.writable) {
@@ -291,6 +289,10 @@ function writeSSEData(res: ServerResponse<IncomingMessage>, data: any, event?: s
 
     if (event) {
       message += `event: ${event}\n`
+    }
+
+    if (retry) {
+      message += `retry: ${retry}\n`
     }
 
     message += `data: ${JSON.stringify(data)}\n\n`

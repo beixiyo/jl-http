@@ -1,7 +1,5 @@
-import type { SSEData } from '@/types'
+import type { SSEData, SSEJson } from '@/types'
 import { isObj } from './tool'
-
-export const EVENT_KEY = '__internal__event'
 
 /**
  * 用于处理数据流（支持 SSE 和 JSON 解析配置）
@@ -244,6 +242,8 @@ export class SSEStreamProcessor {
         isEnd,
         remainingBuffer: newRemainingBuffer,
         event,
+        id,
+        retry,
       }) => {
         if (isEnd) {
           streamEnded = true
@@ -260,11 +260,13 @@ export class SSEStreamProcessor {
                 ? parsed
                 : [parsed]
 
-              /** 添加事件名 */
+              /** 添加 SSE 标准事件名 */
               for (const item of itemsToAdd) {
                 if (isObj(item) && !Array.isArray(item)) {
-                  // @ts-ignore
-                  item[EVENT_KEY] = event
+                  const itemData = item as SSEJson
+                  event && (itemData.__internal__event__ = event)
+                  id && (itemData.__internal__id__ = id)
+                  retry && (itemData.__internal__retry__ = retry)
                 }
               }
 
@@ -327,6 +329,8 @@ export class SSEStreamProcessor {
       separator = '\n\n',
       dataPrefix = 'data:',
       eventPrefix = 'event:',
+      idPrefix = 'id:',
+      retryPrefix = 'retry:',
       doneSignal = '[DONE]',
       ignoreInvalidDataPrefix = true,
       onMessage,
@@ -351,8 +355,12 @@ export class SSEStreamProcessor {
       const remainingBuffer = currentBuffer.slice(separatorIndex + separator.length)
 
       const lines = messageBlock.split('\n')
+
       let currentEventName = ''
-      let currentPayload = '' // 用于拼接当前消息块内的多行 data
+      let currentId = ''
+      let currentRetry = ''
+      /** 用于拼接当前消息块内的多行 data */
+      let currentPayload = ''
       let blockContainsEndSignal = false
 
       for (const line of lines) {
@@ -360,6 +368,14 @@ export class SSEStreamProcessor {
 
         if (trimmedLine.startsWith(eventPrefix)) {
           currentEventName = trimmedLine.slice(eventPrefix.length).trim()
+          continue
+        }
+        if (trimmedLine.startsWith(idPrefix)) {
+          currentId = trimmedLine.slice(idPrefix.length).trim()
+          continue
+        }
+        if (trimmedLine.startsWith(retryPrefix)) {
+          currentRetry = trimmedLine.slice(retryPrefix.length).trim()
           continue
         }
 
@@ -391,6 +407,8 @@ export class SSEStreamProcessor {
       onMessage?.({
         separatorIndex,
         event: currentEventName,
+        id: currentId,
+        retry: currentRetry,
         content: finalPayloadForBlock,
         isEnd: blockContainsEndSignal,
         remainingBuffer, // 传递更新后的缓冲区
@@ -479,7 +497,12 @@ export interface ParseSSEContentParam {
       isEnd: boolean
       /** 剩余的缓冲区 */
       remainingBuffer: string
+      /** 事件名 */
       event: string
+      /** id */
+      id: string
+      /** retry */
+      retry: string
     }
   ) => void
 
@@ -503,6 +526,16 @@ export interface ParseSSEContentParam {
    * @default 'event:'
    */
   eventPrefix?: string
+  /**
+   * 以什么作为 id 前缀
+   * @default 'id:'
+   */
+  idPrefix?: string
+  /**
+   * 以什么作为 retry 前缀
+   * @default 'retry:'
+   */
+  retryPrefix?: string
   /**
    * 以什么作为结束信号
    * @default '[DONE]'
