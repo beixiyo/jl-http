@@ -31,7 +31,8 @@ export async function retryTask<T>(
   while (attempts < maxAttempts) {
     attempts++
     try {
-      return await task()
+      const res = await task()
+      return res
     }
     catch (error) {
       lastError = error instanceof Error

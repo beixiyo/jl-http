@@ -1,4 +1,7 @@
+'use client'
+
 import type { ChangeEvent } from 'react'
+import { useFormField } from '@/components/Form'
 import { cn } from '@/utils'
 import { forwardRef, memo, useCallback, useState } from 'react'
 
@@ -27,24 +30,26 @@ export const Input = memo<InputProps>(forwardRef<HTMLInputElement, InputProps>((
     onChange,
     value,
     type,
+    name,
     ...rest
   } = props
 
-  const [isFocused, setIsFocused] = useState(false)
+  /** 使用 useFormField hook 处理表单集成 */
+  const {
+    actualValue,
+    actualError,
+    actualErrorMessage,
+    handleChangeVal,
+    handleBlur: handleFieldBlur,
+  } = useFormField<string, ChangeEvent<HTMLInputElement>>({
+    name,
+    value,
+    error,
+    errorMessage,
+    onChange,
+  })
 
-  const [internalVal, setInternalVal] = useState('')
-  const isControlMode = value !== undefined
-  const realValue = isControlMode
-    ? value
-    : internalVal
-  const handleChangeVal = useCallback(
-    (val: string, e: ChangeEvent<HTMLInputElement>) => {
-      isControlMode
-        ? onChange?.(val, e)
-        : setInternalVal(val)
-    },
-    [isControlMode, onChange],
-  )
+  const [isFocused, setIsFocused] = useState(false)
 
   /** 处理输入变化 */
   const handleChange = useCallback(
@@ -62,8 +67,9 @@ export const Input = memo<InputProps>(forwardRef<HTMLInputElement, InputProps>((
 
   const handleBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
     setIsFocused(false)
+    handleFieldBlur()
     onBlur?.(e)
-  }, [onBlur])
+  }, [onBlur, handleFieldBlur])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     onKeyDown?.(e)
@@ -86,14 +92,14 @@ export const Input = memo<InputProps>(forwardRef<HTMLInputElement, InputProps>((
   )
 
   const containerClasses = cn(
-    'relative w-full flex items-center rounded-xl border',
+    'relative w-full flex items-center rounded-lg border',
     sizeClasses[size],
     {
-      'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900': !error && !disabled,
-      'border-rose-500 hover:border-rose-600 focus-within:border-rose-500': error && !disabled,
+      'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900': !actualError && !disabled,
+      'border-rose-500 hover:border-rose-600 focus-within:border-rose-500': actualError && !disabled,
       'border-slate-200 bg-slate-50 dark:bg-slate-800 text-slate-400 cursor-not-allowed': disabled,
-      '': isFocused && !error && !disabled,
-      'hover:border-slate-400 dark:hover:border-slate-600': !isFocused && !error && !disabled,
+      '': isFocused && !actualError && !disabled,
+      'hover:border-slate-400 dark:hover:border-slate-600': !isFocused && !actualError && !disabled,
     },
   )
 
@@ -107,7 +113,7 @@ export const Input = memo<InputProps>(forwardRef<HTMLInputElement, InputProps>((
       <input
         ref={ ref }
         type={ type }
-        value={ realValue }
+        value={ actualValue }
         className={ cn(
           inputClasses,
           prefix
@@ -123,6 +129,7 @@ export const Input = memo<InputProps>(forwardRef<HTMLInputElement, InputProps>((
         onBlur={ handleBlur }
         onKeyDown={ handleKeyDown }
         onChange={ handleChange }
+        name={ name }
         { ...rest }
       />
       { suffix && (
@@ -154,7 +161,7 @@ export const Input = memo<InputProps>(forwardRef<HTMLInputElement, InputProps>((
               'text-base': size === 'md',
               'text-lg': size === 'lg',
               'min-w-24': labelPosition === 'left',
-              'text-rose-500': error,
+              'text-rose-500': actualError,
             },
           ) }
         >
@@ -163,9 +170,9 @@ export const Input = memo<InputProps>(forwardRef<HTMLInputElement, InputProps>((
         </label>
       ) }
       { renderInput() }
-      { error && errorMessage && (
+      { actualError && actualErrorMessage && (
         <div className="mt-1 text-sm text-rose-500">
-          { errorMessage }
+          { actualErrorMessage }
         </div>
       ) }
     </div>

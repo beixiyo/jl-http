@@ -3,54 +3,28 @@ import { type SSEOptions } from '@jl-org/http'
 import { useCallback, useRef, useState, useEffect } from 'react'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
-import { Input, Textarea } from '@/components/Input'
+import { Input } from '@/components/Input'
+import { Textarea } from '@/components/Textarea'
 import { Select } from '@/components/Select'
 import { cn } from '@/utils'
 import { TestModuleRunner } from '@/components/TestModuleRunner'
 import { createIntegratedPageProps } from '@/lib/test-modules/integration'
 import { createHttpInstance } from '@/lib/test-modules'
+import type { SSELog, SSEMessage, ChatMessage } from './type'
 
-interface SSELog {
-  id: number
-  timestamp: string
-  url: string
-  method: string
-  status: 'connecting' | 'streaming' | 'completed' | 'error' | 'cancelled'
-  duration: number
-  messageCount: number
-  totalContent: string
-  error?: string
-  progress: number
-}
-
-interface SSEMessage {
-  id: number
-  timestamp: string
-  content: string
-  jsonData?: any
-  isComplete?: boolean
-  type?: 'connection' | 'message' | 'complete' | 'error' | 'heartbeat'
-  role?: 'user' | 'assistant' | 'system'
-  progress?: number
-}
-
-interface ChatMessage {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  timestamp: number
-  isStreaming?: boolean
-  progress?: number
-}
+const http = createHttpInstance({
+  baseUrl: '', // 使用不同的 SSE 服务
+  timeout: 30000,
+})
 
 export default function HttpSSETest() {
-  const [showManualTest, setShowManualTest] = useState(false)
+  const [showManualTest, setShowManualTest] = useState(true)
 
   if (!showManualTest) {
-    return <AutoTestMode onSwitchToManual={() => setShowManualTest(true)} />
+    return <AutoTestMode onSwitchToManual={ () => setShowManualTest(true) } />
   }
 
-  return <ManualTestMode onBack={() => setShowManualTest(false)} />
+  return <ManualTestMode onBack={ () => setShowManualTest(false) } />
 }
 
 function AutoTestMode({ onSwitchToManual }: { onSwitchToManual: () => void }) {
@@ -59,13 +33,13 @@ function AutoTestMode({ onSwitchToManual }: { onSwitchToManual: () => void }) {
   return (
     <div className="mx-auto max-w-7xl p-6">
       <TestModuleRunner
-        {...props}
-        onTestComplete={(scenarioId, result) => {
+        { ...props }
+        onTestComplete={ (scenarioId, result) => {
           console.log(`SSE 测试完成: ${scenarioId}`, result)
-        }}
+        } }
       />
 
-      {/* 切换到手动测试 */}
+      {/* 切换到手动测试 */ }
       <Card className="mt-6 p-6">
         <div className="flex items-center justify-between">
           <div>
@@ -74,7 +48,7 @@ function AutoTestMode({ onSwitchToManual }: { onSwitchToManual: () => void }) {
               切换到手动测试模式，可以自定义 SSE 参数进行测试
             </p>
           </div>
-          <Button onClick={onSwitchToManual} designStyle="outlined">
+          <Button onClick={ onSwitchToManual } designStyle="outlined">
             切换到手动测试
           </Button>
         </div>
@@ -151,11 +125,11 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
     setChatMessages(prev => prev.map(msg =>
       msg.id === id
         ? {
-            ...msg,
-            content: typeof content === 'function' ? content(msg.content) : content,
-            isStreaming,
-            progress
-          }
+          ...msg,
+          content: typeof content === 'function' ? content(msg.content) : content,
+          isStreaming,
+          progress
+        }
         : msg
     ))
   }, [])
@@ -208,6 +182,7 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
 
     try {
       const config: SSEOptions = {
+        baseUrl: '',
         method,
         needParseData,
         needParseJSON,
@@ -250,7 +225,8 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
             if (sseUrl.includes('/api/sse/chat')) {
               currentAssistantMessageId = addChatMessage('assistant', '', true)
             }
-          } else if (messageType === 'message' && messageContent) {
+          }
+          else if (messageType === 'message' && messageContent) {
             addMessage(messageContent, data.currentJson, false, 'message')
             // 更新聊天消息
             if (currentAssistantMessageId && sseUrl.includes('/api/sse/chat')) {
@@ -260,7 +236,8 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
                 progress
               )
             }
-          } else if (messageType === 'complete') {
+          }
+          else if (messageType === 'complete') {
             addMessage('✅ 传输完成', data.currentJson, true, 'complete')
             // 完成聊天消息
             if (currentAssistantMessageId) {
@@ -270,11 +247,14 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
                 1
               )
             }
-          } else if (messageType === 'heartbeat') {
+          }
+          else if (messageType === 'heartbeat') {
             addMessage('💓 心跳', data.currentJson, false, 'heartbeat')
-          } else if (messageType === 'error') {
+          }
+          else if (messageType === 'error') {
             addMessage('❌ 错误', data.currentJson, true, 'error')
-          } else if (messageContent) {
+          }
+          else if (messageContent) {
             // 通用消息处理
             addMessage(messageContent, data.currentJson.length > 0 ? data.currentJson : undefined)
           }
@@ -297,21 +277,6 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
           })
         },
       }
-
-      // 创建 HTTP 实例
-      const http = createHttpInstance({
-        baseUrl: '', // 使用不同的 SSE 服务
-        timeout: 30000,
-        interceptors: {
-          request: (config: any) => {
-            console.log('SSE 请求拦截器:', config)
-            return config
-          },
-          error: (error: any) => {
-            console.error('SSE 错误拦截器:', error)
-          },
-        },
-      })
 
       const { promise, cancel } = await http.fetchSSE(sseUrl, config)
       setCurrentConnection({ cancel })
@@ -504,76 +469,44 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
             </div>
           </div>
           <Button
-            onClick={onBack}
+            onClick={ onBack }
             designStyle="outlined"
           >
             返回自动测试
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 border border-green-200 dark:border-green-800">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-green-600 dark:text-green-400">🔗</span>
-              <span className="font-medium text-green-800 dark:text-green-200">实时连接</span>
-            </div>
-            <p className="text-sm text-green-700 dark:text-green-300">
-              Server-Sent Events 长连接技术
-            </p>
-          </div>
-
-          <div className="rounded-lg bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 p-4 border border-blue-200 dark:border-blue-800">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-blue-600 dark:text-blue-400">💬</span>
-              <span className="font-medium text-blue-800 dark:text-blue-200">智能对话</span>
-            </div>
-            <p className="text-sm text-blue-700 dark:text-blue-300">
-              模拟 AI 聊天流式响应
-            </p>
-          </div>
-
-          <div className="rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 p-4 border border-purple-200 dark:border-purple-800">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-purple-600 dark:text-purple-400">⚡</span>
-              <span className="font-medium text-purple-800 dark:text-purple-200">高性能</span>
-            </div>
-            <p className="text-sm text-purple-700 dark:text-purple-300">
-              低延迟数据流处理
-            </p>
-          </div>
-        </div>
-
-        {/* 标签页切换 */}
+        {/* 标签页切换 */ }
         <div className="flex space-x-1 rounded-xl bg-gray-100 dark:bg-gray-800 p-1 mb-6">
           <button
-            onClick={() => setActiveTab('chat')}
-            className={cn(
+            onClick={ () => setActiveTab('chat') }
+            className={ cn(
               'flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-all',
               activeTab === 'chat'
                 ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-            )}
+            ) }
           >
             💬 智能聊天
           </button>
           <button
-            onClick={() => setActiveTab('advanced')}
-            className={cn(
+            onClick={ () => setActiveTab('advanced') }
+            className={ cn(
               'flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-all',
               activeTab === 'advanced'
                 ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-            )}
+            ) }
           >
             🔧 高级配置
           </button>
         </div>
       </div>
 
-      {activeTab === 'chat' ? (
+      { activeTab === 'chat' ? (
         // 聊天模式
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-          {/* SSE 聊天测试区域 */}
+          {/* SSE 聊天测试区域 */ }
           <div className="xl:col-span-2">
             <Card className="flex flex-col">
               <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
@@ -584,26 +517,26 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
                   <div>
                     <h3 className="font-semibold">SSE 聊天流测试</h3>
                     <p className="text-xs text-gray-500">
-                      测试流式数据接收 - {currentConnection ? '🟢 连接中' : '⚪ 未连接'}
+                      测试流式数据接收 - { currentConnection ? '🟢 连接中' : '⚪ 未连接' }
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {currentConnection && (
-                    <Button onClick={cancelConnection} size="sm" designStyle="outlined">
+                  { currentConnection && (
+                    <Button onClick={ cancelConnection } size="sm" designStyle="outlined">
                       停止连接
                     </Button>
-                  )}
-                  <Button onClick={() => setChatMessages([])} size="sm" designStyle="outlined">
+                  ) }
+                  <Button onClick={ () => setChatMessages([]) } size="sm" designStyle="outlined">
                     清空消息
                   </Button>
                 </div>
               </div>
 
-              {/* 消息显示区域 - 修复滚动问题 */}
+              {/* 消息显示区域 - 修复滚动问题 */ }
               <div className="h-96 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-900/50">
                 <div className="space-y-3">
-                  {chatMessages.length === 0 ? (
+                  { chatMessages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-gray-500">
                       <div className="text-4xl mb-3">🧪</div>
                       <h3 className="font-medium mb-2">SSE 流式测试</h3>
@@ -611,97 +544,97 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
                         输入消息测试 SSE 流式数据传输
                       </p>
                       <div className="flex flex-wrap gap-2 justify-center text-xs">
-                        {[
+                        { [
                           '介绍一下 SSE 技术',
                           '流式数据有什么优势？',
                           '测试长文本响应'
                         ].map((suggestion, index) => (
                           <button
-                            key={index}
-                            onClick={() => setCurrentChatMessage(suggestion)}
+                            key={ index }
+                            onClick={ () => setCurrentChatMessage(suggestion) }
                             className="px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
                           >
-                            {suggestion}
+                            { suggestion }
                           </button>
-                        ))}
+                        )) }
                       </div>
                     </div>
                   ) : (
                     chatMessages.map((message) => (
                       <div
-                        key={message.id}
-                        className={cn(
+                        key={ message.id }
+                        className={ cn(
                           'flex gap-2 mb-3',
                           message.role === 'user' ? 'justify-end' : 'justify-start'
-                        )}
+                        ) }
                       >
-                        {message.role === 'assistant' && (
+                        { message.role === 'assistant' && (
                           <div className="w-6 h-6 rounded bg-blue-500 text-white flex items-center justify-center text-xs flex-shrink-0 mt-1">
                             🤖
                           </div>
-                        )}
+                        ) }
                         <div
-                          className={cn(
+                          className={ cn(
                             'max-w-[75%] rounded-lg px-3 py-2 text-sm',
                             message.role === 'user'
                               ? 'bg-blue-500 text-white'
                               : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
-                          )}
+                          ) }
                         >
                           <div className="whitespace-pre-wrap break-words">
-                            {message.content}
-                            {message.isStreaming && (
+                            { message.content }
+                            { message.isStreaming && (
                               <span className="inline-block w-1 h-4 bg-current animate-pulse ml-1 align-middle"></span>
-                            )}
+                            ) }
                           </div>
-                          {message.progress !== undefined && message.progress < 1 && message.progress > 0 && (
+                          { message.progress !== undefined && message.progress < 1 && message.progress > 0 && (
                             <div className="mt-2 h-1 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
                               <div
                                 className="h-full bg-blue-500 transition-all duration-200"
-                                style={{ width: `${message.progress * 100}%` }}
+                                style={ { width: `${message.progress * 100}%` } }
                               />
                             </div>
-                          )}
+                          ) }
                           <div className="text-xs text-gray-500 mt-1">
-                            {new Date(message.timestamp).toLocaleTimeString()}
-                            {message.isStreaming && ' • 接收中...'}
+                            { new Date(message.timestamp).toLocaleTimeString() }
+                            { message.isStreaming && ' • 接收中...' }
                           </div>
                         </div>
-                        {message.role === 'user' && (
+                        { message.role === 'user' && (
                           <div className="w-6 h-6 rounded bg-green-500 text-white flex items-center justify-center text-xs flex-shrink-0 mt-1">
                             👤
                           </div>
-                        )}
+                        ) }
                       </div>
                     ))
-                  )}
-                  <div ref={messagesEndRef} />
+                  ) }
+                  <div ref={ messagesEndRef } />
                 </div>
               </div>
 
-              {/* 测试输入区域 */}
+              {/* 测试输入区域 */ }
               <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                 <div className="space-y-3">
                   <div className="flex gap-2">
                     <Input
-                      value={currentChatMessage}
-                      onChange={setCurrentChatMessage}
+                      value={ currentChatMessage }
+                      onChange={ setCurrentChatMessage }
                       placeholder="输入测试消息..."
                       className="flex-1"
-                      onKeyDown={(e) => {
+                      onKeyDown={ (e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault()
                           sendChatMessage()
                         }
-                      }}
-                      disabled={!!currentConnection}
+                      } }
+                      disabled={ !!currentConnection }
                     />
                     <Button
-                      onClick={sendChatMessage}
-                      disabled={!currentChatMessage.trim() || !!currentConnection}
+                      onClick={ sendChatMessage }
+                      disabled={ !currentChatMessage.trim() || !!currentConnection }
                       className="px-4"
                     >
-                      {currentConnection ? '发送中...' : '发送测试'}
+                      { currentConnection ? '发送中...' : '发送测试' }
                     </Button>
                   </div>
 
@@ -711,11 +644,11 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
                       <span>方法: <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">POST</code></span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <span className={cn(
+                      <span className={ cn(
                         'h-2 w-2 rounded-full',
                         currentConnection ? 'bg-green-500 animate-pulse' : 'bg-gray-300'
-                      )}></span>
-                      <span>{currentConnection ? '连接中' : '就绪'}</span>
+                      ) }></span>
+                      <span>{ currentConnection ? '连接中' : '就绪' }</span>
                     </div>
                   </div>
                 </div>
@@ -723,7 +656,7 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
             </Card>
           </div>
 
-          {/* 测试状态和数据 */}
+          {/* 测试状态和数据 */ }
           <div className="space-y-4">
             <Card className="p-4">
               <h3 className="font-semibold mb-3 flex items-center gap-2">
@@ -735,16 +668,16 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-gray-600 dark:text-gray-400">连接状态:</span>
-                      <span className={cn(
+                      <span className={ cn(
                         'font-medium',
                         currentConnection ? 'text-green-600 dark:text-green-400' : 'text-gray-500'
-                      )}>
-                        {currentConnection ? '已连接' : '未连接'}
+                      ) }>
+                        { currentConnection ? '已连接' : '未连接' }
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600 dark:text-gray-400">消息数:</span>
-                      <span className="font-medium">{chatMessages.length}</span>
+                      <span className="font-medium">{ chatMessages.length }</span>
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -779,7 +712,7 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
                   <label className="block text-sm font-medium mb-1">请求体预览</label>
                   <div className="bg-gray-50 dark:bg-gray-900 rounded p-2 text-xs font-mono">
                     <pre className="whitespace-pre-wrap break-all">
-                      {JSON.stringify(
+                      { JSON.stringify(
                         {
                           message: currentChatMessage || "测试消息",
                           model: "gpt-3.5-turbo",
@@ -787,7 +720,7 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
                         },
                         null,
                         2
-                      )}
+                      ) }
                     </pre>
                   </div>
                 </div>
@@ -809,180 +742,180 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
       ) : (
         // 高级配置模式
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {/* 配置面板 */}
+          {/* 配置面板 */ }
           <Card className="p-6">
             <h2 className="mb-4 text-xl font-semibold flex items-center gap-2">
               <span>🔧</span>
               SSE 高级配置
             </h2>
 
-          <div className="space-y-4">
-            <div>
-              <label className="mb-2 block text-sm font-medium">SSE 端点 URL</label>
-              <Input
-                value={ sseUrl }
-                onChange={ setSseUrl }
-                placeholder="输入 SSE 端点 URL"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium">请求方法</label>
-              <Select
-                value={ method }
-                onChange={ value => setMethod(value as any) }
-                options={ [
-                  { label: 'GET', value: 'GET' },
-                  { label: 'POST', value: 'POST' },
-                ] }
-              />
-            </div>
-
-            { method === 'POST' && (
+            <div className="space-y-4">
               <div>
-                <label className="mb-2 block text-sm font-medium">请求体 (JSON)</label>
-                <Textarea
-                  value={ requestBody }
-                  onChange={ setRequestBody }
-                  className="h-20 w-full resize-none border rounded-lg p-3 text-sm font-mono"
-                  placeholder="输入 JSON 格式的请求体"
+                <label className="mb-2 block text-sm font-medium">SSE 端点 URL</label>
+                <Input
+                  value={ sseUrl }
+                  onChange={ setSseUrl }
+                  placeholder="输入 SSE 端点 URL"
                 />
               </div>
-            ) }
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="needParseData"
-                  checked={ needParseData }
-                  onChange={ e => setNeedParseData(e.target.checked) }
-                  className="rounded"
+              <div>
+                <label className="mb-2 block text-sm font-medium">请求方法</label>
+                <Select
+                  value={ method }
+                  onChange={ value => setMethod(value as any) }
+                  options={ [
+                    { label: 'GET', value: 'GET' },
+                    { label: 'POST', value: 'POST' },
+                  ] }
                 />
-                <label htmlFor="needParseData" className="text-sm">
-                  解析 SSE 数据
-                </label>
               </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="needParseJSON"
-                  checked={ needParseJSON }
-                  onChange={ e => setNeedParseJSON(e.target.checked) }
-                  className="rounded"
-                />
-                <label htmlFor="needParseJSON" className="text-sm">
-                  解析 JSON
-                </label>
-              </div>
-            </div>
 
-            { needParseData && (
-              <>
+              { method === 'POST' && (
                 <div>
-                  <label className="mb-2 block text-sm font-medium">数据前缀</label>
-                  <Input
-                    value={ dataPrefix }
-                    onChange={ setDataPrefix }
-                    placeholder="data:"
+                  <label className="mb-2 block text-sm font-medium">请求体 (JSON)</label>
+                  <Textarea
+                    value={ requestBody }
+                    onChange={ setRequestBody }
+                    className="h-20 w-full resize-none border rounded-lg p-3 text-sm font-mono"
+                    placeholder="输入 JSON 格式的请求体"
                   />
                 </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium">分隔符</label>
-                  <Input
-                    value={ separator }
-                    onChange={ setSeparator }
-                    placeholder="\\n\\n"
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium">结束信号</label>
-                  <Input
-                    value={ doneSignal }
-                    onChange={ setDoneSignal }
-                    placeholder="[DONE]"
-                  />
-                </div>
-              </>
-            ) }
-
-            <div className="flex gap-2">
-              <Button
-                onClick={ startSSEConnection }
-                disabled={ !!currentConnection }
-                className="flex-1"
-              >
-                { currentConnection
-                  ? '连接中...'
-                  : '开始连接' }
-              </Button>
-              { currentConnection && (
-                <Button
-                  onClick={ cancelConnection }
-                  variant="primary"
-                >
-                  取消
-                </Button>
               ) }
-            </div>
-          </div>
-        </Card>
 
-        {/* 实时消息 */ }
-        <Card className="p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-semibold">实时消息</h2>
-            <Button onClick={ () => setMessages([]) } designStyle="outlined" size="sm">
-              清空消息
-            </Button>
-          </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="needParseData"
+                    checked={ needParseData }
+                    onChange={ e => setNeedParseData(e.target.checked) }
+                    className="rounded"
+                  />
+                  <label htmlFor="needParseData" className="text-sm">
+                    解析 SSE 数据
+                  </label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="needParseJSON"
+                    checked={ needParseJSON }
+                    onChange={ e => setNeedParseJSON(e.target.checked) }
+                    className="rounded"
+                  />
+                  <label htmlFor="needParseJSON" className="text-sm">
+                    解析 JSON
+                  </label>
+                </div>
+              </div>
 
-          <div className="max-h-96 overflow-y-auto space-y-2">
-            { messages.length === 0
-              ? (
-                <p className="py-8 text-center text-gray-500">暂无消息</p>
-              )
-              : (
-                messages.map(message => (
-                  <div
-                    key={ message.id }
-                    className={ cn(
-                      'p-3 rounded-lg border text-sm',
-                      message.isComplete
-                        ? 'bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800'
-                        : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
-                    ) }
+              { needParseData && (
+                <>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium">数据前缀</label>
+                    <Input
+                      value={ dataPrefix }
+                      onChange={ setDataPrefix }
+                      placeholder="data:"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium">分隔符</label>
+                    <Input
+                      value={ separator }
+                      onChange={ setSeparator }
+                      placeholder="\\n\\n"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium">结束信号</label>
+                    <Input
+                      value={ doneSignal }
+                      onChange={ setDoneSignal }
+                      placeholder="[DONE]"
+                    />
+                  </div>
+                </>
+              ) }
+
+              <div className="flex gap-2">
+                <Button
+                  onClick={ startSSEConnection }
+                  disabled={ !!currentConnection }
+                  className="flex-1"
+                >
+                  { currentConnection
+                    ? '连接中...'
+                    : '开始连接' }
+                </Button>
+                { currentConnection && (
+                  <Button
+                    onClick={ cancelConnection }
+                    variant="primary"
                   >
-                    <div className="mb-1 flex items-center justify-between">
-                      <span className="text-xs text-gray-500">{ message.timestamp }</span>
-                      { message.isComplete && (
-                        <span className="rounded bg-gray-200 px-2 py-1 text-xs dark:bg-gray-700">
-                          完成
-                        </span>
+                    取消
+                  </Button>
+                ) }
+              </div>
+            </div>
+          </Card>
+
+          {/* 实时消息 */ }
+          <Card className="p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-semibold">实时消息</h2>
+              <Button onClick={ () => setMessages([]) } designStyle="outlined" size="sm">
+                清空消息
+              </Button>
+            </div>
+
+            <div className="max-h-96 overflow-y-auto space-y-2">
+              { messages.length === 0
+                ? (
+                  <p className="py-8 text-center text-gray-500">暂无消息</p>
+                )
+                : (
+                  messages.map(message => (
+                    <div
+                      key={ message.id }
+                      className={ cn(
+                        'p-3 rounded-lg border text-sm',
+                        message.isComplete
+                          ? 'bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800'
+                          : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
+                      ) }
+                    >
+                      <div className="mb-1 flex items-center justify-between">
+                        <span className="text-xs text-gray-500">{ message.timestamp }</span>
+                        { message.isComplete && (
+                          <span className="rounded bg-gray-200 px-2 py-1 text-xs dark:bg-gray-700">
+                            完成
+                          </span>
+                        ) }
+                      </div>
+                      <div className="break-all text-sm font-mono">
+                        { message.content }
+                      </div>
+                      { message.jsonData && (
+                        <details className="mt-2">
+                          <summary className="cursor-pointer text-xs text-gray-500">
+                            JSON 数据
+                          </summary>
+                          <pre className="mt-1 overflow-auto rounded bg-gray-100 p-2 text-xs dark:bg-gray-800">
+                            { JSON.stringify(message.jsonData, null, 2) }
+                          </pre>
+                        </details>
                       ) }
                     </div>
-                    <div className="break-all text-sm font-mono">
-                      { message.content }
-                    </div>
-                    { message.jsonData && (
-                      <details className="mt-2">
-                        <summary className="cursor-pointer text-xs text-gray-500">
-                          JSON 数据
-                        </summary>
-                        <pre className="mt-1 overflow-auto rounded bg-gray-100 p-2 text-xs dark:bg-gray-800">
-                          { JSON.stringify(message.jsonData, null, 2) }
-                        </pre>
-                      </details>
-                    ) }
-                  </div>
-                ))
-              ) }
-          </div>
-        </Card>
+                  ))
+                ) }
+            </div>
+          </Card>
         </div>
-      )}
+      ) }
 
-      {/* 连接日志 */}
+      {/* 连接日志 */ }
       <Card className="mt-6 p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold">连接日志</h2>
@@ -1048,7 +981,7 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
         </div>
       </Card>
 
-      {/* 预设端点 */}
+      {/* 预设端点 */ }
       <Card className="mt-6 p-6">
         <div className="mb-6">
           <h2 className="text-xl font-semibold flex items-center gap-2 mb-2">
@@ -1061,84 +994,84 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 md:grid-cols-2">
-          {sseEndpoints.map((endpoint, index) => (
+          { sseEndpoints.map((endpoint, index) => (
             <div
-              key={index}
+              key={ index }
               className="group relative overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 transition-all hover:shadow-lg hover:scale-[1.02]"
             >
-              {/* 背景渐变 */}
-              <div className={cn(
+              {/* 背景渐变 */ }
+              <div className={ cn(
                 'absolute inset-0 bg-gradient-to-br opacity-5 group-hover:opacity-10 transition-opacity',
                 endpoint.color
-              )} />
+              ) } />
 
-              {/* 内容 */}
+              {/* 内容 */ }
               <div className="relative">
                 <div className="flex items-start gap-3 mb-3">
-                  <div className={cn(
+                  <div className={ cn(
                     'flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br text-white text-lg',
                     endpoint.color
-                  )}>
-                    {endpoint.icon}
+                  ) }>
+                    { endpoint.icon }
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                      {endpoint.name}
+                      { endpoint.name }
                     </h3>
                     <div className="flex items-center gap-2 text-xs">
-                      <span className={cn(
+                      <span className={ cn(
                         'px-2 py-1 rounded-full font-medium',
                         endpoint.method === 'POST'
                           ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                           : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                      )}>
-                        {endpoint.method}
+                      ) }>
+                        { endpoint.method }
                       </span>
                       <span className="text-gray-500">•</span>
                       <span className="text-gray-500">
-                        {endpoint.parseJSON ? '🔄 JSON' : '📝 文本'}
+                        { endpoint.parseJSON ? '🔄 JSON' : '📝 文本' }
                       </span>
                     </div>
                   </div>
                 </div>
 
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 leading-relaxed">
-                  {endpoint.description}
+                  { endpoint.description }
                 </p>
 
-                {endpoint.url && (
+                { endpoint.url && (
                   <div className="mb-4 p-2 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
                     <code className="text-xs text-gray-600 dark:text-gray-400 break-all">
-                      {endpoint.url}
+                      { endpoint.url }
                     </code>
                   </div>
-                )}
+                ) }
 
                 <Button
-                  onClick={() => {
+                  onClick={ () => {
                     loadEndpoint(endpoint)
                     if (endpoint.url.includes('/chat')) {
                       setActiveTab('chat')
                     } else {
                       setActiveTab('advanced')
                     }
-                  }}
+                  } }
                   size="sm"
                   className="w-full"
                   designStyle="outlined"
                 >
                   <span className="flex items-center justify-center gap-2">
                     <span>⚡</span>
-                    {endpoint.url ? '立即测试' : '配置端点'}
+                    { endpoint.url ? '立即测试' : '配置端点' }
                   </span>
                 </Button>
               </div>
             </div>
-          ))}
+          )) }
         </div>
       </Card>
 
-      {/* 功能说明 */}
+      {/* 功能说明 */ }
       <Card className="mt-6 p-6">
         <div className="mb-6">
           <h2 className="text-xl font-semibold flex items-center gap-2 mb-2">
@@ -1151,7 +1084,7 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {[
+          { [
             {
               icon: '🌊',
               title: '实时数据流',
@@ -1189,23 +1122,23 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
               color: 'from-pink-500 to-rose-500'
             }
           ].map((feature, index) => (
-            <div key={index} className="flex gap-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-              <div className={cn(
+            <div key={ index } className="flex gap-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+              <div className={ cn(
                 'flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br text-white text-xl flex-shrink-0',
                 feature.color
-              )}>
-                {feature.icon}
+              ) }>
+                { feature.icon }
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                  {feature.title}
+                  { feature.title }
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-                  {feature.description}
+                  { feature.description }
                 </p>
               </div>
             </div>
-          ))}
+          )) }
         </div>
 
         <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-800">

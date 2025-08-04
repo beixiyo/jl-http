@@ -1,21 +1,14 @@
+'use client'
+
 import type { ChangeEvent, ClipboardEvent as ReactClipboardEvent } from 'react'
+import type TurndownService from 'turndown'
 import type { TextareaCounterProps } from './TextareaCounter'
+import { useFormField } from '@/components/Form'
 import { cn } from '@/utils'
 import { forwardRef, memo, useCallback, useMemo, useRef, useState } from 'react'
-import TurndownService from 'turndown'
 import { TextareaProvider } from './TextareaContext'
 import { TextareaCounter } from './TextareaCounter'
-
-/**
- * 初始化 Turndown 服务实例
- * 你可以根据需要配置 Turndown
- */
-const turndownService = new TurndownService({
-  headingStyle: 'atx',
-  codeBlockStyle: 'fenced',
-  emDelimiter: '*',
-  bulletListMarker: '-',
-})
+import { getTurndownService } from './turndownService'
 
 const InnerTextarea = forwardRef<HTMLTextAreaElement, TextareaProps>((props, ref) => {
   const {
@@ -31,6 +24,7 @@ const InnerTextarea = forwardRef<HTMLTextAreaElement, TextareaProps>((props, ref
     errorMessage,
     required = false,
     className,
+    style,
     focusedClassName,
     containerClassName,
     size = 'md',
@@ -47,6 +41,7 @@ const InnerTextarea = forwardRef<HTMLTextAreaElement, TextareaProps>((props, ref
     label,
     labelPosition = 'top',
     value,
+    name,
 
     /** 计数器属性 */
     counterPosition,
@@ -55,22 +50,44 @@ const InnerTextarea = forwardRef<HTMLTextAreaElement, TextareaProps>((props, ref
     ...rest
   } = props
 
+  const turndownPromise = useRef(Promise.withResolvers<TurndownService>())
+  const [turndownService, setTurndownService] = useState<TurndownService>()
+  useEffect(
+    () => {
+      if (!enableRichPaste) {
+        return
+      }
+
+      getTurndownService()
+        .then((service) => {
+          setTurndownService(service)
+          turndownPromise.current.resolve(service)
+        })
+        .catch((err) => {
+          turndownPromise.current.reject(err)
+        })
+    },
+    [enableRichPaste],
+  )
+
+  /** 使用 useFormField hook 处理表单集成 */
+  const {
+    actualValue,
+    actualError,
+    actualErrorMessage,
+    handleChangeVal,
+    handleBlur: handleFieldBlur,
+  } = useFormField<string, ChangeEvent<HTMLTextAreaElement>>({
+    name,
+    value,
+    error,
+    errorMessage,
+    onChange,
+    defaultValue: '',
+  })
+
   const textareaRef = useRef<HTMLTextAreaElement | null>()
   const [isFocused, setIsFocused] = useState(false)
-
-  const [internalVal, setInternalVal] = useState('')
-  const isControlMode = value !== undefined
-  const realValue = isControlMode
-    ? value
-    : internalVal
-  const handleChangeVal = useCallback(
-    (val: string, e: ChangeEvent<HTMLTextAreaElement>) => {
-      isControlMode
-        ? onChange?.(val, e)
-        : setInternalVal(val)
-    },
-    [isControlMode, onChange],
-  )
 
   /** 调整高度的函数 */
   const adjustHeight = useCallback(() => {
@@ -101,7 +118,7 @@ const InnerTextarea = forwardRef<HTMLTextAreaElement, TextareaProps>((props, ref
 
   /** 处理粘贴事件 */
   const handlePaste = useCallback(
-    (e: ReactClipboardEvent<HTMLTextAreaElement>) => {
+    async (e: ReactClipboardEvent<HTMLTextAreaElement>) => {
       onPaste?.(e)
 
       if (enableRichPaste && !disabled && !readOnly) {
@@ -114,7 +131,8 @@ const InnerTextarea = forwardRef<HTMLTextAreaElement, TextareaProps>((props, ref
           e.preventDefault() // 阻止默认的纯文本粘贴行为
           const htmlContent = clipboardData.getData('text/html')
           try {
-            pastedText = turndownService.turndown(htmlContent)
+            await turndownPromise.current.promise
+            pastedText = turndownService!.turndown(htmlContent)
           }
           catch (err) {
             console.error('Error converting HTML to Markdown:', err)
@@ -197,9 +215,10 @@ const InnerTextarea = forwardRef<HTMLTextAreaElement, TextareaProps>((props, ref
   const handleBlur = useCallback(
     (e: React.FocusEvent<HTMLTextAreaElement>) => {
       setIsFocused(false)
+      handleFieldBlur()
       onBlur?.(e)
     },
-    [onBlur],
+    [onBlur, handleFieldBlur],
   )
 
   /** 处理按键 */
@@ -227,12 +246,9 @@ const InnerTextarea = forwardRef<HTMLTextAreaElement, TextareaProps>((props, ref
     autoResize && 'overflow-y-hidden',
     sizeClasses[size],
     {
-      'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900': !error && !disabled,
-      'border-rose-500 hover:border-rose-600 focus-within:border-rose-500': error && !disabled,
+      'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900': !actualError && !disabled,
+      'border-rose-500 hover:border-rose-600 focus-within:border-rose-500': actualError && !disabled,
       'border-slate-200 bg-slate-50 dark:bg-slate-800 text-slate-400 cursor-not-allowed': disabled,
-      '': isFocused && !error && !disabled,
-      'hover:border-slate-400 dark:hover:border-slate-600': !isFocused && !error && !disabled,
-
       [focusedClassName || '']: isFocused,
     },
     className,
@@ -242,27 +258,30 @@ const InnerTextarea = forwardRef<HTMLTextAreaElement, TextareaProps>((props, ref
   const contextValue = useMemo(() => ({
     disabled,
     required,
-    error,
-    errorMessage,
+    error: actualError,
+    errorMessage: actualErrorMessage,
     isFocused,
-    value: realValue || '',
+    value: actualValue || '',
     maxLength,
-  }), [disabled, error, errorMessage, isFocused, maxLength, realValue, required])
+  }), [disabled, actualError, actualErrorMessage, isFocused, maxLength, actualValue, required])
 
   return (
     <TextareaProvider value={ contextValue }>
-      <div className={ cn(
-        'flex h-full',
-        {
-          'flex-col gap-1': labelPosition === 'top', // 仅当label在顶部时应用gap
-          'flex-row items-start gap-2': labelPosition === 'left', // label在左侧时应用不同的gap和对齐
-        },
-        /** 如果没有label，但有counter，也需要一个布局 */
-        (showCount && !label) && labelPosition === 'top'
-          ? 'flex-col'
-          : '',
-        containerClassName,
-      ) }>
+      <div
+        className={ cn(
+          'flex h-full',
+          {
+            'flex-col gap-1': labelPosition === 'top', // 仅当label在顶部时应用gap
+            'flex-row items-start gap-2': labelPosition === 'left', // label在左侧时应用不同的gap和对齐
+          },
+          /** 如果没有label，但有counter，也需要一个布局 */
+          (showCount && !label) && labelPosition === 'top'
+            ? 'flex-col'
+            : '',
+          containerClassName,
+        ) }
+        style={ style }
+      >
         {/* Label (假设你有Label组件或直接渲染) */ }
         { label && (
           <label
@@ -273,6 +292,7 @@ const InnerTextarea = forwardRef<HTMLTextAreaElement, TextareaProps>((props, ref
                 ? 'mb-1'
                 : 'mr-2 pt-px', // 根据位置调整边距
               /** 确保 pt-px 或类似值使 label 与 textarea 对齐（当 size 不同时） */
+              { 'text-rose-500': actualError },
             ) }
           >
             { label }
@@ -296,7 +316,7 @@ const InnerTextarea = forwardRef<HTMLTextAreaElement, TextareaProps>((props, ref
               }
               textareaRef.current = node
             } }
-            value={ realValue }
+            value={ actualValue }
             onChange={ handleChange }
             onFocus={ handleFocus }
             onBlur={ handleBlur }
@@ -308,11 +328,12 @@ const InnerTextarea = forwardRef<HTMLTextAreaElement, TextareaProps>((props, ref
             readOnly={ readOnly }
             maxLength={ maxLength }
             className={ textareaClasses }
-            aria-invalid={ error }
-            aria-errormessage={ error && errorMessage
+            aria-invalid={ actualError }
+            aria-errormessage={ actualError && actualErrorMessage
               ? `${rest.id}-error`
               : undefined }
             aria-required={ required }
+            name={ name }
             { ...rest }
           />
 
@@ -324,12 +345,12 @@ const InnerTextarea = forwardRef<HTMLTextAreaElement, TextareaProps>((props, ref
           /> }
 
           {/* 错误信息 */ }
-          { error && errorMessage && (
+          { actualError && actualErrorMessage && (
             <div
               id={ `${rest.id}-error` }
               className="mt-1 text-sm text-rose-500"
             >
-              { errorMessage }
+              { actualErrorMessage }
             </div>
           ) }
         </div>

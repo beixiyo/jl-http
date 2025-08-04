@@ -7,6 +7,7 @@ const SEP = { path: '/', name: '' }
 const pathArr = [
   { path: '/http-basic', name: 'HTTP 基础' },
   { path: '/http-cache', name: '请求缓存' },
+  { path: '/http-progress', name: '请求进度' },
   { path: '/http-retry', name: '请求重试' },
   { path: '/http-abort', name: '请求中断' },
   { path: '/http-concurrent', name: '并发请求' },

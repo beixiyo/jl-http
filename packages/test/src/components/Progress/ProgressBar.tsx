@@ -1,37 +1,35 @@
-import { memo } from 'react'
 import { cn } from '@/utils'
+import { clamp } from '@jl-org/tool'
+import { memo } from 'react'
 
 export const ProgressBar = memo<ProgressBarProps>((
   {
     style,
     className,
     value,
-    fromColor = '#3276F91A',
-    toColor = '#01D0BD',
+    colors = ['#3276F91A', '#01D0BD'],
+    height = 5,
+    animationDuration = 0.8,
+    animationEase = 'easeOut',
   },
 ) => {
-  if (value < 0 || value > 1) {
-    console.error('ProgressBar value should be between 0 and 1')
-  }
-  const formatVal = Math.min(value, 1) * 100
+  const formatVal = clamp(value, 0, 1)
 
-  return <div
-    className={ cn(
-      'ProgressBarContainer h-1 w-full',
-      className,
-    ) }
-    style={ style }
-  >
+  /** 根据 colors 数组生成渐变背景 */
+  const gradientBackground = `linear-gradient(to right, ${colors.join(', ')})`
+
+  return <div className={ cn('ProgressBarContainer w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700', className) }>
     <div
+      className={ cn('rounded-full w-full') }
       style={ {
-        borderRadius: '4px',
-        background: `linear-gradient(to right, ${fromColor}, ${toColor})`,
-        height: '100%',
-        width: `${formatVal}%`,
-        transition: '.3s',
+        background: gradientBackground,
+        height,
+        transition: `${animationDuration}s ${animationEase}`,
+        transform: `scaleX(${formatVal})`,
+        transformOrigin: 'left center',
+        ...style,
       } }
-    >
-    </div>
+    />
   </div>
 })
 
@@ -46,11 +44,29 @@ export type ProgressBarProps = {
    */
   value: number
   /**
-   * @default #3276F91A
+   * 渐变颜色数组，支持多个颜色
+   * @default ['#3276F91A', '#01D0BD']
+   * @example ['#3b82f6', '#a855f7', '#ec4899']
    */
-  fromColor?: string
+  colors?: string[]
   /**
-   * @default #01D0BD
+   * 进度条高度
+   * @default 5
    */
-  toColor?: string
+  height?: number
+  /**
+   * 是否启用动画
+   * @default true
+   */
+  animated?: boolean
+  /**
+   * 动画持续时间（秒）
+   * @default 0.8
+   */
+  animationDuration?: number
+  /**
+   * 动画缓动函数
+   * @default 'easeOut'
+   */
+  animationEase?: string
 }

@@ -24,10 +24,12 @@
     }
   },
   "scripts": {
-    "build": "cp ../../README.md ./ && rollup -c && tsc-alias",
+    "build": "npm run copy-readme && rollup -c && tsc-alias",
+    "copy-readme": "node scripts/copy-readme.js",
+    "clean": "node scripts/clean.js",
     "lint": "eslint --fix",
-    "prepublishOnly": "npm run build",
-    "postpublish": "rm README.md"
+    "postpublish": "npm run clean",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "http",

@@ -12,8 +12,9 @@ export function concurrentTask<T>(
   maxConcurrency = 4,
 ): Promise<TaskResult<T>[]> {
   const numTasks = tasks.length
-  if (numTasks === 0)
+  if (numTasks === 0) {
     return Promise.resolve([])
+  }
 
   const results: TaskResult<T>[] = new Array(numTasks)
   /** 当前正在运行的任务数 */

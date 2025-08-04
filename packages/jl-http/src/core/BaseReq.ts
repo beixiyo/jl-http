@@ -326,7 +326,7 @@ export class BaseReq implements BaseHttpReq {
         return currentContent
       },
       ...config,
-      url: (config.baseUrl || defaultConfig.baseUrl || '') + url,
+      url: ((config.baseUrl ?? defaultConfig.baseUrl) || '') + url,
     }
 
     return finalConfig

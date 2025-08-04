@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
-import { Input, Textarea } from '@/components/Input'
+import { Input } from '@/components/Input'
 import { cn } from '@/utils'
 import { NumberInput } from '@/components/Input/NumberInput'
 import { TestModuleRunner } from '@/components/TestModuleRunner'
 import { createIntegratedPageProps } from '@/lib/test-modules/integration'
 import { createHttpInstance } from '@/lib/test-modules'
+import { Textarea } from '@/components/Textarea'
 
 export default function HttpCacheTest() {
   const [showManualTest, setShowManualTest] = useState(false)

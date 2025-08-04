@@ -13,8 +13,15 @@ export default defineConfig([
   {
     input: './src/index.ts',
     output: [
-      outputFormat('dist/index.cjs', 'cjs'),
-      outputFormat('dist/index.js', 'es'),
+      {
+        file: 'dist/index.cjs',
+        format: 'cjs',
+      },
+      {
+        file: 'dist/index.js',
+        format: 'esm',
+        // sourcemap: true,
+      },
     ],
     plugins: createPlugins({
       needClear: true,
@@ -27,7 +34,10 @@ export default defineConfig([
   {
     input: './src/cli/index.ts',
     output: [
-      outputFormat('cli/index.cjs', 'cjs'),
+      {
+        file: 'cli/index.cjs',
+        format: 'cjs',
+      },
     ],
     plugins: createPlugins(),
   },
@@ -67,21 +77,7 @@ function createPlugins(opts = {}) {
 }
 
 /**
- * @param {string} file 文件路径
- * @param {'amd' | 'cjs' | 'commonjs' | 'es' | 'esm' | 'iife' | 'module' | 'system' | 'systemjs' | 'umd'} format 打包格式
- * @param {string} name 全部暴露对象名称
- * @returns 格式化打包对象
- */
-function outputFormat(file, format, name) {
-  return {
-    file,
-    format,
-    name,
-  }
-}
-
-/**
  * @typedef CreatePluginsOpts
  * @property {boolean} needClear - 是否使用清除插件
- * @property {any} extraPlugins - 其他插件
+ * @property {any | undefined} extraPlugins - 其他插件
  */
