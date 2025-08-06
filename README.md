@@ -401,6 +401,48 @@ export class Test {
 
 - **并发控制**: `concurrentTask`
 
+---
+
+## Node 环境使用代理
+
+```bash
+pnpm i undici
+```
+
+```ts
+import { ProxyAgent } from 'undici'
+
+fetchHackProxy()
+
+/**
+ * 全局替换
+ */
+function fetchHackProxy() {
+  const proxy = process.env.HTTP_PROXY
+  const agent = proxy
+    ? new ProxyAgent(proxy)
+    : undefined
+
+  if (!agent) {
+    return
+  }
+
+  const oldFetch = fetch
+  globalThis.fetch = (
+    input: string | URL | globalThis.Request,
+    init?: RequestInit,
+  ) => {
+    return oldFetch(input, {
+      ...init,
+      // @ts-ignore
+      dispatcher: agent
+    })
+  }
+}
+```
+
+---
+
 ## 🧪 测试与调试
 
 提供了完整的测试系统，包含Web页面交互式测试和自动化测试：

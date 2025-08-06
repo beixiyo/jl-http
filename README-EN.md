@@ -400,6 +400,48 @@ export class Test {
 
 - **Concurrency Control**: `concurrentTask`
 
+---
+
+## Node Environment Use Proxy
+
+```bash
+pnpm i undici
+```
+
+```ts
+import { ProxyAgent } from 'undici'
+
+fetchHackProxy()
+
+/**
+ * Global replacement
+ */
+function fetchHackProxy() {
+  const proxy = process.env.HTTP_PROXY
+  const agent = proxy
+    ? new ProxyAgent(proxy)
+    : undefined
+
+  if (!agent) {
+    return
+  }
+
+  const oldFetch = fetch
+  globalThis.fetch = (
+    input: string | URL | globalThis.Request,
+    init?: RequestInit,
+  ) => {
+    return oldFetch(input, {
+      ...init,
+      // @ts-ignore
+      dispatcher: agent
+    })
+  }
+}
+```
+
+---
+
 ## 🧪 Testing and Debugging
 
 Provides a complete testing system including interactive web page testing and automated testing:
