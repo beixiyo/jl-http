@@ -137,6 +137,11 @@ const { promise, cancel } = await iotHttp.fetchSSE('/ai/chat', {
   needParseData: true,
   /** 是否解析 JSON（默认为 true） */
   needParseJSON: true,
+  /**
+   * SSE 标准分割符，可以自定义。部分 LLM 厂商的分隔符可能不同，比如 Gemini 的是 `\r\n\r\n`
+   * @default '\n\n'
+   */
+  separator: '\n\n',
   /** 每次接收到新数据时触发 */
   onMessage: ({ currentContent, allContent, currentJson, allJson }) => {
     console.log('当前片段:', currentContent)
@@ -439,6 +444,55 @@ function fetchHackProxy() {
     })
   }
 }
+```
+
+## 常见问题
+
+### 1. 无法获取 SSE 消息
+
+部分 LLM 厂商的 SSE 分隔符可能不同，比如 Gemini 的是 `\r\n\r\n`，需要手动设置。
+```ts
+const { promise, cancel } = await iotHttp.fetchSSE('/ai/chat', {
+  method: 'POST',
+  body: {
+    messages: [{ role: 'user', content: '你好' }]
+  },
+  /**
+   * SSE 标准分割符，可以自定义。部分 LLM 厂商的分隔符可能不同，比如 Gemini 的是 `\r\n\r\n`
+   * @default '\n\n'
+   */
+  separator: '\n\n',
+})
+```
+
+你可以用下面的代码查看完整的输出
+```ts
+const resp = await fetch(
+  url,
+  {
+    method: 'POST',
+    body: JSON.stringify({ }),
+    headers
+  }
+)
+
+const reader = resp.body?.getReader()
+if (!reader) {
+  throw new Error('No reader')
+}
+
+let content = ''
+while (true) {
+  const { done, value } = await reader.read()
+  if (done) {
+    console.log(content)
+    break
+  }
+  content += new TextDecoder().decode(value)
+}
+
+/** 查看调试信息 */
+console.log(content)
 ```
 
 ---

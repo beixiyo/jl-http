@@ -440,6 +440,55 @@ function fetchHackProxy() {
 }
 ```
 
+## Common Issues
+
+### 1. Unable to get SSE messages
+
+Some LLM vendors may have different separators, such as Gemini's `\r\n\r\n`
+```ts
+const { promise, cancel } = await iotHttp.fetchSSE('/ai/chat', {
+  method: 'POST',
+  body: {
+    messages: [{ role: 'user', content: 'Hello' }]
+  },
+  /**
+   * SSE standard separator, can be customized. Some LLM vendors may have different separators, such as Gemini's `\r\n\r\n`
+   * @default '\n\n'
+   */
+  separator: '\n\n',
+})
+```
+
+You can use the following code to see the complete output
+```ts
+const resp = await fetch(
+  url,
+  {
+    method: 'POST',
+    body: JSON.stringify({ }),
+    headers
+  }
+)
+
+const reader = resp.body?.getReader()
+if (!reader) {
+  throw new Error('No reader')
+}
+
+let content = ''
+while (true) {
+  const { done, value } = await reader.read()
+  if (done) {
+    console.log(content)
+    break
+  }
+  content += new TextDecoder().decode(value)
+}
+
+/** see the complete output */
+console.log(content)
+```
+
 ---
 
 ## 🧪 Testing and Debugging
