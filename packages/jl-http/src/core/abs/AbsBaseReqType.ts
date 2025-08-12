@@ -152,7 +152,7 @@ export interface BaseReqConstructorConfig {
   /** 响应拦截 */
   respInterceptor?: (resp: Resp<any>) => any
   /** 错误拦截 */
-  respErrInterceptor?: (err: any) => any
+  respErrInterceptor?: (resp: Response) => any
 }
 
 export interface Resp<T> {

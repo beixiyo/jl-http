@@ -60,7 +60,7 @@ export class BaseReq implements BaseHttpReq {
         signal: rest.signal || signal,
       })
         .then(async (response) => {
-          if (hasHttpErr(response.status)) {
+          if (!response.ok) {
             respErrInterceptor?.(response)
             return Promise.reject(response)
           }
@@ -180,9 +180,10 @@ export class BaseReq implements BaseHttpReq {
     )
       .then(async (resp) => {
         if (!resp.ok) {
-          const error = new Error(`HTTP error! status: ${resp.status}`)
-          onError?.(error)
-          reject(error)
+          onError?.(resp)
+          reject(resp)
+          respErrInterceptor(resp)
+          return
         }
 
         const rawSSEData: string[] = []
@@ -335,7 +336,7 @@ export class BaseReq implements BaseHttpReq {
   private getInterceptor<T>(config: BaseReqConfig) {
     let reqInterceptor = async (config: BaseReqMethodConfig) => config
     let respInterceptor = async (config: T) => config
-    let respErrInterceptor: any = () => { }
+    let respErrInterceptor: (err: Response) => any = () => { }
 
     const defaultConfig = this.defaultConfig
     if (defaultConfig.reqInterceptor) {
@@ -429,8 +430,4 @@ async function getReqConfig(
       ? `${url}?${query}`
       : url,
   }
-}
-
-function hasHttpErr(code: string | number) {
-  return +code >= 400
 }
