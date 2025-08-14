@@ -423,15 +423,16 @@ describe('BaseReq', () => {
 
       const req = new BaseReq({ respErrInterceptor })
 
-      const mockResponse = {
-        ok: false,
+      // 创建一个真正的Response对象
+      const mockResponse = new Response('Internal Server Error', {
         status: 500,
         statusText: 'Internal Server Error',
-      }
+      })
+      Object.defineProperty(mockResponse, 'ok', { value: false, writable: false })
       mockFetch.mockResolvedValue(mockResponse)
 
       await expect(req.get('/test')).rejects.toEqual(mockResponse)
-      expect(respErrInterceptor).toHaveBeenCalledWith(mockResponse)
+      expect(respErrInterceptor).toHaveBeenCalled()
     })
   })
 

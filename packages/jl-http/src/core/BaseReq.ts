@@ -1,8 +1,8 @@
-import type { BaseHttpReq, BaseReqConfig, BaseReqConstructorConfig, BaseReqMethodConfig, FetchSSEReturn, Resp, SSEOptions } from './abs/AbsBaseReqType'
+import type { BaseHttpReq, BaseReqConfig, BaseReqConstructorConfig, BaseReqMethodConfig, FetchSSEReturn, Resp, RespErrInterceptorError, SSEOptions } from './abs/AbsBaseReqType'
 import type { HttpMethod, ReqBody, RespData, SSEData } from '@/types'
-import qs from 'query-string'
 import { TIME_OUT } from '@/constants'
 import { retryTask } from '@/tools'
+import { getReqConfig, handleRespErrInterceptor } from '@/tools/reqTool'
 import { SSEStreamProcessor } from '@/tools/SSEStreamProcessor'
 
 export class BaseReq implements BaseHttpReq {
@@ -61,7 +61,17 @@ export class BaseReq implements BaseHttpReq {
       })
         .then(async (response) => {
           if (!response.ok) {
-            respErrInterceptor?.(response)
+            handleRespErrInterceptor(
+              {
+                error: response,
+                url,
+                body: formatConfig.body,
+                headers: formatConfig.headers,
+                method: rest.method,
+                query: formatConfig.query || {},
+              },
+              respErrInterceptor,
+            )
             return Promise.reject(response)
           }
 
@@ -182,7 +192,17 @@ export class BaseReq implements BaseHttpReq {
         if (!resp.ok) {
           onError?.(resp)
           reject(resp)
-          respErrInterceptor(resp)
+          handleRespErrInterceptor(
+            {
+              error: resp,
+              url: withQueryUrl,
+              body: formatConfig.body,
+              headers: formatConfig.headers || {},
+              method: rest.method,
+              query: formatConfig.query || {},
+            },
+            respErrInterceptor,
+          )
           return
         }
 
@@ -261,7 +281,17 @@ export class BaseReq implements BaseHttpReq {
       .catch((error) => {
         onError?.(error)
         reject(error)
-        respErrInterceptor(error)
+        handleRespErrInterceptor(
+          {
+            error,
+            url: withQueryUrl,
+            body: formatConfig.body,
+            headers: formatConfig.headers || {},
+            method: rest.method,
+            query: formatConfig.query || {},
+          },
+          respErrInterceptor,
+        )
       })
 
     return {
@@ -336,7 +366,7 @@ export class BaseReq implements BaseHttpReq {
   private getInterceptor<T>(config: BaseReqConfig) {
     let reqInterceptor = async (config: BaseReqMethodConfig) => config
     let respInterceptor = async (config: T) => config
-    let respErrInterceptor: (err: Response) => any = () => { }
+    let respErrInterceptor: (error: RespErrInterceptorError) => any = () => { }
 
     const defaultConfig = this.defaultConfig
     if (defaultConfig.reqInterceptor) {
@@ -366,68 +396,5 @@ export class BaseReq implements BaseHttpReq {
       respInterceptor,
       respErrInterceptor,
     }
-  }
-}
-
-function parseBody(data: any) {
-  if (data instanceof FormData) {
-    return {
-      body: data,
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    }
-  }
-
-  if (typeof data === 'object') {
-    return {
-      body: JSON.stringify(data),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    }
-  }
-
-  return {
-    body: data,
-  }
-}
-
-/**
- * 获取请求拦截器过滤后的数据
- */
-async function getReqConfig(
-  config: BaseReqMethodConfig,
-  reqInterceptor: Function,
-  method: HttpMethod,
-  url: string,
-) {
-  const query = qs.stringify(config.query || {})
-
-  /**
-   * 这俩请求方法没有 body
-   */
-  if (['GET', 'HEAD'].includes(method.toUpperCase())) {
-    const data = await reqInterceptor(config)
-    return {
-      data,
-      url: query
-        ? `${url}?${query}`
-        : url,
-    }
-  }
-
-  const { body, headers } = parseBody(config.body)
-  Object.assign(config.headers || {}, headers)
-  const data = await reqInterceptor({
-    ...config,
-    body,
-  })
-
-  return {
-    data,
-    url: query
-      ? `${url}?${query}`
-      : url,
   }
 }

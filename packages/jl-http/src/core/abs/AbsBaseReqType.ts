@@ -152,7 +152,16 @@ export interface BaseReqConstructorConfig {
   /** 响应拦截 */
   respInterceptor?: (resp: Resp<any>) => any
   /** 错误拦截 */
-  respErrInterceptor?: (resp: Response) => any
+  respErrInterceptor?: (error: RespErrInterceptorError) => any
+}
+
+export type RespErrInterceptorError = {
+  url: string
+  method: HttpMethod
+  body: any
+  query: Record<string, any>
+  headers: Record<string, any>
+  error: any
 }
 
 export interface Resp<T> {

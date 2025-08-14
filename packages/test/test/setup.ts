@@ -135,37 +135,6 @@ declare global {
   }
 }
 
-// 测试工具函数
-export const createMockResponse = (data: any, options: {
-  status?: number
-  statusText?: string
-  headers?: Record<string, string>
-  ok?: boolean
-} = {}) => {
-  const {
-    status = 200,
-    statusText = 'OK',
-    headers = {},
-    ok = status >= 200 && status < 300,
-  } = options
-
-  return {
-    ok,
-    status,
-    statusText,
-    headers: {
-      get: (name: string) => headers[name.toLowerCase()] || null,
-      has: (name: string) => name.toLowerCase() in headers,
-      ...headers,
-    },
-    json: vi.fn().mockResolvedValue(data),
-    text: vi.fn().mockResolvedValue(typeof data === 'string' ? data : JSON.stringify(data)),
-    blob: vi.fn().mockResolvedValue(new Blob([JSON.stringify(data)])),
-    arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
-    formData: vi.fn().mockResolvedValue(new FormData()),
-  }
-}
-
 export const createMockSSEReader = (chunks: string[]) => {
   let index = 0
 
