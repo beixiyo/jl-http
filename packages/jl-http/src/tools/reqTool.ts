@@ -89,7 +89,8 @@ export function handleRespErrInterceptor(
   respErrInterceptor: BaseReqConstructorConfig['respErrInterceptor'],
 ) {
   const { error, ...rest } = data
-  if (data instanceof Response) {
+  const errIsResponse = error instanceof Response
+  if (errIsResponse) {
     respErrInterceptor?.(data)
   }
   else {
