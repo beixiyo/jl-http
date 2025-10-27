@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Input } from '@/components/Input'
-import { Select } from '@/components/Select'
 import { NumberInput } from '@/components/Input/NumberInput'
+import { Select } from '@/components/Select'
 import { TestModuleRunner } from '@/components/TestModuleRunner'
 import { basicHttpModule, createHttpInstance } from '@/lib/test-modules'
 
@@ -103,17 +103,17 @@ export default function HttpBasicTest() {
     return (
       <div className="mx-auto max-w-7xl p-6">
         <TestModuleRunner
-          module={basicHttpModule}
+          module={ basicHttpModule }
           title="HTTP 基础功能测试"
           description="使用标准化测试模块测试 jl-http 的基础 HTTP 请求功能，包括 GET、POST、PUT、DELETE 等方法"
-          defaultConfig={{
+          defaultConfig={ {
             baseUrl: 'https://jsonplaceholder.typicode.com',
             timeout: 10000,
             retry: 2,
-          }}
-          onTestComplete={(scenarioId, result) => {
+          } }
+          onTestComplete={ (scenarioId, result) => {
             console.log(`测试完成: ${scenarioId}`, result)
-          }}
+          } }
         />
 
         {/* 切换到手动测试 */}
@@ -126,7 +126,7 @@ export default function HttpBasicTest() {
               </p>
             </div>
             <Button
-              onClick={() => setShowManualTest(true)}
+              onClick={ () => setShowManualTest(true) }
               designStyle="outlined"
             >
               切换到手动测试
@@ -147,7 +147,7 @@ export default function HttpBasicTest() {
           </p>
         </div>
         <Button
-          onClick={() => setShowManualTest(false)}
+          onClick={ () => setShowManualTest(false) }
           designStyle="outlined"
         >
           返回自动测试

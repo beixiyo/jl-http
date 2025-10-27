@@ -2,8 +2,8 @@
  * 测试模块开发辅助工具
  */
 
-import type { TestModule, TestScenario, TestContext, TestResult, TestLogEntry } from './types'
-import { createTestLog, createSuccessResult, createErrorResult, measureTime } from './utils'
+import type { TestContext, TestLogEntry, TestModule, TestResult, TestScenario } from './types'
+import { createErrorResult, createSuccessResult, createTestLog, measureTime } from './utils'
 
 /**
  * 创建测试模块的辅助函数
@@ -22,44 +22,45 @@ export function createTestModule(config: {
     name: config.name,
     description: config.description,
     scenarios: config.scenarios,
-    
+
     getDefaultConfig() {
       return config.defaultConfig || {}
     },
-    
+
     validateConfig(testConfig) {
       if (config.validateConfig) {
         return config.validateConfig(testConfig)
       }
       return true
     },
-    
+
     async execute(context: TestContext): Promise<TestResult> {
       const logs: TestLogEntry[] = []
-      
+
       const helpers: TestModuleHelpers = {
         log: (level, message, data?) => {
           const logEntry = createTestLog(level, message, data)
           logs.push(logEntry)
           return logEntry
         },
-        
+
         measure: measureTime,
-        
-        createSuccess: (data, duration, metadata?) => 
+
+        createSuccess: (data, duration, metadata?) =>
           createSuccessResult(data, duration, logs, metadata),
-        
-        createError: (error, duration, metadata?) => 
+
+        createError: (error, duration, metadata?) =>
           createErrorResult(error, duration, logs, metadata),
       }
-      
+
       try {
         return await config.execute(context, helpers)
-      } catch (error: any) {
+      }
+      catch (error: any) {
         helpers.log('error', `测试执行失败: ${error.message}`, error)
         return helpers.createError(error.message, 0)
       }
-    }
+    },
   }
 }
 
@@ -70,7 +71,7 @@ export interface TestModuleHelpers {
   /** 记录日志 */
   log: (level: TestLogEntry['level'], message: string, data?: any) => TestLogEntry
   /** 测量执行时间 */
-  measure: <T>(fn: () => Promise<T>) => Promise<{ result: T; duration: number }>
+  measure: <T>(fn: () => Promise<T>) => Promise<{ result: T, duration: number }>
   /** 创建成功结果 */
   createSuccess: (data: any, duration: number, metadata?: Record<string, any>) => TestResult
   /** 创建错误结果 */
@@ -117,9 +118,9 @@ export function createTestScenarios(scenarios: Array<{
  */
 export class TestAssert {
   private logs: TestLogEntry[] = []
-  
+
   constructor(private logFn: (level: TestLogEntry['level'], message: string, data?: any) => void) {}
-  
+
   /** 断言值为真 */
   assertTrue(value: any, message: string = '断言失败') {
     if (!value) {
@@ -128,7 +129,7 @@ export class TestAssert {
     }
     this.logFn('success', `断言通过: ${message}`)
   }
-  
+
   /** 断言值为假 */
   assertFalse(value: any, message: string = '断言失败') {
     if (value) {
@@ -137,7 +138,7 @@ export class TestAssert {
     }
     this.logFn('success', `断言通过: ${message}`)
   }
-  
+
   /** 断言相等 */
   assertEqual(actual: any, expected: any, message: string = '断言失败') {
     if (actual !== expected) {
@@ -146,7 +147,7 @@ export class TestAssert {
     }
     this.logFn('success', `断言通过: ${message}`)
   }
-  
+
   /** 断言不相等 */
   assertNotEqual(actual: any, expected: any, message: string = '断言失败') {
     if (actual === expected) {
@@ -155,7 +156,7 @@ export class TestAssert {
     }
     this.logFn('success', `断言通过: ${message}`)
   }
-  
+
   /** 断言包含 */
   assertContains(container: any[], item: any, message: string = '断言失败') {
     if (!container.includes(item)) {
@@ -164,7 +165,7 @@ export class TestAssert {
     }
     this.logFn('success', `断言通过: ${message}`)
   }
-  
+
   /** 断言类型 */
   assertType(value: any, type: string, message: string = '断言失败') {
     if (typeof value !== type) {
@@ -173,7 +174,7 @@ export class TestAssert {
     }
     this.logFn('success', `断言通过: ${message}`)
   }
-  
+
   /** 断言范围 */
   assertInRange(value: number, min: number, max: number, message: string = '断言失败') {
     if (value < min || value > max) {
@@ -182,14 +183,15 @@ export class TestAssert {
     }
     this.logFn('success', `断言通过: ${message}`)
   }
-  
+
   /** 断言抛出错误 */
   async assertThrows(fn: () => Promise<any> | any, message: string = '断言失败') {
     try {
       await fn()
       this.logFn('error', `${message}: 期望抛出错误，但没有抛出`)
       throw new Error(message)
-    } catch (error) {
+    }
+    catch (error) {
       this.logFn('success', `断言通过: ${message}`)
     }
   }
@@ -215,22 +217,22 @@ export class TestDataGenerator {
     }
     return result
   }
-  
+
   /** 生成随机数字 */
   static randomNumber(min: number = 0, max: number = 100): number {
     return Math.floor(Math.random() * (max - min + 1)) + min
   }
-  
+
   /** 生成随机邮箱 */
   static randomEmail(): string {
     return `${this.randomString(8)}@${this.randomString(5)}.com`
   }
-  
+
   /** 生成随机URL */
   static randomUrl(): string {
     return `https://${this.randomString(8)}.com/${this.randomString(6)}`
   }
-  
+
   /** 生成测试用户数据 */
   static testUser() {
     return {
@@ -240,7 +242,7 @@ export class TestDataGenerator {
       age: this.randomNumber(18, 80),
     }
   }
-  
+
   /** 生成测试文章数据 */
   static testPost() {
     return {
@@ -257,12 +259,12 @@ export class TestDataGenerator {
  */
 export class PerformanceTracker {
   private marks: Map<string, number> = new Map()
-  
+
   /** 开始计时 */
   start(name: string) {
     this.marks.set(name, Date.now())
   }
-  
+
   /** 结束计时并返回耗时 */
   end(name: string): number {
     const startTime = this.marks.get(name)
@@ -273,15 +275,16 @@ export class PerformanceTracker {
     this.marks.delete(name)
     return duration
   }
-  
+
   /** 测量函数执行时间 */
-  async measure<T>(name: string, fn: () => Promise<T>): Promise<{ result: T; duration: number }> {
+  async measure<T>(name: string, fn: () => Promise<T>): Promise<{ result: T, duration: number }> {
     this.start(name)
     try {
       const result = await fn()
       const duration = this.end(name)
       return { result, duration }
-    } catch (error) {
+    }
+    catch (error) {
       this.end(name)
       throw error
     }

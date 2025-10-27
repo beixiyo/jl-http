@@ -111,8 +111,7 @@ export default antfu({
     '**/*.json5',
     '**/*.d.ts',
     '**/*.cjs',
-    '**/*.mjs',
-    '**/test/**',
+    '**/*.mjs'
   ],
 
   /**

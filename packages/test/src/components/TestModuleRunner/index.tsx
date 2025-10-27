@@ -2,20 +2,18 @@
  * 测试模块运行器组件 - 可复用的测试模块执行界面
  */
 
+import type { TestExecutorState, TestModule, TestReport, TestResult } from '@/lib/test-modules'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
-import { TestResultCard, TestLogViewer, TestSummary } from '@/components/TestReport'
-import { cn } from '@/utils'
-import { 
+import { TestLogViewer, TestResultCard, TestSummary } from '@/components/TestReport'
+import {
   TestExecutor,
-  type TestModule, 
-  type TestResult, 
-  type TestExecutorState,
-  type TestReport
-} from '@/lib/test-modules'
 
-export const TestModuleRunner = ({
+} from '@/lib/test-modules'
+import { cn } from '@/utils'
+
+export function TestModuleRunner({
   module,
   title,
   description,
@@ -23,24 +21,24 @@ export const TestModuleRunner = ({
   showAllScenarios = true,
   defaultConfig = {},
   onTestComplete,
-}: TestModuleRunnerProps) => {
+}: TestModuleRunnerProps) {
   const [executor] = useState(() => {
     const exec = new TestExecutor()
     exec.registerModule(module)
     return exec
   })
-  
+
   const [executorState, setExecutorState] = useState<TestExecutorState>()
   const [currentReport, setCurrentReport] = useState<TestReport>()
   const [selectedScenario, setSelectedScenario] = useState<string>()
   const [isRunning, setIsRunning] = useState(false)
   const [config, setConfig] = useState(defaultConfig)
 
-  // 初始化执行器
+  /** 初始化执行器 */
   useEffect(() => {
     setExecutorState(executor.getState())
 
-    // 订阅状态变化
+    /** 订阅状态变化 */
     const unsubscribe = executor.subscribe((state) => {
       setExecutorState(state)
     })
@@ -50,9 +48,10 @@ export const TestModuleRunner = ({
     }
   }, [executor])
 
-  // 执行单个测试
+  /** 执行单个测试 */
   const executeTest = async (scenarioId: string) => {
-    if (isRunning) return
+    if (isRunning)
+      return
 
     setIsRunning(true)
     setSelectedScenario(scenarioId)
@@ -60,17 +59,20 @@ export const TestModuleRunner = ({
     try {
       const result = await executor.executeTest(module.id, scenarioId, config)
       onTestComplete?.(scenarioId, result)
-    } catch (error) {
+    }
+    catch (error) {
       console.error('测试执行失败:', error)
-    } finally {
+    }
+    finally {
       setIsRunning(false)
       setSelectedScenario(undefined)
     }
   }
 
-  // 执行所有测试
+  /** 执行所有测试 */
   const executeAllTests = async () => {
-    if (isRunning) return
+    if (isRunning)
+      return
 
     setIsRunning(true)
     try {
@@ -78,31 +80,34 @@ export const TestModuleRunner = ({
       const report = createReportFromResults(results)
       setCurrentReport(report)
       onTestComplete?.('all', results)
-    } catch (error) {
+    }
+    catch (error) {
       console.error('全部测试执行失败:', error)
-    } finally {
+    }
+    finally {
       setIsRunning(false)
     }
   }
 
-  // 清空状态
+  /** 清空状态 */
   const clearAll = () => {
     executor.clearState()
     setCurrentReport(undefined)
   }
 
-  // 获取测试结果
+  /** 获取测试结果 */
   const getTestResult = (scenarioId: string): TestResult | undefined => {
-    if (!executorState) return undefined
+    if (!executorState)
+      return undefined
     return executorState.results.get(`${module.id}_${scenarioId}`)
   }
 
-  // 检查测试是否正在运行
+  /** 检查测试是否正在运行 */
   const isTestRunning = (scenarioId: string): boolean => {
     return isRunning && selectedScenario === scenarioId
   }
 
-  // 从结果创建报告
+  /** 从结果创建报告 */
   const createReportFromResults = (results: TestResult[]): TestReport => {
     const passed = results.filter(r => r.success).length
     const failed = results.length - passed
@@ -126,7 +131,7 @@ export const TestModuleRunner = ({
   }
 
   return (
-    <div className={cn('space-y-6', className)}>
+    <div className={ cn('space-y-6', className) }>
       {/* 标题和描述 */}
       <div>
         <h1 className="mb-2 text-3xl font-bold">{title || module.name}</h1>
@@ -137,9 +142,9 @@ export const TestModuleRunner = ({
 
       {/* 测试摘要 */}
       {currentReport && (
-        <TestSummary 
-          report={currentReport} 
-          isRunning={isRunning}
+        <TestSummary
+          report={ currentReport }
+          isRunning={ isRunning }
         />
       )}
 
@@ -149,16 +154,16 @@ export const TestModuleRunner = ({
           <h2 className="text-xl font-semibold">测试控制</h2>
           <div className="flex gap-2">
             <Button
-              onClick={executeAllTests}
-              loading={isRunning}
-              disabled={isRunning}
+              onClick={ executeAllTests }
+              loading={ isRunning }
+              disabled={ isRunning }
             >
               执行所有测试
             </Button>
             <Button
-              onClick={clearAll}
+              onClick={ clearAll }
               designStyle="outlined"
-              disabled={isRunning}
+              disabled={ isRunning }
             >
               清空重置
             </Button>
@@ -176,18 +181,20 @@ export const TestModuleRunner = ({
           <div className="mb-4">
             <h3 className="text-lg font-semibold">测试场景</h3>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              {module.scenarios.length} 个测试场景
+              {module.scenarios.length}
+              {' '}
+              个测试场景
             </p>
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 md:grid-cols-2">
-            {module.scenarios.map((scenario) => (
+            {module.scenarios.map(scenario => (
               <TestResultCard
-                key={scenario.id}
-                scenario={scenario}
-                result={getTestResult(scenario.id)}
-                isRunning={isTestRunning(scenario.id)}
-                onClick={() => executeTest(scenario.id)}
+                key={ scenario.id }
+                scenario={ scenario }
+                result={ getTestResult(scenario.id) }
+                isRunning={ isTestRunning(scenario.id) }
+                onClick={ () => executeTest(scenario.id) }
               />
             ))}
           </div>
@@ -197,8 +204,8 @@ export const TestModuleRunner = ({
       {/* 测试日志 */}
       {executorState && executorState.logs.length > 0 && (
         <TestLogViewer
-          logs={executorState.logs}
-          onClear={clearAll}
+          logs={ executorState.logs }
+          onClear={ clearAll }
         />
       )}
 
@@ -209,16 +216,30 @@ export const TestModuleRunner = ({
           <div>
             <h3 className="mb-2 font-medium">基本信息</h3>
             <ul className="text-sm text-gray-600 space-y-1 dark:text-gray-400">
-              <li>• 模块ID: {module.id}</li>
-              <li>• 模块名称: {module.name}</li>
-              <li>• 测试场景: {module.scenarios.length} 个</li>
+              <li>
+                • 模块ID:
+                {module.id}
+              </li>
+              <li>
+                • 模块名称:
+                {module.name}
+              </li>
+              <li>
+                • 测试场景:
+                {module.scenarios.length}
+                {' '}
+                个
+              </li>
             </ul>
           </div>
           <div>
             <h3 className="mb-2 font-medium">测试特性</h3>
             <ul className="text-sm text-gray-600 space-y-1 dark:text-gray-400">
               {module.scenarios.slice(0, 3).map((scenario, index) => (
-                <li key={index}>• {scenario.features.join(', ')}</li>
+                <li key={ index }>
+                  •
+                  {scenario.features.join(', ')}
+                </li>
               ))}
               {module.scenarios.length > 3 && (
                 <li>• 更多特性...</li>

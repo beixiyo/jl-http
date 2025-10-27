@@ -105,7 +105,7 @@ async function testCacheHit(http: any, config: CacheTestConfig, logs: any[]) {
   const requests = []
   const cacheConfig = { cacheTimeout: config.cacheTimeout }
 
-  // 第一次请求（无缓存）
+  /** 第一次请求（无缓存） */
   logs.push(createTestLog('info', '发送第一次请求（无缓存）'))
   const { result: result1, duration: duration1 } = await measureTime(() =>
     http.cacheGet(config.testUrl, cacheConfig),
@@ -118,7 +118,7 @@ async function testCacheHit(http: any, config: CacheTestConfig, logs: any[]) {
   })
   logs.push(createTestLog('success', `第一次请求完成，耗时: ${duration1}ms`))
 
-  // 第二次请求（应该命中缓存）
+  /** 第二次请求（应该命中缓存） */
   await delay(100)
   logs.push(createTestLog('info', '发送第二次请求（应该命中缓存）'))
   const { result: result2, duration: duration2 } = await measureTime(() =>
@@ -132,11 +132,15 @@ async function testCacheHit(http: any, config: CacheTestConfig, logs: any[]) {
     data: result2,
   })
   logs.push(createTestLog(
-    cached2 ? 'success' : 'warning',
-    `第二次请求完成，耗时: ${duration2}ms ${cached2 ? '(缓存命中)' : '(未命中缓存)'}`,
+    cached2
+      ? 'success'
+      : 'warning',
+    `第二次请求完成，耗时: ${duration2}ms ${cached2
+      ? '(缓存命中)'
+      : '(未命中缓存)'}`,
   ))
 
-  // 第三次请求（仍应命中缓存）
+  /** 第三次请求（仍应命中缓存） */
   await delay(100)
   logs.push(createTestLog('info', '发送第三次请求（仍应命中缓存）'))
   const { result: result3, duration: duration3 } = await measureTime(() =>
@@ -150,8 +154,12 @@ async function testCacheHit(http: any, config: CacheTestConfig, logs: any[]) {
     data: result3,
   })
   logs.push(createTestLog(
-    cached3 ? 'success' : 'warning',
-    `第三次请求完成，耗时: ${duration3}ms ${cached3 ? '(缓存命中)' : '(未命中缓存)'}`,
+    cached3
+      ? 'success'
+      : 'warning',
+    `第三次请求完成，耗时: ${duration3}ms ${cached3
+      ? '(缓存命中)'
+      : '(未命中缓存)'}`,
   ))
 
   const cacheHitCount = requests.filter(r => r.cached).length
@@ -172,36 +180,44 @@ async function testCacheTimeout(http: any, config: CacheTestConfig, logs: any[])
   const shortCacheTimeout = 1000 // 1秒缓存
   const cacheConfig = { cacheTimeout: shortCacheTimeout }
 
-  // 第一次请求
+  /** 第一次请求 */
   logs.push(createTestLog('info', '发送第一次请求'))
   const { result: result1, duration: duration1 } = await measureTime(() =>
     http.cacheGet(config.testUrl, cacheConfig),
   )
   logs.push(createTestLog('success', `第一次请求完成，耗时: ${duration1}ms`))
 
-  // 立即发送第二次请求（应该命中缓存）
+  /** 立即发送第二次请求（应该命中缓存） */
   const { result: result2, duration: duration2 } = await measureTime(() =>
     http.cacheGet(config.testUrl, cacheConfig),
   )
   const cached2 = isCacheHit(duration2)
   logs.push(createTestLog(
-    cached2 ? 'success' : 'warning',
-    `第二次请求完成，耗时: ${duration2}ms ${cached2 ? '(缓存命中)' : '(未命中缓存)'}`,
+    cached2
+      ? 'success'
+      : 'warning',
+    `第二次请求完成，耗时: ${duration2}ms ${cached2
+      ? '(缓存命中)'
+      : '(未命中缓存)'}`,
   ))
 
-  // 等待缓存超时
+  /** 等待缓存超时 */
   logs.push(createTestLog('info', `等待缓存超时 (${shortCacheTimeout + 500}ms)`))
   await delay(shortCacheTimeout + 500)
 
-  // 缓存超时后的请求
+  /** 缓存超时后的请求 */
   logs.push(createTestLog('info', '发送缓存超时后的请求'))
   const { result: result3, duration: duration3 } = await measureTime(() =>
     http.cacheGet(config.testUrl, cacheConfig),
   )
   const cached3 = isCacheHit(duration3)
   logs.push(createTestLog(
-    !cached3 ? 'success' : 'warning',
-    `超时后请求完成，耗时: ${duration3}ms ${cached3 ? '(意外缓存命中)' : '(缓存已超时)'}`,
+    !cached3
+      ? 'success'
+      : 'warning',
+    `超时后请求完成，耗时: ${duration3}ms ${cached3
+      ? '(意外缓存命中)'
+      : '(缓存已超时)'}`,
   ))
 
   return {
@@ -222,7 +238,7 @@ async function testCacheIsolation(http: any, config: CacheTestConfig, logs: any[
   const cacheConfig = { cacheTimeout: config.cacheTimeout }
   const requests = []
 
-  // 请求不同的资源
+  /** 请求不同的资源 */
   const urls = ['/posts/1', '/posts/2', '/posts/3']
 
   for (const url of urls) {
@@ -239,7 +255,7 @@ async function testCacheIsolation(http: any, config: CacheTestConfig, logs: any[
     logs.push(createTestLog('success', `请求 ${url} 完成，耗时: ${duration}ms`))
   }
 
-  // 再次请求相同资源（应该命中各自的缓存）
+  /** 再次请求相同资源（应该命中各自的缓存） */
   logs.push(createTestLog('info', '再次请求相同资源，测试缓存隔离'))
   for (const url of urls) {
     const { result, duration } = await measureTime(() =>
@@ -253,8 +269,12 @@ async function testCacheIsolation(http: any, config: CacheTestConfig, logs: any[
       data: result,
     })
     logs.push(createTestLog(
-      cached ? 'success' : 'warning',
-      `再次请求 ${url} 完成，耗时: ${duration}ms ${cached ? '(缓存命中)' : '(未命中缓存)'}`,
+      cached
+        ? 'success'
+        : 'warning',
+      `再次请求 ${url} 完成，耗时: ${duration}ms ${cached
+        ? '(缓存命中)'
+        : '(未命中缓存)'}`,
     ))
   }
 
@@ -276,14 +296,14 @@ async function testCacheMethods(http: any, config: CacheTestConfig, logs: any[])
   const cacheConfig = { cacheTimeout: config.cacheTimeout }
   const results = []
 
-  // 测试 cacheGet
+  /** 测试 cacheGet */
   logs.push(createTestLog('info', '测试 cacheGet 方法'))
   const { result: getResult, duration: getDuration } = await measureTime(() =>
     http.cacheGet(config.testUrl, cacheConfig),
   )
   results.push({ method: 'GET', duration: getDuration, result: getResult })
 
-  // 测试 cachePost
+  /** 测试 cachePost */
   if (config.requestBody) {
     logs.push(createTestLog('info', '测试 cachePost 方法'))
     const { result: postResult, duration: postDuration } = await measureTime(() =>
@@ -292,7 +312,7 @@ async function testCacheMethods(http: any, config: CacheTestConfig, logs: any[])
     results.push({ method: 'POST', duration: postDuration, result: postResult })
   }
 
-  // 测试 cachePut
+  /** 测试 cachePut */
   if (config.requestBody) {
     logs.push(createTestLog('info', '测试 cachePut 方法'))
     const { result: putResult, duration: putDuration } = await measureTime(() =>

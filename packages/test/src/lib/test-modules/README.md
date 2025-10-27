@@ -38,10 +38,10 @@
 **接口定义：**
 ```typescript
 interface TestModule {
-  id: string                    // 模块标识
-  name: string                  // 模块名称
-  description: string           // 模块描述
-  scenarios: TestScenario[]     // 支持的测试场景
+  id: string // 模块标识
+  name: string // 模块名称
+  description: string // 模块描述
+  scenarios: TestScenario[] // 支持的测试场景
   execute: (context: TestContext) => Promise<TestResult>
   getDefaultConfig: () => Record<string, any>
   validateConfig: (config: Record<string, any>) => boolean
@@ -106,32 +106,32 @@ interface TestModule {
 ```typescript
 import { defaultTestExecutor } from '@/lib/test-modules'
 
-// 执行单个测试
+/** 执行单个测试 */
 await defaultTestExecutor.executeTest('basic-http', 'get-single')
 
-// 执行模块的所有测试
+/** 执行模块的所有测试 */
 await defaultTestExecutor.executeModule('cache')
 
-// 执行所有测试
+/** 执行所有测试 */
 const report = await defaultTestExecutor.executeAll()
 ```
 
 ### 状态监听
 
 ```typescript
-// 订阅状态变化
+/** 订阅状态变化 */
 const unsubscribe = defaultTestExecutor.subscribe((state) => {
   console.log('测试状态更新:', state)
 })
 
-// 取消订阅
+/** 取消订阅 */
 unsubscribe()
 ```
 
 ### 自定义配置
 
 ```typescript
-// 使用自定义配置执行测试
+/** 使用自定义配置执行测试 */
 await defaultTestExecutor.executeTest('cache', 'cache-hit', {
   cacheTimeout: 5000,
   testUrl: '/custom/endpoint'
@@ -150,16 +150,16 @@ export const myModule: TestModule = {
   name: '我的测试模块',
   description: '测试特定功能',
   scenarios: [
-    // 定义测试场景
+    /** 定义测试场景 */
   ],
   async execute(context) {
-    // 实现测试逻辑
+    /** 实现测试逻辑 */
   },
   getDefaultConfig() {
-    // 返回默认配置
+    /** 返回默认配置 */
   },
   validateConfig(config) {
-    // 验证配置
+    /** 验证配置 */
   }
 }
 ```
@@ -190,8 +190,10 @@ const newScenario: TestScenario = {
   priority: 2
 }
 
-// 在模块的 scenarios 数组中添加
-// 在 execute 方法中添加对应的处理逻辑
+/**
+ * 在模块的 scenarios 数组中添加
+ * 在 execute 方法中添加对应的处理逻辑
+ */
 ```
 
 ## 最佳实践

@@ -118,7 +118,7 @@ iotHttp.cacheGet('/device/list', {
 }).then(console.log)
 ```
 
-> 📝 Note: Cache is stored in memory and will be lost after page refresh. The system automatically checks and clears expired cache every 2 seconds or when calling interfaces.
+> 📝 Note: Cache is in-memory and is lost after a page refresh. A global sweep runs every 2 seconds by default to remove expired entries; additionally, each cached request checks and cleans its own expired entry on access. You can configure per-entry TTL via `cacheTimeout` (globally or per request); customizing the global sweep interval is not supported currently.
 
 ## 🌊 SSE Streaming Data Processing
 
@@ -158,6 +158,18 @@ const { promise, cancel } = await iotHttp.fetchSSE('/ai/chat', {
 
 const data = await promise
 console.log('Final data:', data)
+```
+
+Or consume with for-await-of:
+
+```ts
+const iterator = iotHttp.fetchSSEAsIterator('/ai/chat', {
+  method: 'POST',
+  body: { messages: [{ role: 'user', content: '你好' }] },
+})
+for await (const data of iterator) {
+  console.log(data)
+}
 ```
 
 ### SSE Advantages of This Library

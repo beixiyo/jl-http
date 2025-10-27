@@ -2,10 +2,10 @@
  * 测试结果卡片组件
  */
 
+import type { TestResult, TestScenario } from '@/lib/test-modules'
 import { memo } from 'react'
 import { Card } from '@/components/Card'
 import { cn } from '@/utils'
-import type { TestResult, TestScenario } from '@/lib/test-modules'
 
 export const TestResultCard = memo<TestResultCardProps>(({
   scenario,
@@ -27,28 +27,36 @@ export const TestResultCard = memo<TestResultCardProps>(({
   }
 
   const getStatusIcon = () => {
-    if (isRunning) return '🔄'
-    if (!result) return '⭕'
-    return result.success ? '✅' : '❌'
+    if (isRunning)
+      return '🔄'
+    if (!result)
+      return '⭕'
+    return result.success
+      ? '✅'
+      : '❌'
   }
 
   const getStatusText = () => {
-    if (isRunning) return '运行中'
-    if (!result) return '未运行'
-    return result.success ? '成功' : '失败'
+    if (isRunning)
+      return '运行中'
+    if (!result)
+      return '未运行'
+    return result.success
+      ? '成功'
+      : '失败'
   }
 
   return (
     <Card
-      className={cn(
+      className={ cn(
         'p-4 cursor-pointer transition-all hover:shadow-lg',
         getStatusColor(),
         className,
-      )}
-      onClick={onClick}
+      ) }
+      onClick={ onClick }
     >
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="font-semibold text-sm">{scenario.name}</h3>
+        <h3 className="text-sm font-semibold">{scenario.name}</h3>
         <div className="flex items-center gap-2">
           <span className="text-lg">{getStatusIcon()}</span>
           <span className="text-xs text-gray-600 dark:text-gray-400">
@@ -57,14 +65,14 @@ export const TestResultCard = memo<TestResultCardProps>(({
         </div>
       </div>
 
-      <p className="mb-3 text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+      <p className="line-clamp-2 mb-3 text-xs text-gray-600 dark:text-gray-400">
         {scenario.description}
       </p>
 
       <div className="mb-3 flex flex-wrap gap-1">
         {scenario.features.slice(0, 3).map((feature, index) => (
           <span
-            key={index}
+            key={ index }
             className="rounded bg-white/50 px-2 py-1 text-xs dark:bg-black/20"
           >
             {feature}
@@ -72,16 +80,20 @@ export const TestResultCard = memo<TestResultCardProps>(({
         ))}
         {scenario.features.length > 3 && (
           <span className="rounded bg-white/50 px-2 py-1 text-xs dark:bg-black/20">
-            +{scenario.features.length - 3}
+            +
+            {scenario.features.length - 3}
           </span>
         )}
       </div>
 
       {result && (
-        <div className="space-y-1 text-xs">
+        <div className="text-xs space-y-1">
           <div className="flex justify-between">
             <span className="text-gray-500">耗时:</span>
-            <span>{result.duration}ms</span>
+            <span>
+              {result.duration}
+              ms
+            </span>
           </div>
           {result.metadata?.requestCount && (
             <div className="flex justify-between">
@@ -93,8 +105,10 @@ export const TestResultCard = memo<TestResultCardProps>(({
       )}
 
       {result?.error && (
-        <div className="mt-2 text-xs text-red-600 dark:text-red-400 line-clamp-1">
-          错误: {result.error}
+        <div className="line-clamp-1 mt-2 text-xs text-red-600 dark:text-red-400">
+          错误:
+          {' '}
+          {result.error}
         </div>
       )}
 

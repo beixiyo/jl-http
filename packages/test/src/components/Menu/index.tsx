@@ -12,6 +12,7 @@ const pathArr = [
   { path: '/http-abort', name: '请求中断' },
   { path: '/http-concurrent', name: '并发请求' },
   { path: '/http-sse', name: 'SSE 流式' },
+  { path: '/http-sse-iterator', name: 'SSE 迭代器' },
   { path: '/http-interceptors', name: '拦截器' },
   { path: '/http-comprehensive', name: '综合演示' },
 ]

@@ -1,11 +1,11 @@
 'use client'
 
 import type { ChangeEvent } from 'react'
-import { useFormField } from '@/components/Form'
-import { cn } from '@/utils'
 import { numFixed } from '@jl-org/tool'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { forwardRef, memo, useCallback, useState } from 'react'
+import { useFormField } from '@/components/Form'
+import { cn } from '@/utils'
 
 export const NumberInput = memo<NumberInputProps>(forwardRef<HTMLInputElement, NumberInputProps>((
   props,

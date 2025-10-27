@@ -106,13 +106,13 @@ async function testManualAbort(http: any, config: AbortTestConfig, logs: any[]) 
 
   logs.push(createTestLog('info', `启动请求，${abortDelay}ms 后中断`))
 
-  // 启动请求
+  /** 启动请求 */
   const requestPromise = http.get(config.testUrl, {
     signal: controller.signal,
     timeout: config.timeout,
   })
 
-  // 设置中断定时器
+  /** 设置中断定时器 */
   const abortTimer = setTimeout(() => {
     logs.push(createTestLog('info', `${abortDelay}ms 后执行中断`))
     controller.abort()
@@ -165,7 +165,7 @@ async function testTimeoutAbort(http: any, config: AbortTestConfig, logs: any[])
   let error: string | undefined
 
   try {
-    // 使用一个可能较慢的端点或者延迟端点
+    /** 使用一个可能较慢的端点或者延迟端点 */
     result = await http.get('/posts', {
       timeout: shortTimeout,
     })
@@ -204,7 +204,7 @@ async function testMultipleAbort(http: any, config: AbortTestConfig, logs: any[]
 
   logs.push(createTestLog('info', `启动 ${requestCount} 个请求，${abortDelay}ms 后统一中断`))
 
-  // 启动多个请求
+  /** 启动多个请求 */
   const requests = []
   for (let i = 0; i < requestCount; i++) {
     const requestPromise = http.get(`/posts/${i + 1}`, {
@@ -214,7 +214,7 @@ async function testMultipleAbort(http: any, config: AbortTestConfig, logs: any[]
     requests.push(requestPromise)
   }
 
-  // 设置中断定时器
+  /** 设置中断定时器 */
   setTimeout(() => {
     logs.push(createTestLog('info', `${abortDelay}ms 后中断所有请求`))
     controller.abort()
@@ -223,7 +223,7 @@ async function testMultipleAbort(http: any, config: AbortTestConfig, logs: any[]
   const startTime = Date.now()
   const results = []
 
-  // 等待所有请求完成或中断
+  /** 等待所有请求完成或中断 */
   for (let i = 0; i < requests.length; i++) {
     try {
       const result = await requests[i]
@@ -236,13 +236,19 @@ async function testMultipleAbort(http: any, config: AbortTestConfig, logs: any[]
       const aborted = err.name === 'AbortError' || err.message?.includes('aborted')
       results.push({
         index: i,
-        status: aborted ? 'aborted' : 'error',
+        status: aborted
+          ? 'aborted'
+          : 'error',
         error: err.message,
         duration,
       })
       logs.push(createTestLog(
-        aborted ? 'success' : 'error',
-        `请求 ${i + 1} ${aborted ? '已中断' : '失败'}: ${err.message}`,
+        aborted
+          ? 'success'
+          : 'error',
+        `请求 ${i + 1} ${aborted
+          ? '已中断'
+          : '失败'}: ${err.message}`,
       ))
     }
   }
@@ -268,7 +274,7 @@ async function testAbortRecovery(http: any, config: AbortTestConfig, logs: any[]
 
   const attempts = []
 
-  // 第一次尝试 - 会被中断
+  /** 第一次尝试 - 会被中断 */
   logs.push(createTestLog('info', '第一次尝试 - 将被中断'))
   const controller1 = new AbortController()
 
@@ -292,20 +298,26 @@ async function testAbortRecovery(http: any, config: AbortTestConfig, logs: any[]
     const aborted = err.name === 'AbortError' || err.message?.includes('aborted')
     attempts.push({
       attempt: 1,
-      status: aborted ? 'aborted' : 'error',
+      status: aborted
+        ? 'aborted'
+        : 'error',
       error: err.message,
       duration: duration1,
     })
     logs.push(createTestLog(
-      aborted ? 'success' : 'error',
-      `第一次请求 ${aborted ? '已中断' : '失败'} (${duration1}ms)`,
+      aborted
+        ? 'success'
+        : 'error',
+      `第一次请求 ${aborted
+        ? '已中断'
+        : '失败'} (${duration1}ms)`,
     ))
   }
 
-  // 等待一段时间后重试
+  /** 等待一段时间后重试 */
   await delay(500)
 
-  // 第二次尝试 - 正常完成
+  /** 第二次尝试 - 正常完成 */
   logs.push(createTestLog('info', '第二次尝试 - 正常请求'))
   const startTime2 = Date.now()
   try {
@@ -325,7 +337,11 @@ async function testAbortRecovery(http: any, config: AbortTestConfig, logs: any[]
   const firstAborted = attempts[0]?.status === 'aborted'
   const secondCompleted = attempts[1]?.status === 'completed'
 
-  logs.push(createTestLog('info', `中断恢复测试完成: 第一次${firstAborted ? '中断' : '未中断'}, 第二次${secondCompleted ? '成功' : '失败'}`))
+  logs.push(createTestLog('info', `中断恢复测试完成: 第一次${firstAborted
+    ? '中断'
+    : '未中断'}, 第二次${secondCompleted
+    ? '成功'
+    : '失败'}`))
 
   return {
     attempts,

@@ -1,7 +1,7 @@
 import type { BaseHttpReq, BaseReqConfig, BaseReqConstructorConfig, BaseReqMethodConfig, FetchSSEReturn, Resp, RespErrInterceptorError, SSEOptions } from './abs/AbsBaseReqType'
 import type { HttpMethod, ReqBody, RespData, SSEData } from '@/types'
 import { TIME_OUT } from '@/constants'
-import { retryTask } from '@/tools'
+import { callbackToAsyncIterator, retryTask } from '@/tools'
 import { getReqConfig, handleRespErrInterceptor } from '@/tools/reqTool'
 import { SSEStreamProcessor } from '@/tools/SSEStreamProcessor'
 
@@ -301,6 +301,49 @@ export class BaseReq implements BaseHttpReq {
         reject(new Error('Request canceled by user'))
       },
     }
+  }
+
+  fetchSSEAsIterator(url: string, config?: SSEOptions): AsyncIterableIterator<SSEData> {
+    return callbackToAsyncIterator<SSEData>((callback) => {
+      let cancelFn: (() => void) | undefined
+
+      /** 启动 SSE 请求 */
+      this.fetchSSE(url, {
+        ...config,
+        onMessage: (data) => {
+          /** 调用用户提供的 onMessage 回调（如果有） */
+          config?.onMessage?.(data)
+          /** 向迭代器传递数据 */
+          callback(data)
+        },
+        onError: (error) => {
+          /** 调用用户提供的 onError 回调（如果有） */
+          config?.onError?.(error)
+          /** 发送结束信号 */
+          callback(null)
+        },
+      }).then(({ promise, cancel }) => {
+        /** 保存 cancel 函数 */
+        cancelFn = cancel
+
+        /** 当 SSE 完成时，发送结束信号 */
+        promise.then(() => {
+          callback(null)
+        }).catch(() => {
+          /** 错误已经在 onError 中处理 */
+          callback(null)
+        })
+      }).catch((error) => {
+        // fetchSSE 初始化失败
+        config?.onError?.(error)
+        callback(null)
+      })
+
+      /** 返回取消函数 */
+      return () => {
+        cancelFn?.()
+      }
+    })
   }
 
   private normalizeOpts(config: BaseReqConfig) {

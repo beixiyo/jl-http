@@ -1,13 +1,12 @@
 import { useRef, useState } from 'react'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
-import { Input } from '@/components/Input'
-import { Select } from '@/components/Select'
-import { cn } from '@/utils'
 import { NumberInput } from '@/components/Input/NumberInput'
+import { Select } from '@/components/Select'
 import { TestModuleRunner } from '@/components/TestModuleRunner'
-import { createIntegratedPageProps } from '@/lib/test-modules/integration'
 import { createHttpInstance } from '@/lib/test-modules'
+import { createIntegratedPageProps } from '@/lib/test-modules/integration'
+import { cn } from '@/utils'
 
 interface AbortLog {
   id: number
@@ -25,10 +24,10 @@ export default function HttpAbortTest() {
   const [showManualTest, setShowManualTest] = useState(false)
 
   if (!showManualTest) {
-    return <AutoTestMode onSwitchToManual={() => setShowManualTest(true)} />
+    return <AutoTestMode onSwitchToManual={ () => setShowManualTest(true) } />
   }
 
-  return <ManualTestMode onBack={() => setShowManualTest(false)} />
+  return <ManualTestMode onBack={ () => setShowManualTest(false) } />
 }
 
 function AutoTestMode({ onSwitchToManual }: { onSwitchToManual: () => void }) {
@@ -37,10 +36,10 @@ function AutoTestMode({ onSwitchToManual }: { onSwitchToManual: () => void }) {
   return (
     <div className="mx-auto max-w-7xl p-6">
       <TestModuleRunner
-        {...props}
-        onTestComplete={(scenarioId, result) => {
+        { ...props }
+        onTestComplete={ (scenarioId, result) => {
           console.log(`中断测试完成: ${scenarioId}`, result)
-        }}
+        } }
       />
 
       {/* 切换到手动测试 */}
@@ -52,7 +51,7 @@ function AutoTestMode({ onSwitchToManual }: { onSwitchToManual: () => void }) {
               切换到手动测试模式，可以自定义中断参数进行测试
             </p>
           </div>
-          <Button onClick={onSwitchToManual} designStyle="outlined">
+          <Button onClick={ onSwitchToManual } designStyle="outlined">
             切换到手动测试
           </Button>
         </div>
@@ -103,7 +102,7 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
     const abortController = new AbortController()
     abortControllersRef.current.set(log.id, abortController)
 
-    // 创建 HTTP 实例
+    /** 创建 HTTP 实例 */
     const http = createHttpInstance({
       baseUrl: 'https://httpbin.org', // 使用 httpbin.org 来模拟延迟请求
       timeout: 30000, // 设置较长的超时时间，便于测试中断
@@ -283,7 +282,7 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
           </p>
         </div>
         <Button
-          onClick={onBack}
+          onClick={ onBack }
           designStyle="outlined"
         >
           返回自动测试
@@ -368,77 +367,77 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
           <div className="max-h-96 overflow-y-auto space-y-3">
             { logs.length === 0
               ? (
-                <p className="py-8 text-center text-gray-500">暂无请求日志</p>
-              )
+                  <p className="py-8 text-center text-gray-500">暂无请求日志</p>
+                )
               : (
-                logs.map(log => (
-                  <div
-                    key={ log.id }
-                    className={ cn('p-4 rounded-lg border', getStatusColor(log.status)) }
-                  >
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="font-medium">
-                        { log.method }
-                        { ' ' }
-                        { log.url }
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className="rounded bg-white/50 px-2 py-1 text-sm dark:bg-black/20">
-                          { getStatusText(log.status) }
+                  logs.map(log => (
+                    <div
+                      key={ log.id }
+                      className={ cn('p-4 rounded-lg border', getStatusColor(log.status)) }
+                    >
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="font-medium">
+                          { log.method }
+                          { ' ' }
+                          { log.url }
                         </span>
-                        { log.status === 'pending' && (
-                          <Button
-                            size="sm"
-                            designStyle="outlined"
-                            onClick={ () => abortRequest(log.id) }
-                          >
-                            中断
-                          </Button>
-                        ) }
+                        <div className="flex items-center gap-2">
+                          <span className="rounded bg-white/50 px-2 py-1 text-sm dark:bg-black/20">
+                            { getStatusText(log.status) }
+                          </span>
+                          { log.status === 'pending' && (
+                            <Button
+                              size="sm"
+                              designStyle="outlined"
+                              onClick={ () => abortRequest(log.id) }
+                            >
+                              中断
+                            </Button>
+                          ) }
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="mb-2 text-sm text-gray-600 dark:text-gray-400">
-                      { log.timestamp }
-                      { ' ' }
-                      | 耗时:
-                      { log.duration }
-                      ms
-                    </div>
-
-                    { log.abortType !== 'none' && (
-                      <div className="mb-2 text-sm">
-                        中断类型:
+                      <div className="mb-2 text-sm text-gray-600 dark:text-gray-400">
+                        { log.timestamp }
                         { ' ' }
-                        {
-                          log.abortType === 'manual'
-                            ? '手动中断'
-                            : log.abortType === 'timeout'
-                              ? '超时中断'
-                              : log.abortType === 'signal'
-                                ? '信号中断'
-                                : '无'
-                        }
+                        | 耗时:
+                        { log.duration }
+                        ms
                       </div>
-                    ) }
 
-                    { log.status === 'pending' && (
-                      <div className="flex items-center text-sm text-blue-600 dark:text-blue-400">
-                        <div className="mr-2 h-4 w-4 animate-spin border-b-2 border-current rounded-full"></div>
-                        请求进行中...
-                      </div>
-                    ) }
+                      { log.abortType !== 'none' && (
+                        <div className="mb-2 text-sm">
+                          中断类型:
+                          { ' ' }
+                          {
+                            log.abortType === 'manual'
+                              ? '手动中断'
+                              : log.abortType === 'timeout'
+                                ? '超时中断'
+                                : log.abortType === 'signal'
+                                  ? '信号中断'
+                                  : '无'
+                          }
+                        </div>
+                      ) }
 
-                    { log.error && (
-                      <div className="text-sm text-red-600 dark:text-red-400">
-                        错误:
-                        { ' ' }
-                        { log.error }
-                      </div>
-                    ) }
-                  </div>
-                ))
-              ) }
+                      { log.status === 'pending' && (
+                        <div className="flex items-center text-sm text-blue-600 dark:text-blue-400">
+                          <div className="mr-2 h-4 w-4 animate-spin border-b-2 border-current rounded-full"></div>
+                          请求进行中...
+                        </div>
+                      ) }
+
+                      { log.error && (
+                        <div className="text-sm text-red-600 dark:text-red-400">
+                          错误:
+                          { ' ' }
+                          { log.error }
+                        </div>
+                      ) }
+                    </div>
+                  ))
+                ) }
           </div>
         </Card>
       </div>

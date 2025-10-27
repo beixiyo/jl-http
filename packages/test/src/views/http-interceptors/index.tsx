@@ -2,12 +2,12 @@ import { useRef, useState } from 'react'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Input } from '@/components/Input'
-import { Textarea } from '@/components/Textarea'
 import { Select } from '@/components/Select'
-import { cn } from '@/utils'
 import { TestModuleRunner } from '@/components/TestModuleRunner'
-import { createIntegratedPageProps } from '@/lib/test-modules/integration'
+import { Textarea } from '@/components/Textarea'
 import { createHttpInstance } from '@/lib/test-modules'
+import { createIntegratedPageProps } from '@/lib/test-modules/integration'
+import { cn } from '@/utils'
 
 interface InterceptorLog {
   id: number
@@ -92,113 +92,113 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
       timeout: 10000,
       reqInterceptor: enableReqInterceptor
         ? (config) => {
-          addLog({
-            type: 'request',
-            phase: 'before',
-            data: {
+            addLog({
+              type: 'request',
+              phase: 'before',
+              data: {
+                url: config.url,
+                method: config.method,
+                headers: config.headers,
+                body: config.body,
+              },
               url: config.url,
               method: config.method,
-              headers: config.headers,
-              body: config.body,
-            },
-            url: config.url,
-            method: config.method,
-          })
+            })
 
-          /** 添加认证头 */
-          if (authToken) {
+            /** 添加认证头 */
+            if (authToken) {
+              config.headers = {
+                ...config.headers,
+                Authorization: authToken,
+              }
+            }
+
+            /** 添加自定义头 */
             config.headers = {
               ...config.headers,
-              Authorization: authToken,
+              'X-Custom-Header': 'interceptor-test',
+              'X-Request-Time': new Date().toISOString(),
             }
-          }
 
-          /** 添加自定义头 */
-          config.headers = {
-            ...config.headers,
-            'X-Custom-Header': 'interceptor-test',
-            'X-Request-Time': new Date().toISOString(),
-          }
-
-          addLog({
-            type: 'request',
-            phase: 'after',
-            data: {
+            addLog({
+              type: 'request',
+              phase: 'after',
+              data: {
+                url: config.url,
+                method: config.method,
+                headers: config.headers,
+                body: config.body,
+              },
               url: config.url,
               method: config.method,
-              headers: config.headers,
-              body: config.body,
-            },
-            url: config.url,
-            method: config.method,
-          })
+            })
 
-          return config
-        }
+            return config
+          }
         : undefined,
       respInterceptor: enableRespInterceptor
         ? (response) => {
-          addLog({
-            type: 'response',
-            phase: 'before',
-            data: {
-              status: response.rawResp.status,
-              statusText: response.rawResp.statusText,
-              headers: Object.fromEntries(response.rawResp.headers.entries()),
-              data: response.data,
-            },
-          })
+            addLog({
+              type: 'response',
+              phase: 'before',
+              data: {
+                status: response.rawResp.status,
+                statusText: response.rawResp.statusText,
+                headers: Object.fromEntries(response.rawResp.headers.entries()),
+                data: response.data,
+              },
+            })
 
-          /** 响应数据处理 */
-          let processedData = response.data
+            /** 响应数据处理 */
+            let processedData = response.data
 
-          /** 如果是对象，添加处理时间戳 */
-          if (typeof processedData === 'object' && processedData !== null) {
-            processedData = {
-              ...processedData,
-              __processed_at: new Date().toISOString(),
-              __interceptor_processed: true,
+            /** 如果是对象，添加处理时间戳 */
+            if (typeof processedData === 'object' && processedData !== null) {
+              processedData = {
+                ...processedData,
+                __processed_at: new Date().toISOString(),
+                __interceptor_processed: true,
+              }
             }
+
+            addLog({
+              type: 'response',
+              phase: 'after',
+              data: {
+                originalData: response.data,
+                processedData,
+                status: response.rawResp.status,
+              },
+            })
+
+            return processedData
           }
-
-          addLog({
-            type: 'response',
-            phase: 'after',
-            data: {
-              originalData: response.data,
-              processedData,
-              status: response.rawResp.status,
-            },
-          })
-
-          return processedData
-        }
         : undefined,
       respErrInterceptor: enableErrorInterceptor
         ? (error) => {
-          addLog({
-            type: 'error',
-            phase: 'before',
-            data: {
-              message: error.message || '未知错误',
-              status: error.status,
-              name: error.name,
-              stack: error.stack,
-            },
-          })
+            addLog({
+              type: 'error',
+              phase: 'before',
+              data: {
+                message: error.message || '未知错误',
+                status: error.status,
+                name: error.name,
+                stack: error.stack,
+              },
+            })
 
-          /** 错误处理逻辑 */
-          console.error('拦截器捕获错误:', error)
+            /** 错误处理逻辑 */
+            console.error('拦截器捕获错误:', error)
 
-          addLog({
-            type: 'error',
-            phase: 'after',
-            data: {
-              message: '错误已被拦截器处理',
-              originalError: error.message || '未知错误',
-            },
-          })
-        }
+            addLog({
+              type: 'error',
+              phase: 'after',
+              data: {
+                message: '错误已被拦截器处理',
+                originalError: error.message || '未知错误',
+              },
+            })
+          }
         : undefined,
     })
   }
@@ -515,43 +515,43 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
         <div className="max-h-96 overflow-y-auto space-y-2">
           { logs.length === 0
             ? (
-              <p className="py-8 text-center text-gray-500">暂无拦截器日志</p>
-            )
+                <p className="py-8 text-center text-gray-500">暂无拦截器日志</p>
+              )
             : (
-              logs.map(log => (
-                <div
-                  key={ log.id }
-                  className={ cn('p-3 rounded-lg border text-sm', getLogTypeColor(log.type, log.phase)) }
-                >
-                  <div className="mb-2 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">
-                        { getLogTypeText(log.type, log.phase) }
-                      </span>
-                      { log.url && (
-                        <span className="text-gray-500">
-                          { log.method }
-                          { ' ' }
-                          { log.url }
+                logs.map(log => (
+                  <div
+                    key={ log.id }
+                    className={ cn('p-3 rounded-lg border text-sm', getLogTypeColor(log.type, log.phase)) }
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">
+                          { getLogTypeText(log.type, log.phase) }
                         </span>
-                      ) }
+                        { log.url && (
+                          <span className="text-gray-500">
+                            { log.method }
+                            { ' ' }
+                            { log.url }
+                          </span>
+                        ) }
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        { log.timestamp }
+                      </span>
                     </div>
-                    <span className="text-xs text-gray-500">
-                      { log.timestamp }
-                    </span>
-                  </div>
 
-                  <details className="mt-2">
-                    <summary className="cursor-pointer text-xs text-gray-600 dark:text-gray-400">
-                      查看详细数据
-                    </summary>
-                    <pre className="mt-2 overflow-auto rounded bg-white/50 p-2 text-xs dark:bg-black/20">
-                      { JSON.stringify(log.data, null, 2) }
-                    </pre>
-                  </details>
-                </div>
-              ))
-            ) }
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-xs text-gray-600 dark:text-gray-400">
+                        查看详细数据
+                      </summary>
+                      <pre className="mt-2 overflow-auto rounded bg-white/50 p-2 text-xs dark:bg-black/20">
+                        { JSON.stringify(log.data, null, 2) }
+                      </pre>
+                    </details>
+                  </div>
+                ))
+              ) }
         </div>
       </Card>
 

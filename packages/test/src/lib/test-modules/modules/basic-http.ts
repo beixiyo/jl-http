@@ -2,7 +2,7 @@
  * 基础 HTTP 功能测试模块
  */
 
-import type { TestContext, TestModule, TestResult, TestScenario } from '../types'
+import type { TestContext, TestModule, TestResult } from '../types'
 import { createErrorResult, createHttpInstance, createSuccessResult, createTestLog, measureTime } from '../utils'
 
 export const basicHttpModule: TestModule = {
@@ -118,7 +118,7 @@ async function testGetSingle(http: any, logs: any[]) {
   const post = await http.get('/posts/1') as any
   logs.push(createTestLog('success', `获取文章成功: ${post.title}`))
 
-  // 验证响应结构
+  /** 验证响应结构 */
   if (!post.id || !post.title || !post.body) {
     throw new Error('响应数据结构不正确')
   }
@@ -133,9 +133,9 @@ async function testGetList(http: any, logs: any[]) {
   const posts = await http.get('/posts') as any[]
   logs.push(createTestLog('success', `获取文章列表成功: ${posts.length} 篇文章`))
 
-  // 验证响应是数组
+  /** 验证响应是数组 */
   if (!Array.isArray(posts)) {
-    throw new Error('响应数据应该是数组')
+    throw new TypeError('响应数据应该是数组')
   }
 
   if (posts.length === 0) {
@@ -158,7 +158,7 @@ async function testPostCreate(http: any, logs: any[]) {
   const createdPost = await http.post('/posts', newPost) as any
   logs.push(createTestLog('success', `创建文章成功: ID ${createdPost.id}`))
 
-  // 验证创建的资源
+  /** 验证创建的资源 */
   if (!createdPost.id) {
     throw new Error('创建的资源应该有 ID')
   }
@@ -180,7 +180,7 @@ async function testPutUpdate(http: any, logs: any[]) {
   const updatedPost = await http.put('/posts/1', updateData) as any
   logs.push(createTestLog('success', `更新文章成功: ${updatedPost.title}`))
 
-  // 验证更新结果
+  /** 验证更新结果 */
   if (updatedPost.title !== updateData.title) {
     logs.push(createTestLog('warning', '标题可能未正确更新（模拟API限制）'))
   }
@@ -204,7 +204,7 @@ async function testErrorHandling(http: any, logs: any[]) {
 
   const errors: any[] = []
 
-  // 测试 404 错误
+  /** 测试 404 错误 */
   try {
     await http.get('/posts/99999')
   }
@@ -213,7 +213,7 @@ async function testErrorHandling(http: any, logs: any[]) {
     errors.push({ type: '404', message: error.message })
   }
 
-  // 测试无效 URL
+  /** 测试无效 URL */
   try {
     await http.get('/invalid-endpoint-that-does-not-exist')
   }

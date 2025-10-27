@@ -118,7 +118,7 @@ iotHttp.cacheGet('/device/list', {
 }).then(console.log)
 ```
 
-> 📝 注意：缓存存储在内存中，页面刷新后会失效。系统会每隔2秒或调用接口时自动检查并清除过期缓存。
+> 📝 注意：缓存为内存缓存，刷新页面后会丢失。默认每 2000ms 执行一次全局过期清理（可通过 `cacheSweepInterval` 配置）；此外，在发起缓存请求时也会同步检查并清理该请求对应的过期条目。可通过 `cacheTimeout` 配置每条缓存的过期时间（全局或按请求）。
 
 ## 🌊 SSE流式数据处理
 
@@ -163,6 +163,18 @@ const { promise, cancel } = await iotHttp.fetchSSE('/ai/chat', {
 
 const data = await promise
 console.log('最终数据:', data)
+```
+
+也可以用 for-await-of 逐条处理：
+
+```ts
+const iterator = iotHttp.fetchSSEAsIterator('/ai/chat', {
+  method: 'POST',
+  body: { messages: [{ role: 'user', content: '你好' }] },
+})
+for await (const data of iterator) {
+  console.log(data)
+}
 ```
 
 ### 此库的 SSE 优势
@@ -389,7 +401,8 @@ export class Test {
 | `baseUrl` | `string` | `''` | 请求的基础URL |
 | `timeout` | `number` | `10000` | 请求超时时间(ms) |
 | `retry` | `number` | `0` | 请求失败重试次数 |
-| `cacheTimeout` | `number` | `1000` | 缓存过期时间(ms) |
+| `cacheTimeout` | `number` | `1000` | 全局缓存过期时间(ms) |
+| `cacheSweepInterval` | `number` | `2000` | 定期清理间隔(ms)，仅影响后台清扫频率 |
 | `headers` | `object` | `{}` | 默认请求头 |
 | `reqInterceptor` | `function` | - | 请求拦截器 |
 | `respInterceptor` | `function` | - | 响应拦截器 |
@@ -400,11 +413,12 @@ export class Test {
 
 - **标准请求**: `get`, `post`, `put`, `patch`, `delete`, `head`, `options`
 - **缓存请求**: `cacheGet`, `cachePost`, `cachePut`, `cachePatch`
-- **SSE请求**: `fetchSSE`
+- **SSE请求**: `fetchSSE`, `fetchSSEAsIterator`
 
 ### 工具函数
 
 - **并发控制**: `concurrentTask`
+
 
 ---
 

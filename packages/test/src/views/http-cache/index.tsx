@@ -2,12 +2,12 @@ import { useRef, useState } from 'react'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Input } from '@/components/Input'
-import { cn } from '@/utils'
 import { NumberInput } from '@/components/Input/NumberInput'
 import { TestModuleRunner } from '@/components/TestModuleRunner'
-import { createIntegratedPageProps } from '@/lib/test-modules/integration'
-import { createHttpInstance } from '@/lib/test-modules'
 import { Textarea } from '@/components/Textarea'
+import { createHttpInstance } from '@/lib/test-modules'
+import { createIntegratedPageProps } from '@/lib/test-modules/integration'
+import { cn } from '@/utils'
 
 export default function HttpCacheTest() {
   const [showManualTest, setShowManualTest] = useState(false)
@@ -17,10 +17,10 @@ export default function HttpCacheTest() {
     return (
       <div className="mx-auto max-w-7xl p-6">
         <TestModuleRunner
-          {...props}
-          onTestComplete={(scenarioId, result) => {
+          { ...props }
+          onTestComplete={ (scenarioId, result) => {
             console.log(`缓存测试完成: ${scenarioId}`, result)
-          }}
+          } }
         />
 
         {/* 切换到手动测试 */}
@@ -33,7 +33,7 @@ export default function HttpCacheTest() {
               </p>
             </div>
             <Button
-              onClick={() => setShowManualTest(true)}
+              onClick={ () => setShowManualTest(true) }
               designStyle="outlined"
             >
               切换到手动测试
@@ -44,21 +44,20 @@ export default function HttpCacheTest() {
     )
   }
 
-  return <ManualCacheTest onBack={() => setShowManualTest(false)} />
+  return <ManualCacheTest onBack={ () => setShowManualTest(false) } />
 }
 
 function ManualCacheTest({ onBack }: { onBack: () => void }) {
-
-interface RequestLog {
-  id: number
-  timestamp: string
-  url: string
-  method: string
-  cached: boolean
-  duration: number
-  result?: any
-  error?: string
-}
+  interface RequestLog {
+    id: number
+    timestamp: string
+    url: string
+    method: string
+    cached: boolean
+    duration: number
+    result?: any
+    error?: string
+  }
 
   const [loading, setLoading] = useState(false)
   const [logs, setLogs] = useState<RequestLog[]>([])
@@ -181,7 +180,7 @@ interface RequestLog {
           </p>
         </div>
         <Button
-          onClick={onBack}
+          onClick={ onBack }
           designStyle="outlined"
         >
           返回自动测试

@@ -2,8 +2,8 @@
  * 并发请求测试模块
  */
 
-import { concurrentTask } from '@jl-org/http'
 import type { ConcurrentTestConfig, TestContext, TestModule, TestResult } from '../types'
+import { concurrentTask } from '@jl-org/http'
 import { createErrorResult, createHttpInstance, createSuccessResult, createTestLog, measureTime } from '../utils'
 
 export const concurrentModule: TestModule = {
@@ -132,7 +132,7 @@ function createTasks(http: any, config: ConcurrentTestConfig) {
         taskFn = () => http.get(`/posts/${i + 1}`)
     }
 
-    // 如果包含失败情况，随机让一些任务失败
+    /** 如果包含失败情况，随机让一些任务失败 */
     if (config.includeFailures && Math.random() < 0.3) {
       const originalTask = taskFn
       taskFn = () => {
@@ -181,7 +181,7 @@ async function testBasicConcurrent(http: any, config: ConcurrentTestConfig, logs
 async function testHighConcurrency(http: any, config: ConcurrentTestConfig, logs: any[]) {
   logs.push(createTestLog('info', '开始高并发测试'))
 
-  // 增加任务数量和并发数
+  /** 增加任务数量和并发数 */
   const highConcurrencyConfig = {
     ...config,
     taskCount: Math.max(config.taskCount, 10),
@@ -198,7 +198,7 @@ async function testHighConcurrency(http: any, config: ConcurrentTestConfig, logs
   const successCount = results.filter(r => r.status === 'fulfilled').length
   const failureCount = results.filter(r => r.status === 'rejected').length
 
-  // 计算性能指标
+  /** 计算性能指标 */
   const throughput = tasks.length / (duration / 1000) // 每秒处理的任务数
   const avgResponseTime = duration / tasks.length // 平均响应时间
 
@@ -227,7 +227,7 @@ async function testHighConcurrency(http: any, config: ConcurrentTestConfig, logs
 async function testErrorHandling(http: any, config: ConcurrentTestConfig, logs: any[]) {
   logs.push(createTestLog('info', '开始并发错误处理测试'))
 
-  // 强制包含失败情况
+  /** 强制包含失败情况 */
   const errorConfig = {
     ...config,
     includeFailures: true,
@@ -243,14 +243,16 @@ async function testErrorHandling(http: any, config: ConcurrentTestConfig, logs: 
   const successCount = results.filter(r => r.status === 'fulfilled').length
   const failureCount = results.filter(r => r.status === 'rejected').length
 
-  // 分析错误类型
+  /** 分析错误类型 */
   const errors = results
     .filter(r => r.status === 'rejected')
     .map(r => (r as any).reason?.message || '未知错误')
 
   logs.push(createTestLog('success', `错误处理测试完成，耗时: ${duration}ms`))
   logs.push(createTestLog('info', `成功: ${successCount}, 失败: ${failureCount}`))
-  logs.push(createTestLog('info', `错误隔离测试: ${failureCount > 0 ? '通过' : '未触发错误'}`))
+  logs.push(createTestLog('info', `错误隔离测试: ${failureCount > 0
+    ? '通过'
+    : '未触发错误'}`))
 
   return {
     taskCount: tasks.length,
@@ -267,7 +269,7 @@ async function testErrorHandling(http: any, config: ConcurrentTestConfig, logs: 
 async function testMixedRequests(http: any, config: ConcurrentTestConfig, logs: any[]) {
   logs.push(createTestLog('info', '开始混合请求测试'))
 
-  // 创建不同类型的任务
+  /** 创建不同类型的任务 */
   const mixedTasks = [
     () => http.get('/posts/1'),
     () => http.get('/users/1'),
@@ -276,7 +278,7 @@ async function testMixedRequests(http: any, config: ConcurrentTestConfig, logs: 
     () => http.put('/posts/1', { id: 1, title: '更新', body: '内容', userId: 1 }),
   ]
 
-  // 根据配置重复任务
+  /** 根据配置重复任务 */
   const tasks = []
   for (let i = 0; i < config.taskCount; i++) {
     tasks.push(mixedTasks[i % mixedTasks.length])
@@ -291,7 +293,7 @@ async function testMixedRequests(http: any, config: ConcurrentTestConfig, logs: 
   const successCount = results.filter(r => r.status === 'fulfilled').length
   const failureCount = results.filter(r => r.status === 'rejected').length
 
-  // 分析请求类型分布
+  /** 分析请求类型分布 */
   const requestTypes = ['GET /posts', 'GET /users', 'GET /albums', 'POST /posts', 'PUT /posts']
   const typeDistribution = requestTypes.map((type, index) => ({
     type,

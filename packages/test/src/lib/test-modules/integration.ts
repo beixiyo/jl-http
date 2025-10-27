@@ -2,11 +2,11 @@
  * 测试模块集成工具 - 帮助现有测试页面集成测试模块
  */
 
+import type { TestModule } from './types'
+import { abortModule } from './modules/abort'
 import { basicHttpModule } from './modules/basic-http'
 import { cacheModule } from './modules/cache'
 import { concurrentModule } from './modules/concurrent'
-import { abortModule } from './modules/abort'
-import type { TestModule } from './types'
 
 /** 所有可用的测试模块 */
 export const availableModules = {
@@ -43,7 +43,9 @@ export const pageModuleMapping = {
 /** 根据页面路径获取对应的测试模块 */
 export function getModuleByPagePath(pagePath: string): TestModule | undefined {
   const moduleId = pageModuleMapping[pagePath as keyof typeof pageModuleMapping]
-  return moduleId ? availableModules[moduleId] : undefined
+  return moduleId
+    ? availableModules[moduleId]
+    : undefined
 }
 
 /** 测试页面重构配置 */
@@ -145,7 +147,7 @@ export function getPageConfig(pagePath: string): PageRefactorConfig | undefined 
 export function createIntegratedPageProps(pagePath: string) {
   const module = getModuleByPagePath(pagePath)
   const config = getPageConfig(pagePath)
-  
+
   if (!module || !config) {
     throw new Error(`未找到页面 ${pagePath} 的模块或配置`)
   }
@@ -165,7 +167,7 @@ export const refactorGuide = {
     '4. 保留原有的手动测试功能作为可选项',
     '5. 添加模式切换按钮（自动测试 vs 手动测试）',
   ],
-  
+
   benefits: [
     '✅ 统一的测试界面和体验',
     '✅ 可复用的测试逻辑',
@@ -174,7 +176,7 @@ export const refactorGuide = {
     '✅ 更好的可维护性',
     '✅ 保留原有功能的同时增强测试能力',
   ],
-  
+
   example: `
 // 重构前
 export default function HttpBasicTest() {
@@ -215,7 +217,7 @@ export function getRefactorStats() {
   const totalPages = Object.keys(pageModuleMapping).length
   const availableModulesCount = Object.keys(availableModules).length
   const configuredPages = Object.keys(pageConfigs).length
-  
+
   return {
     totalPages,
     availableModulesCount,

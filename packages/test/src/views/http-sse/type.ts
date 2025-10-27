@@ -1,4 +1,3 @@
-
 export interface SSELog {
   id: number
   timestamp: string

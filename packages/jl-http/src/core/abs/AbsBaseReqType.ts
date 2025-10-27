@@ -17,6 +17,7 @@ export interface BaseHttpReq {
   patch: <T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig) => Promise<HttpResponse>
 
   fetchSSE: (url: string, config?: SSEOptions) => Promise<FetchSSEReturn>
+  fetchSSEAsIterator: (url: string, config?: SSEOptions) => AsyncIterableIterator<SSEData>
 }
 
 export type FetchOptions = Omit<RequestInit, 'method'> & {

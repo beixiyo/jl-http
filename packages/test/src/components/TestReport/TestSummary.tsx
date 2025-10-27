@@ -2,10 +2,10 @@
  * 测试摘要组件
  */
 
+import type { TestReport } from '@/lib/test-modules'
 import { memo } from 'react'
 import { Card } from '@/components/Card'
 import { cn } from '@/utils'
-import type { TestReport } from '@/lib/test-modules'
 
 export const TestSummary = memo<TestSummaryProps>(({
   report,
@@ -13,22 +13,28 @@ export const TestSummary = memo<TestSummaryProps>(({
   className,
 }) => {
   const { summary } = report
-  const successRate = summary.total > 0 ? (summary.passed / summary.total) * 100 : 0
+  const successRate = summary.total > 0
+    ? (summary.passed / summary.total) * 100
+    : 0
 
   const getSuccessRateColor = () => {
-    if (successRate >= 90) return 'text-green-600 dark:text-green-400'
-    if (successRate >= 70) return 'text-yellow-600 dark:text-yellow-400'
+    if (successRate >= 90)
+      return 'text-green-600 dark:text-green-400'
+    if (successRate >= 70)
+      return 'text-yellow-600 dark:text-yellow-400'
     return 'text-red-600 dark:text-red-400'
   }
 
   const formatDuration = (ms: number) => {
-    if (ms < 1000) return `${ms}ms`
-    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`
+    if (ms < 1000)
+      return `${ms}ms`
+    if (ms < 60000)
+      return `${(ms / 1000).toFixed(1)}s`
     return `${(ms / 60000).toFixed(1)}min`
   }
 
   return (
-    <Card className={cn('p-6', className)}>
+    <Card className={ cn('p-6', className) }>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-semibold">测试摘要</h2>
         {isRunning && (
@@ -42,7 +48,7 @@ export const TestSummary = memo<TestSummaryProps>(({
       <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
         {/* 总测试数 */}
         <div className="text-center">
-          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <div className="text-2xl text-gray-900 font-bold dark:text-gray-100">
             {summary.total}
           </div>
           <div className="text-sm text-gray-500">总测试数</div>
@@ -50,7 +56,7 @@ export const TestSummary = memo<TestSummaryProps>(({
 
         {/* 通过数 */}
         <div className="text-center">
-          <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+          <div className="text-2xl text-green-600 font-bold dark:text-green-400">
             {summary.passed}
           </div>
           <div className="text-sm text-gray-500">通过</div>
@@ -58,7 +64,7 @@ export const TestSummary = memo<TestSummaryProps>(({
 
         {/* 失败数 */}
         <div className="text-center">
-          <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+          <div className="text-2xl text-red-600 font-bold dark:text-red-400">
             {summary.failed}
           </div>
           <div className="text-sm text-gray-500">失败</div>
@@ -66,8 +72,9 @@ export const TestSummary = memo<TestSummaryProps>(({
 
         {/* 成功率 */}
         <div className="text-center">
-          <div className={cn('text-2xl font-bold', getSuccessRateColor())}>
-            {successRate.toFixed(1)}%
+          <div className={ cn('text-2xl font-bold', getSuccessRateColor()) }>
+            {successRate.toFixed(1)}
+            %
           </div>
           <div className="text-sm text-gray-500">成功率</div>
         </div>
@@ -77,20 +84,28 @@ export const TestSummary = memo<TestSummaryProps>(({
       <div className="mt-6">
         <div className="mb-2 flex justify-between text-sm">
           <span>测试进度</span>
-          <span>{summary.passed + summary.failed} / {summary.total}</span>
+          <span>
+            {summary.passed + summary.failed}
+            {' '}
+            /
+            {' '}
+            {summary.total}
+          </span>
         </div>
-        <div className="h-2 bg-gray-200 rounded-full dark:bg-gray-700">
+        <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-700">
           <div
-            className="h-2 bg-gradient-to-r from-green-500 to-blue-500 rounded-full transition-all duration-300"
-            style={{
-              width: `${summary.total > 0 ? ((summary.passed + summary.failed) / summary.total) * 100 : 0}%`,
-            }}
+            className="h-2 rounded-full from-green-500 to-blue-500 bg-gradient-to-r transition-all duration-300"
+            style={ {
+              width: `${summary.total > 0
+                ? ((summary.passed + summary.failed) / summary.total) * 100
+                : 0}%`,
+            } }
           />
         </div>
       </div>
 
       {/* 详细信息 */}
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 mt-6 gap-4 lg:grid-cols-3">
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-500">总耗时:</span>
           <span className="text-sm font-medium">
@@ -100,7 +115,9 @@ export const TestSummary = memo<TestSummaryProps>(({
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-500">平均耗时:</span>
           <span className="text-sm font-medium">
-            {summary.total > 0 ? formatDuration(summary.duration / summary.total) : '0ms'}
+            {summary.total > 0
+              ? formatDuration(summary.duration / summary.total)
+              : '0ms'}
           </span>
         </div>
         <div className="flex items-center justify-between">
@@ -113,30 +130,36 @@ export const TestSummary = memo<TestSummaryProps>(({
 
       {/* 状态指示器 */}
       <div className="mt-6 flex items-center justify-center">
-        <div className={cn(
+        <div className={ cn(
           'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium',
           isRunning
             ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
             : summary.failed === 0
               ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
               : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-        )}>
-          {isRunning ? (
-            <>
-              <div className="h-3 w-3 animate-spin border-b-2 border-current rounded-full"></div>
-              测试进行中
-            </>
-          ) : summary.failed === 0 ? (
-            <>
-              <span>✅</span>
-              所有测试通过
-            </>
-          ) : (
-            <>
-              <span>❌</span>
-              {summary.failed} 个测试失败
-            </>
-          )}
+        ) }>
+          {isRunning
+            ? (
+                <>
+                  <div className="h-3 w-3 animate-spin border-b-2 border-current rounded-full"></div>
+                  测试进行中
+                </>
+              )
+            : summary.failed === 0
+              ? (
+                  <>
+                    <span>✅</span>
+                    所有测试通过
+                  </>
+                )
+              : (
+                  <>
+                    <span>❌</span>
+                    {summary.failed}
+                    {' '}
+                    个测试失败
+                  </>
+                )}
         </div>
       </div>
     </Card>

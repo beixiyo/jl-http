@@ -2,7 +2,7 @@
  * 示例测试模块 - 展示如何使用辅助工具创建测试模块
  */
 
-import { createTestModule, createTestScenarios, createAssert, TestDataGenerator, PerformanceTracker } from '../helpers'
+import { createAssert, createTestModule, createTestScenarios, PerformanceTracker, TestDataGenerator } from '../helpers'
 import { createHttpInstance } from '../utils'
 
 /** 示例测试模块 */
@@ -70,8 +70,8 @@ export const exampleModule = createTestModule({
 
       log('success', `测试完成: ${scenario.name}`, { duration, result })
       return createSuccess(result, duration, { scenario: scenario.id })
-
-    } catch (error: any) {
+    }
+    catch (error: any) {
       log('error', `测试失败: ${error.message}`, error)
       return createError(error.message, 0)
     }
@@ -85,14 +85,14 @@ async function basicTestExample(config: any, helpers: any) {
 
   log('info', '开始基础测试示例')
 
-  // 创建HTTP实例
+  /** 创建HTTP实例 */
   const http = createHttpInstance(config)
 
-  // 发送GET请求
+  /** 发送GET请求 */
   log('info', '发送GET请求获取文章')
   const post = await http.get('/posts/1') as any
 
-  // 使用断言验证结果
+  /** 使用断言验证结果 */
   assert.assertTrue(post, '文章数据不能为空')
   assert.assertType(post.id, 'number', '文章ID应该是数字')
   assert.assertType(post.title, 'string', '文章标题应该是字符串')
@@ -118,10 +118,10 @@ async function performanceTestExample(config: any, helpers: any) {
   const http = createHttpInstance(config)
   const performanceThreshold = config.performanceThreshold || 1000
 
-  // 测量单个请求性能
+  /** 测量单个请求性能 */
   const { result: singleResult, duration: singleDuration } = await tracker.measure(
     'single-request',
-    () => http.get('/posts/1')
+    () => http.get('/posts/1'),
   )
 
   log('info', `单个请求耗时: ${singleDuration}ms`)
@@ -129,10 +129,10 @@ async function performanceTestExample(config: any, helpers: any) {
     singleDuration,
     0,
     performanceThreshold,
-    `单个请求耗时应在 ${performanceThreshold}ms 内`
+    `单个请求耗时应在 ${performanceThreshold}ms 内`,
   )
 
-  // 测量多个请求性能
+  /** 测量多个请求性能 */
   tracker.start('multiple-requests')
   const multipleResults = await Promise.all([
     http.get('/posts/1'),
@@ -144,7 +144,7 @@ async function performanceTestExample(config: any, helpers: any) {
   log('info', `多个请求耗时: ${multipleDuration}ms`)
   assert.assertTrue(multipleResults.length === 3, '应该返回3个结果')
 
-  // 计算平均响应时间
+  /** 计算平均响应时间 */
   const avgDuration = multipleDuration / 3
   log('info', `平均响应时间: ${avgDuration.toFixed(2)}ms`)
 
@@ -166,14 +166,14 @@ async function dataGenerationTestExample(config: any, helpers: any) {
 
   const http = createHttpInstance(config)
 
-  // 生成测试数据
+  /** 生成测试数据 */
   const testUser = TestDataGenerator.testUser()
   const testPost = TestDataGenerator.testPost()
 
   log('info', '生成测试用户数据', testUser)
   log('info', '生成测试文章数据', testPost)
 
-  // 验证生成的数据
+  /** 验证生成的数据 */
   assert.assertType(testUser.id, 'number', '用户ID应该是数字')
   assert.assertType(testUser.name, 'string', '用户名应该是字符串')
   assert.assertType(testUser.email, 'string', '邮箱应该是字符串')
@@ -183,7 +183,7 @@ async function dataGenerationTestExample(config: any, helpers: any) {
   assert.assertType(testPost.title, 'string', '文章标题应该是字符串')
   assert.assertType(testPost.body, 'string', '文章内容应该是字符串')
 
-  // 使用生成的数据创建文章
+  /** 使用生成的数据创建文章 */
   log('info', '使用生成的数据创建文章')
   const createdPost = await http.post('/posts', {
     title: testPost.title,

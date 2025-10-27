@@ -1,4 +1,4 @@
-import type { HttpMethod, ReqBody } from '../../types'
+import type { HttpMethod, ReqBody, SSEData } from '../../types'
 import type { BaseHttpReq, BaseReqConstructorConfig, BaseReqMethodConfig, FetchSSEReturn, Resp, SSEOptions } from './AbsBaseReqType'
 import { deepCompare } from '../../tools'
 
@@ -7,7 +7,7 @@ import { deepCompare } from '../../tools'
  */
 export abstract class AbsCacheReq implements BaseHttpReq {
   abstract http: BaseHttpReq
-  /** 缓存过期时间，默认 1 秒 */
+  /** 缓存过期时间(ms)，默认 1000ms */
   protected _cacheTimeout = 1000
   /** 未命中缓存 */
   protected static NO_MATCH_TAG = Symbol('No Match')
@@ -19,7 +19,7 @@ export abstract class AbsCacheReq implements BaseHttpReq {
   // ====================================================
 
   constructor(protected config: BaseCacheConstructorConfig) {
-    this.clearCachePeriodically()
+    this.clearCachePeriodically(config.cacheSweepInterval ?? 2000)
 
     const { cacheTimeout } = config
     if (cacheTimeout === undefined)
@@ -71,10 +71,10 @@ export abstract class AbsCacheReq implements BaseHttpReq {
     })
   }
 
-  /** 设置缓存超时时间 */
+  /** 设置全局缓存过期时间(ms) */
   set cacheTimeout(timeout: number) {
     if (timeout < 1) {
-      console.warn('缓存时间不能小于 1 毫秒')
+      console.warn('缓存时间不能小于 1ms')
       return
     }
     this._cacheTimeout = timeout
@@ -109,15 +109,15 @@ export abstract class AbsCacheReq implements BaseHttpReq {
     return ![AbsCacheReq.CACHE_TIMEOUT_TAG, AbsCacheReq.NO_MATCH_TAG, false].includes(cache)
   }
 
-  /** 定期清理缓存 */
-  protected clearCachePeriodically(gap = 2000) {
+  /** 定期清理缓存。控制后台清扫频率(ms)，不影响读取时的即时过期判断 */
+  protected clearCachePeriodically(cacheSweepInterval = 2000) {
     setInterval(
       () => {
         for (const url of this.cacheMap.keys()) {
           this.clearOneCache(url)
         }
       },
-      gap,
+      cacheSweepInterval,
     )
   }
 
@@ -170,6 +170,10 @@ export abstract class AbsCacheReq implements BaseHttpReq {
 
   fetchSSE(url: string, config?: SSEOptions): Promise<FetchSSEReturn> {
     return this.http.fetchSSE(url, config)
+  }
+
+  fetchSSEAsIterator(url: string, config?: SSEOptions): AsyncIterableIterator<SSEData> {
+    return this.http.fetchSSEAsIterator(url, config)
   }
 
   /**
@@ -231,20 +235,23 @@ export abstract class AbsCacheReq implements BaseHttpReq {
 }
 
 export interface BaseCacheConstructorConfig extends BaseReqConstructorConfig {
-  /** 缓存过期时间，默认 1 秒 */
+  /** 全局缓存过期时间(ms)，默认 1000ms */
   cacheTimeout?: number
+  /** 定期清理间隔(ms)，仅影响后台清扫频率，默认 2000ms */
+  cacheSweepInterval?: number
 }
 
 export interface BaseCacheReqMethodConfig extends BaseReqMethodConfig {
-  /** 缓存过期时间，默认 1 秒 */
+  /** 单次请求的缓存过期时间(ms)，默认 1000ms */
   cacheTimeout?: number
 }
 
 export type Cache = {
-  /** 缓存那一刻的时间 */
+  /** 写入缓存的时间戳(performance.now) */
   time: number
   params?: any
   /** 缓存的数据 */
   cacheData: any
+  /** 此条目专属的过期时间(ms)，优先于全局 */
   cacheTimeout?: number
 }

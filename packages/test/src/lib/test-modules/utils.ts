@@ -2,13 +2,15 @@
  * 测试模块工具函数
  */
 
-import { Http } from '@jl-org/http'
 import type { HttpTestConfig, TestLogEntry, TestResult } from './types'
+import { Http } from '@jl-org/http'
 
 /** 创建 HTTP 实例 */
 export function createHttpInstance(config: HttpTestConfig = {}): Http {
   return new Http({
-    baseUrl: config.baseUrl || 'https://jsonplaceholder.typicode.com',
+    baseUrl: config.baseUrl !== undefined
+      ? config.baseUrl
+      : 'https://jsonplaceholder.typicode.com',
     timeout: config.timeout || 10000,
     retry: config.retry || 2,
     cacheTimeout: config.cacheTimeout || 5000,
@@ -45,7 +47,7 @@ export function createTestLog(
 /** 测量执行时间 */
 export async function measureTime<T>(
   fn: () => Promise<T>,
-): Promise<{ result: T; duration: number }> {
+): Promise<{ result: T, duration: number }> {
   const startTime = Date.now()
   try {
     const result = await fn()
@@ -169,7 +171,7 @@ export function deepClone<T>(obj: T): T {
   if (obj instanceof Date) {
     return new Date(obj.getTime()) as any
   }
-  if (obj instanceof Array) {
+  if (Array.isArray(obj)) {
     return obj.map(item => deepClone(item)) as any
   }
   if (typeof obj === 'object') {
@@ -188,7 +190,7 @@ export function deepClone<T>(obj: T): T {
 export async function safeExecute<T>(
   fn: () => Promise<T>,
   fallback?: T,
-): Promise<{ success: boolean; data?: T; error?: string }> {
+): Promise<{ success: boolean, data?: T, error?: string }> {
   try {
     const data = await fn()
     return { success: true, data }
@@ -229,17 +231,17 @@ export async function retryExecute<T>(
 export async function executeConcurrent<T>(
   tasks: (() => Promise<T>)[],
   maxConcurrency: number = 3,
-): Promise<Array<{ status: 'fulfilled' | 'rejected'; value?: T; reason?: any }>> {
-  const results: Array<{ status: 'fulfilled' | 'rejected'; value?: T; reason?: any }> = []
+): Promise<Array<{ status: 'fulfilled' | 'rejected', value?: T, reason?: any }>> {
+  const results: Array<{ status: 'fulfilled' | 'rejected', value?: T, reason?: any }> = []
   const executing: Promise<void>[] = []
 
   for (let i = 0; i < tasks.length; i++) {
     const task = tasks[i]
     const promise = task()
-      .then(value => {
+      .then((value) => {
         results[i] = { status: 'fulfilled', value }
       })
-      .catch(reason => {
+      .catch((reason) => {
         results[i] = { status: 'rejected', reason }
       })
 

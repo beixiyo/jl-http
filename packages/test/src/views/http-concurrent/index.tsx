@@ -3,13 +3,12 @@ import { concurrentTask } from '@jl-org/http'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
-import { Input } from '@/components/Input'
-import { Select } from '@/components/Select'
-import { cn } from '@/utils'
 import { NumberInput } from '@/components/Input/NumberInput'
+import { Select } from '@/components/Select'
 import { TestModuleRunner } from '@/components/TestModuleRunner'
-import { createIntegratedPageProps } from '@/lib/test-modules/integration'
 import { createHttpInstance } from '@/lib/test-modules'
+import { createIntegratedPageProps } from '@/lib/test-modules/integration'
+import { cn } from '@/utils'
 
 interface ConcurrentLog {
   id: number
@@ -38,10 +37,10 @@ export default function HttpConcurrentTest() {
   const [showManualTest, setShowManualTest] = useState(false)
 
   if (!showManualTest) {
-    return <AutoTestMode onSwitchToManual={() => setShowManualTest(true)} />
+    return <AutoTestMode onSwitchToManual={ () => setShowManualTest(true) } />
   }
 
-  return <ManualTestMode onBack={() => setShowManualTest(false)} />
+  return <ManualTestMode onBack={ () => setShowManualTest(false) } />
 }
 
 function AutoTestMode({ onSwitchToManual }: { onSwitchToManual: () => void }) {
@@ -50,10 +49,10 @@ function AutoTestMode({ onSwitchToManual }: { onSwitchToManual: () => void }) {
   return (
     <div className="mx-auto max-w-7xl p-6">
       <TestModuleRunner
-        {...props}
-        onTestComplete={(scenarioId, result) => {
+        { ...props }
+        onTestComplete={ (scenarioId, result) => {
           console.log(`并发测试完成: ${scenarioId}`, result)
-        }}
+        } }
       />
 
       {/* 切换到手动测试 */}
@@ -65,7 +64,7 @@ function AutoTestMode({ onSwitchToManual }: { onSwitchToManual: () => void }) {
               切换到手动测试模式，可以自定义并发参数进行测试
             </p>
           </div>
-          <Button onClick={onSwitchToManual} designStyle="outlined">
+          <Button onClick={ onSwitchToManual } designStyle="outlined">
             切换到手动测试
           </Button>
         </div>
@@ -105,7 +104,7 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
   const createTasks = () => {
     const tasks: (() => Promise<any>)[] = []
 
-    // 创建 HTTP 实例
+    /** 创建 HTTP 实例 */
     const http = createHttpInstance({
       baseUrl: 'https://jsonplaceholder.typicode.com',
       timeout: 10000,
@@ -174,12 +173,12 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
             setTaskProgress(prev => prev.map(task =>
               task.taskIndex === i
                 ? {
-                  ...task,
-                  status: 'completed',
-                  endTime,
-                  duration: endTime - startTime,
-                  result,
-                }
+                    ...task,
+                    status: 'completed',
+                    endTime,
+                    duration: endTime - startTime,
+                    result,
+                  }
                 : task,
             ))
             return result
@@ -189,12 +188,12 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
             setTaskProgress(prev => prev.map(task =>
               task.taskIndex === i
                 ? {
-                  ...task,
-                  status: 'failed',
-                  endTime,
-                  duration: endTime - startTime,
-                  error: error.message || '任务失败',
-                }
+                    ...task,
+                    status: 'failed',
+                    endTime,
+                    duration: endTime - startTime,
+                    error: error.message || '任务失败',
+                  }
                 : task,
             ))
             throw error
@@ -330,7 +329,7 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
           </p>
         </div>
         <Button
-          onClick={onBack}
+          onClick={ onBack }
           designStyle="outlined"
         >
           返回自动测试
@@ -409,37 +408,37 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
           <div className="max-h-96 overflow-y-auto space-y-2">
             { taskProgress.length === 0
               ? (
-                <p className="py-8 text-center text-gray-500">暂无任务进度</p>
-              )
+                  <p className="py-8 text-center text-gray-500">暂无任务进度</p>
+                )
               : (
-                taskProgress.map(task => (
-                  <div
-                    key={ task.taskIndex }
-                    className="flex items-center justify-between border rounded-lg p-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="font-medium">
-                        任务
-                        { task.taskIndex + 1 }
-                      </span>
-                      <span className={ cn(
-                        'px-2 py-1 rounded text-xs font-medium',
-                        getTaskStatusColor(task.status),
-                      ) }>
-                        { task.status === 'pending' && '等待中' }
-                        { task.status === 'running' && '运行中' }
-                        { task.status === 'completed' && '已完成' }
-                        { task.status === 'failed' && '失败' }
-                      </span>
+                  taskProgress.map(task => (
+                    <div
+                      key={ task.taskIndex }
+                      className="flex items-center justify-between border rounded-lg p-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="font-medium">
+                          任务
+                          { task.taskIndex + 1 }
+                        </span>
+                        <span className={ cn(
+                          'px-2 py-1 rounded text-xs font-medium',
+                          getTaskStatusColor(task.status),
+                        ) }>
+                          { task.status === 'pending' && '等待中' }
+                          { task.status === 'running' && '运行中' }
+                          { task.status === 'completed' && '已完成' }
+                          { task.status === 'failed' && '失败' }
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        { task.duration
+                          ? `${task.duration}ms`
+                          : '-' }
+                      </div>
                     </div>
-                    <div className="text-sm text-gray-500">
-                      { task.duration
-                        ? `${task.duration}ms`
-                        : '-' }
-                    </div>
-                  </div>
-                ))
-              ) }
+                  ))
+                ) }
           </div>
         </Card>
       </div>
@@ -456,69 +455,69 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
         <div className="space-y-4">
           { logs.length === 0
             ? (
-              <p className="py-8 text-center text-gray-500">暂无执行日志</p>
-            )
+                <p className="py-8 text-center text-gray-500">暂无执行日志</p>
+              )
             : (
-              logs.map(log => (
-                <div
-                  key={ log.id }
-                  className={ cn(
-                    'p-4 rounded-lg border',
-                    log.status === 'completed'
-                      ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-                      : log.status === 'error'
-                        ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-                        : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
-                  ) }
-                >
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="font-medium">
-                      并发执行
-                      { ' ' }
-                      { log.taskCount }
-                      { ' ' }
-                      个任务
-                    </span>
-                    <div className="flex items-center gap-4 text-sm text-gray-500">
-                      <span>
-                        并发数:
-                        { log.maxConcurrency }
+                logs.map(log => (
+                  <div
+                    key={ log.id }
+                    className={ cn(
+                      'p-4 rounded-lg border',
+                      log.status === 'completed'
+                        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                        : log.status === 'error'
+                          ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                          : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
+                    ) }
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="font-medium">
+                        并发执行
+                        { ' ' }
+                        { log.taskCount }
+                        { ' ' }
+                        个任务
                       </span>
-                      <span>
-                        耗时:
-                        { log.duration }
-                        ms
-                      </span>
+                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <span>
+                          并发数:
+                          { log.maxConcurrency }
+                        </span>
+                        <span>
+                          耗时:
+                          { log.duration }
+                          ms
+                        </span>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="mb-2 text-sm text-gray-600 dark:text-gray-400">
-                    { log.timestamp }
-                    { ' ' }
-                    | 成功:
-                    { log.successCount }
-                    { ' ' }
-                    | 失败:
-                    { log.failureCount }
-                  </div>
-
-                  { log.status === 'running' && (
-                    <div className="flex items-center text-sm text-blue-600 dark:text-blue-400">
-                      <div className="mr-2 h-4 w-4 animate-spin border-b-2 border-current rounded-full"></div>
-                      任务执行中...
-                    </div>
-                  ) }
-
-                  { log.error && (
-                    <div className="text-sm text-red-600 dark:text-red-400">
-                      错误:
+                    <div className="mb-2 text-sm text-gray-600 dark:text-gray-400">
+                      { log.timestamp }
                       { ' ' }
-                      { log.error }
+                      | 成功:
+                      { log.successCount }
+                      { ' ' }
+                      | 失败:
+                      { log.failureCount }
                     </div>
-                  ) }
-                </div>
-              ))
-            ) }
+
+                    { log.status === 'running' && (
+                      <div className="flex items-center text-sm text-blue-600 dark:text-blue-400">
+                        <div className="mr-2 h-4 w-4 animate-spin border-b-2 border-current rounded-full"></div>
+                        任务执行中...
+                      </div>
+                    ) }
+
+                    { log.error && (
+                      <div className="text-sm text-red-600 dark:text-red-400">
+                        错误:
+                        { ' ' }
+                        { log.error }
+                      </div>
+                    ) }
+                  </div>
+                ))
+              ) }
         </div>
       </Card>
 

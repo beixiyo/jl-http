@@ -2,13 +2,12 @@ import { wait } from '@jl-org/http'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
-import { Select } from '@/components/Select'
-import { cn } from '@/utils'
 import { NumberInput } from '@/components/Input/NumberInput'
+import { Select } from '@/components/Select'
 import { TestModuleRunner } from '@/components/TestModuleRunner'
-import { createIntegratedPageProps } from '@/lib/test-modules/integration'
 import { createHttpInstance } from '@/lib/test-modules'
-
+import { createIntegratedPageProps } from '@/lib/test-modules/integration'
+import { cn } from '@/utils'
 
 interface RetryLog {
   id: number
@@ -33,10 +32,10 @@ export default function HttpRetryTest() {
   const [showManualTest, setShowManualTest] = useState(false)
 
   if (!showManualTest) {
-    return <AutoTestMode onSwitchToManual={() => setShowManualTest(true)} />
+    return <AutoTestMode onSwitchToManual={ () => setShowManualTest(true) } />
   }
 
-  return <ManualTestMode onBack={() => setShowManualTest(false)} />
+  return <ManualTestMode onBack={ () => setShowManualTest(false) } />
 }
 
 function AutoTestMode({ onSwitchToManual }: { onSwitchToManual: () => void }) {
@@ -45,10 +44,10 @@ function AutoTestMode({ onSwitchToManual }: { onSwitchToManual: () => void }) {
   return (
     <div className="mx-auto max-w-7xl p-6">
       <TestModuleRunner
-        {...props}
-        onTestComplete={(scenarioId, result) => {
+        { ...props }
+        onTestComplete={ (scenarioId, result) => {
           console.log(`重试测试完成: ${scenarioId}`, result)
-        }}
+        } }
       />
 
       {/* 切换到手动测试 */}
@@ -60,7 +59,7 @@ function AutoTestMode({ onSwitchToManual }: { onSwitchToManual: () => void }) {
               切换到手动测试模式，可以自定义重试参数进行测试
             </p>
           </div>
-          <Button onClick={onSwitchToManual} designStyle="outlined">
+          <Button onClick={ onSwitchToManual } designStyle="outlined">
             切换到手动测试
           </Button>
         </div>
@@ -115,17 +114,17 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
         setLogs(prev => prev.map(l =>
           l.id === log.id
             ? {
-              ...l,
-              attempts: [
-                ...l.attempts,
-                {
-                  attempt: attemptNumber,
-                  timestamp: new Date().toLocaleTimeString(),
-                  success: false,
-                  duration: 0,
-                },
-              ],
-            }
+                ...l,
+                attempts: [
+                  ...l.attempts,
+                  {
+                    attempt: attemptNumber,
+                    timestamp: new Date().toLocaleTimeString(),
+                    success: false,
+                    duration: 0,
+                  },
+                ],
+              }
             : l,
         ))
 
@@ -137,13 +136,13 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
         setLogs(prev => prev.map(l =>
           l.id === log.id
             ? {
-              ...l,
-              attempts: l.attempts.map((attempt, index) =>
-                index === l.attempts.length - 1
-                  ? { ...attempt, success: true, duration }
-                  : attempt,
-              ),
-            }
+                ...l,
+                attempts: l.attempts.map((attempt, index) =>
+                  index === l.attempts.length - 1
+                    ? { ...attempt, success: true, duration }
+                    : attempt,
+                ),
+              }
             : l,
         ))
         return response.data
@@ -154,18 +153,18 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
         setLogs(prev => prev.map(l =>
           l.id === log.id
             ? {
-              ...l,
-              attempts: l.attempts.map((attempt, index) =>
-                index === l.attempts.length - 1
-                  ? {
-                    ...attempt,
-                    success: false,
-                    error: error.status || error.message || '请求失败',
-                    duration,
-                  }
-                  : attempt,
-              ),
-            }
+                ...l,
+                attempts: l.attempts.map((attempt, index) =>
+                  index === l.attempts.length - 1
+                    ? {
+                        ...attempt,
+                        success: false,
+                        error: error.status || error.message || '请求失败',
+                        duration,
+                      }
+                    : attempt,
+                ),
+              }
             : l,
         ))
       },
@@ -192,10 +191,10 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
       setLogs(prev => prev.map(l =>
         l.id === log.id
           ? {
-            ...l,
-            finalError: err.message || '最终请求失败',
-            totalDuration,
-          }
+              ...l,
+              finalError: err.message || '最终请求失败',
+              totalDuration,
+            }
           : l,
       ))
     }
@@ -253,7 +252,7 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
           </p>
         </div>
         <Button
-          onClick={onBack}
+          onClick={ onBack }
           designStyle="outlined"
         >
           返回自动测试
@@ -337,86 +336,86 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
           <div className="max-h-96 overflow-y-auto space-y-4">
             { logs.length === 0
               ? (
-                <p className="py-8 text-center text-gray-500">暂无重试日志</p>
-              )
+                  <p className="py-8 text-center text-gray-500">暂无重试日志</p>
+                )
               : (
-                logs.map(log => (
-                  <div
-                    key={ log.id }
-                    className={ cn(
-                      'p-4 rounded-lg border',
-                      log.finalResult
-                        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-                        : log.finalError
-                          ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-                          : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
-                    ) }
-                  >
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="font-medium">
-                        { log.method }
-                        { ' ' }
-                        { log.url }
-                      </span>
-                      <span className="text-sm text-gray-500">
-                        { log.totalDuration }
-                        ms
-                      </span>
-                    </div>
-
-                    <div className="mb-2 text-sm text-gray-600 dark:text-gray-400">
-                      最大重试:
-                      { ' ' }
-                      { log.maxRetries }
-                      { ' ' }
-                      次 | 实际尝试:
-                      { ' ' }
-                      { log.attempts.length }
-                      { ' ' }
-                      次
-                    </div>
-
-                    {/* 尝试详情 */ }
-                    <div className="space-y-1">
-                      { log.attempts.map((attempt, index) => (
-                        <div
-                          key={ index }
-                          className={ cn(
-                            'text-xs p-2 rounded flex items-center justify-between',
-                            attempt.success
-                              ? 'bg-green-100 dark:bg-green-800/30 text-green-800 dark:text-green-200'
-                              : 'bg-red-100 dark:bg-red-800/30 text-red-800 dark:text-red-200',
-                          ) }
-                        >
-                          <span>
-                            尝试
-                            { ' ' }
-                            { attempt.attempt }
-                            :
-                            { ' ' }
-                            { attempt.success
-                              ? '成功'
-                              : '失败' }
-                            { attempt.error && ` (${attempt.error})` }
-                          </span>
-                          <span>
-                            { attempt.duration }
-                            ms
-                          </span>
-                        </div>
-                      )) }
-                    </div>
-
-                    { log.finalError && (
-                      <div className="mt-2 text-sm text-red-600 dark:text-red-400">
-                        最终错误:
-                        { ' ' }
-                        { log.finalError }
+                  logs.map(log => (
+                    <div
+                      key={ log.id }
+                      className={ cn(
+                        'p-4 rounded-lg border',
+                        log.finalResult
+                          ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                          : log.finalError
+                            ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                            : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
+                      ) }
+                    >
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="font-medium">
+                          { log.method }
+                          { ' ' }
+                          { log.url }
+                        </span>
+                        <span className="text-sm text-gray-500">
+                          { log.totalDuration }
+                          ms
+                        </span>
                       </div>
-                    ) }
-                  </div>
-                ))
-              ) }
+
+                      <div className="mb-2 text-sm text-gray-600 dark:text-gray-400">
+                        最大重试:
+                        { ' ' }
+                        { log.maxRetries }
+                        { ' ' }
+                        次 | 实际尝试:
+                        { ' ' }
+                        { log.attempts.length }
+                        { ' ' }
+                        次
+                      </div>
+
+                      {/* 尝试详情 */ }
+                      <div className="space-y-1">
+                        { log.attempts.map((attempt, index) => (
+                          <div
+                            key={ index }
+                            className={ cn(
+                              'text-xs p-2 rounded flex items-center justify-between',
+                              attempt.success
+                                ? 'bg-green-100 dark:bg-green-800/30 text-green-800 dark:text-green-200'
+                                : 'bg-red-100 dark:bg-red-800/30 text-red-800 dark:text-red-200',
+                            ) }
+                          >
+                            <span>
+                              尝试
+                              { ' ' }
+                              { attempt.attempt }
+                              :
+                              { ' ' }
+                              { attempt.success
+                                ? '成功'
+                                : '失败' }
+                              { attempt.error && ` (${attempt.error})` }
+                            </span>
+                            <span>
+                              { attempt.duration }
+                              ms
+                            </span>
+                          </div>
+                        )) }
+                      </div>
+
+                      { log.finalError && (
+                        <div className="mt-2 text-sm text-red-600 dark:text-red-400">
+                          最终错误:
+                          { ' ' }
+                          { log.finalError }
+                        </div>
+                      ) }
+                    </div>
+                  ))
+                ) }
           </div>
         </Card>
       </div>

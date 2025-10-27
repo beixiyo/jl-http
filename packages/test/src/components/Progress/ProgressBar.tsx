@@ -1,6 +1,6 @@
-import { cn } from '@/utils'
 import { clamp } from '@jl-org/tool'
 import { memo } from 'react'
+import { cn } from '@/utils'
 
 export const ProgressBar = memo<ProgressBarProps>((
   {

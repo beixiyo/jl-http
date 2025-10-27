@@ -1,13 +1,11 @@
+import type { TestExecutorState, TestModule, TestReport, TestResult } from '@/lib/test-modules'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
-import { TestResultCard, TestLogViewer, TestSummary } from '@/components/TestReport'
+import { TestLogViewer, TestResultCard, TestSummary } from '@/components/TestReport'
 import {
   defaultTestExecutor,
-  type TestModule,
-  type TestResult,
-  type TestExecutorState,
-  type TestReport
+
 } from '@/lib/test-modules'
 
 export default function HttpComprehensiveTest() {
@@ -18,12 +16,12 @@ export default function HttpComprehensiveTest() {
   const [selectedScenario, setSelectedScenario] = useState<string>()
   const [isRunning, setIsRunning] = useState(false)
 
-  // 初始化测试执行器
+  /** 初始化测试执行器 */
   useEffect(() => {
     setModules(defaultTestExecutor.getModules())
     setExecutorState(defaultTestExecutor.getState())
 
-    // 订阅状态变化
+    /** 订阅状态变化 */
     const unsubscribe = defaultTestExecutor.subscribe((state) => {
       setExecutorState(state)
     })
@@ -33,9 +31,10 @@ export default function HttpComprehensiveTest() {
     }
   }, [])
 
-  // 执行单个测试
+  /** 执行单个测试 */
   const executeTest = async (moduleId: string, scenarioId: string) => {
-    if (isRunning) return
+    if (isRunning)
+      return
 
     setIsRunning(true)
     setSelectedModule(moduleId)
@@ -43,64 +42,71 @@ export default function HttpComprehensiveTest() {
 
     try {
       await defaultTestExecutor.executeTest(moduleId, scenarioId)
-    } catch (error) {
+    }
+    catch (error) {
       console.error('测试执行失败:', error)
-    } finally {
+    }
+    finally {
       setIsRunning(false)
       setSelectedModule(undefined)
       setSelectedScenario(undefined)
     }
   }
 
-  // 执行模块的所有测试
+  /** 执行模块的所有测试 */
   const executeModule = async (moduleId: string) => {
-    if (isRunning) return
+    if (isRunning)
+      return
 
     setIsRunning(true)
     try {
       await defaultTestExecutor.executeModule(moduleId)
-    } catch (error) {
+    }
+    catch (error) {
       console.error('模块测试执行失败:', error)
-    } finally {
+    }
+    finally {
       setIsRunning(false)
     }
   }
 
-  // 执行所有测试
+  /** 执行所有测试 */
   const executeAllTests = async () => {
-    if (isRunning) return
+    if (isRunning)
+      return
 
     setIsRunning(true)
     try {
       const report = await defaultTestExecutor.executeAll()
       setCurrentReport(report)
-    } catch (error) {
+    }
+    catch (error) {
       console.error('全部测试执行失败:', error)
-    } finally {
+    }
+    finally {
       setIsRunning(false)
     }
   }
 
-  // 清空状态
+  /** 清空状态 */
   const clearAll = () => {
     defaultTestExecutor.clearState()
     setCurrentReport(undefined)
   }
 
-  // 获取测试结果
+  /** 获取测试结果 */
   const getTestResult = (moduleId: string, scenarioId: string): TestResult | undefined => {
-    if (!executorState) return undefined
+    if (!executorState)
+      return undefined
     return executorState.results.get(`${moduleId}_${scenarioId}`)
   }
 
-  // 检查测试是否正在运行
+  /** 检查测试是否正在运行 */
   const isTestRunning = (moduleId: string, scenarioId: string): boolean => {
-    return isRunning &&
-           selectedModule === moduleId &&
-           selectedScenario === scenarioId
+    return isRunning
+      && selectedModule === moduleId
+      && selectedScenario === scenarioId
   }
-
-
 
   return (
     <div className="mx-auto max-w-7xl p-6">
@@ -114,8 +120,8 @@ export default function HttpComprehensiveTest() {
       {/* 测试摘要 */}
       {currentReport && (
         <TestSummary
-          report={currentReport}
-          isRunning={isRunning}
+          report={ currentReport }
+          isRunning={ isRunning }
           className="mb-6"
         />
       )}
@@ -126,16 +132,16 @@ export default function HttpComprehensiveTest() {
           <h2 className="text-xl font-semibold">测试控制</h2>
           <div className="flex gap-2">
             <Button
-              onClick={executeAllTests}
-              loading={isRunning}
-              disabled={isRunning}
+              onClick={ executeAllTests }
+              loading={ isRunning }
+              disabled={ isRunning }
             >
               执行所有测试
             </Button>
             <Button
-              onClick={clearAll}
+              onClick={ clearAll }
               designStyle="outlined"
-              disabled={isRunning}
+              disabled={ isRunning }
             >
               清空重置
             </Button>
@@ -149,8 +155,8 @@ export default function HttpComprehensiveTest() {
 
       {/* 测试模块 */}
       <div className="space-y-8">
-        {modules.map((module) => (
-          <Card key={module.id} className="p-6">
+        {modules.map(module => (
+          <Card key={ module.id } className="p-6">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold">{module.name}</h3>
@@ -159,9 +165,9 @@ export default function HttpComprehensiveTest() {
                 </p>
               </div>
               <Button
-                onClick={() => executeModule(module.id)}
-                loading={isRunning}
-                disabled={isRunning}
+                onClick={ () => executeModule(module.id) }
+                loading={ isRunning }
+                disabled={ isRunning }
                 size="sm"
               >
                 执行模块
@@ -169,13 +175,13 @@ export default function HttpComprehensiveTest() {
             </div>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 md:grid-cols-2">
-              {module.scenarios.map((scenario) => (
+              {module.scenarios.map(scenario => (
                 <TestResultCard
-                  key={scenario.id}
-                  scenario={scenario}
-                  result={getTestResult(module.id, scenario.id)}
-                  isRunning={isTestRunning(module.id, scenario.id)}
-                  onClick={() => executeTest(module.id, scenario.id)}
+                  key={ scenario.id }
+                  scenario={ scenario }
+                  result={ getTestResult(module.id, scenario.id) }
+                  isRunning={ isTestRunning(module.id, scenario.id) }
+                  onClick={ () => executeTest(module.id, scenario.id) }
                 />
               ))}
             </div>
@@ -186,8 +192,8 @@ export default function HttpComprehensiveTest() {
       {/* 测试日志 */}
       {executorState && (
         <TestLogViewer
-          logs={executorState.logs}
-          onClear={clearAll}
+          logs={ executorState.logs }
+          onClear={ clearAll }
           className="mt-6"
         />
       )}

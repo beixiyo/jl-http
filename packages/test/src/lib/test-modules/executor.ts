@@ -2,7 +2,7 @@
  * 测试执行器 - 负责管理和执行测试模块
  */
 
-import type { TestExecutorState, TestLogEntry, TestModule, TestReport, TestResult, TestScenario, TestStatus } from './types'
+import type { TestExecutorState, TestLogEntry, TestModule, TestReport, TestResult, TestStatus } from './types'
 
 export class TestExecutor {
   private modules = new Map<string, TestModule>()
@@ -11,6 +11,7 @@ export class TestExecutor {
     logs: [],
     globalStatus: 'idle',
   }
+
   private listeners = new Set<(state: TestExecutorState) => void>()
 
   /** 注册测试模块 */
@@ -73,13 +74,13 @@ export class TestExecutor {
       throw new Error(`测试场景 ${scenarioId} 不存在`)
     }
 
-    // 验证配置
+    /** 验证配置 */
     const finalConfig = { ...module.getDefaultConfig(), ...config }
     if (!module.validateConfig(finalConfig)) {
       throw new Error('测试配置验证失败')
     }
 
-    // 更新状态
+    /** 更新状态 */
     this.state.currentTest = {
       moduleId,
       scenarioId,
@@ -93,24 +94,28 @@ export class TestExecutor {
     })
 
     try {
-      // 创建中断控制器
+      /** 创建中断控制器 */
       const abortController = new AbortController()
 
-      // 执行测试
+      /** 执行测试 */
       const result = await module.execute({
         scenario,
         config: finalConfig,
         abortController,
       })
 
-      // 保存结果
+      /** 保存结果 */
       const resultKey = `${moduleId}_${scenarioId}`
       this.state.results.set(resultKey, result)
 
       this.addLog({
-        level: result.success ? 'success' : 'error',
+        level: result.success
+          ? 'success'
+          : 'error',
         message: `测试完成: ${module.name} - ${scenario.name} (${result.duration}ms)`,
-        data: result.success ? result.data : result.error,
+        data: result.success
+          ? result.data
+          : result.error,
       })
 
       this.state.currentTest = undefined
@@ -156,11 +161,11 @@ export class TestExecutor {
       try {
         const result = await this.executeTest(moduleId, scenario.id, config)
         results.push(result)
-        // 测试间稍作延迟
+        /** 测试间稍作延迟 */
         await new Promise(resolve => setTimeout(resolve, 500))
       }
       catch (error) {
-        // 继续执行其他测试
+        /** 继续执行其他测试 */
         console.error(`测试 ${scenario.id} 失败:`, error)
       }
     }
@@ -176,7 +181,7 @@ export class TestExecutor {
     })
 
     const startTime = Date.now()
-    const allResults: Array<{ moduleId: string; scenarioId: string; result: TestResult }> = []
+    const allResults: Array<{ moduleId: string, scenarioId: string, result: TestResult }> = []
 
     for (const module of this.modules.values()) {
       for (const scenario of module.scenarios) {
@@ -189,10 +194,10 @@ export class TestExecutor {
           })
         }
         catch (error) {
-          // 记录错误但继续执行
+          /** 记录错误但继续执行 */
           console.error(`测试 ${module.id}/${scenario.id} 失败:`, error)
         }
-        // 测试间稍作延迟
+        /** 测试间稍作延迟 */
         await new Promise(resolve => setTimeout(resolve, 300))
       }
     }
@@ -214,7 +219,9 @@ export class TestExecutor {
     }
 
     this.addLog({
-      level: passed === allResults.length ? 'success' : 'warning',
+      level: passed === allResults.length
+        ? 'success'
+        : 'warning',
       message: `所有测试执行完成: 总计 ${allResults.length}, 通过 ${passed}, 失败 ${failed}`,
     })
 
