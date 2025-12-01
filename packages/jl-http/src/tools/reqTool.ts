@@ -1,5 +1,5 @@
 import type { BaseReqMethodConfig } from '@/core'
-import type { BaseReqConstructorConfig, RespErrInterceptorError } from '@/core/abs/AbsBaseReqType'
+import type { BaseReqConfig, BaseReqConstructorConfig, RespErrInterceptorError } from '@/core/abs/AbsBaseReqType'
 import type { HttpMethod } from '@/types'
 import qs from 'query-string'
 
@@ -81,30 +81,43 @@ export async function getReqConfig(
 
 /**
  * 统一处理响应错误拦截器，兼容 Response 和非 Response 错误
- * @param data 错误
+ * 入参只需要提供原始 error、可选的 rawResp 以及 request，最终都会转为 RespErrInterceptorError
+ * @param data 错误及请求信息
  * @param respErrInterceptor 响应错误拦截器
  */
 export function handleRespErrInterceptor(
-  data: RespErrInterceptorError,
+  data: {
+    error: any
+    request: BaseReqConfig
+    rawResp?: Response
+  },
   respErrInterceptor: BaseReqConstructorConfig['respErrInterceptor'],
 ) {
-  const { error, ...rest } = data
-  const errIsResponse = error instanceof Response
-  if (errIsResponse) {
-    respErrInterceptor?.(data)
+  const { error, request, rawResp } = data
+
+  let finalResp: Response
+  if (rawResp instanceof Response) {
+    finalResp = rawResp
+  }
+  else if (error instanceof Response) {
+    finalResp = error
   }
   else {
-    const mockResponse = {
+    // 将非 Response 错误包装成一个 mock Response，保证错误拦截器拿到的始终是 Response
+    finalResp = {
       ok: false,
       status: 0,
-      statusText: error.message || 'Unknown error',
-      text: async () => error.message || 'Unknown error',
-      json: async () => ({ error: error.message || 'Unknown error' }),
+      statusText: error?.message || 'Unknown error',
+      text: async () => error?.message || 'Unknown error',
+      json: async () => ({ error: error?.message || 'Unknown error' }),
     } as Response
-
-    respErrInterceptor?.({
-      error: mockResponse,
-      ...rest,
-    })
   }
+
+  const interceptorPayload: RespErrInterceptorError = {
+    rawResp: finalResp,
+    request,
+    error,
+  }
+
+  respErrInterceptor?.(interceptorPayload)
 }

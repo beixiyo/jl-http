@@ -151,21 +151,29 @@ export interface BaseReqConstructorConfig {
   /** 请求拦截 */
   reqInterceptor?: (config: Omit<BaseReqConfig, 'headers'> & { headers: any }) => any
   /** 响应拦截 */
-  respInterceptor?: (resp: Resp<any>) => any
+  respInterceptor?: RespInterceptor
   /** 错误拦截 */
-  respErrInterceptor?: (error: RespErrInterceptorError) => any
+  respErrInterceptor?: RespErrInterceptor
   /** Fetch 配置选项，优先级最低 */
   fetchOption?: FetchOptions
 }
 
 export type RespErrInterceptorError = {
-  url: string
-  method: HttpMethod
-  body: any
-  query: Record<string, any>
-  headers: Record<string, any>
+  /**
+   * fetch 返回的原始 Response
+   */
+  rawResp: Response
+  /**
+   * 请求时使用的最终配置
+   */
+  request: BaseReqConfig
+  /**
+   * 原始错误对象（可能是 Response 或其它错误）
+   */
   error: any
 }
+
+export type RespErrInterceptor = (error: RespErrInterceptorError) => any
 
 export interface Resp<T> {
   /** fetch 返回的原始对象 */
@@ -177,3 +185,5 @@ export interface Resp<T> {
   /** 请求时使用的最终配置 */
   request: BaseReqConfig
 }
+
+export type RespInterceptor<T = Resp<any>> = (resp: T) => T | Promise<T>

@@ -1,5 +1,14 @@
-export type { SSEOptions } from './abs/AbsBaseReqType'
-export type { BaseHttpReq, BaseReqMethodConfig, Resp } from './abs/AbsBaseReqType'
+export type {
+  SSEOptions,
+  BaseHttpReq,
+  BaseReqConfig,
+  BaseReqMethodConfig,
+  BaseReqConstructorConfig,
+  Resp,
+  RespInterceptor,
+  RespErrInterceptor,
+  RespErrInterceptorError,
+} from './abs/AbsBaseReqType'
 
 export type { AbsCacheReq } from './abs/AbsCacheReq'
 export type { BaseCacheConstructorConfig, BaseCacheReqMethodConfig } from './abs/AbsCacheReq'

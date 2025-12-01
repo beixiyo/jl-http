@@ -1,4 +1,4 @@
-import type { BaseHttpReq, BaseReqConfig, BaseReqConstructorConfig, BaseReqMethodConfig, FetchSSEReturn, Resp, RespErrInterceptorError, SSEOptions } from './abs/AbsBaseReqType'
+import type { BaseHttpReq, BaseReqConfig, BaseReqConstructorConfig, BaseReqMethodConfig, FetchSSEReturn, Resp, RespErrInterceptor, RespInterceptor, SSEOptions } from './abs/AbsBaseReqType'
 import type { HttpMethod, ReqBody, RespData, SSEData } from '@/types'
 import { TIME_OUT } from '@/constants'
 import { callbackToAsyncIterator, retryTask } from '@/tools'
@@ -68,11 +68,8 @@ export class BaseReq implements BaseHttpReq {
             handleRespErrInterceptor(
               {
                 error: response,
-                url,
-                body: formatConfig.body,
-                headers: formatConfig.headers,
-                method: rest.method,
-                query: formatConfig.query || {},
+                rawResp: response,
+                request: formatConfig,
               },
               respErrInterceptor,
             )
@@ -125,7 +122,7 @@ export class BaseReq implements BaseHttpReq {
             onProgress(-1)
           }
 
-          return await respInterceptor(res as any)
+          return await respInterceptor(res as unknown as HttpResponse)
         })
     }
   }
@@ -207,11 +204,8 @@ export class BaseReq implements BaseHttpReq {
           handleRespErrInterceptor(
             {
               error: resp,
-              url: withQueryUrl,
-              body: formatConfig.body,
-              headers: formatConfig.headers || {},
-              method: rest.method,
-              query: formatConfig.query || {},
+              rawResp: resp,
+              request: formatConfig,
             },
             respErrInterceptor,
           )
@@ -296,11 +290,7 @@ export class BaseReq implements BaseHttpReq {
         handleRespErrInterceptor(
           {
             error,
-            url: withQueryUrl,
-            body: formatConfig.body,
-            headers: formatConfig.headers || {},
-            method: rest.method,
-            query: formatConfig.query || {},
+            request: formatConfig,
           },
           respErrInterceptor,
         )
@@ -420,8 +410,8 @@ export class BaseReq implements BaseHttpReq {
 
   private getInterceptor<T>(config: BaseReqConfig) {
     let reqInterceptor = async (config: BaseReqMethodConfig) => config
-    let respInterceptor = async (config: T) => config
-    let respErrInterceptor: (error: RespErrInterceptorError) => any = () => { }
+    let respInterceptor: RespInterceptor<T> = async (config: T) => config
+    let respErrInterceptor: RespErrInterceptor = () => { }
 
     const defaultConfig = this.defaultConfig
     if (defaultConfig.reqInterceptor) {
@@ -429,7 +419,7 @@ export class BaseReq implements BaseHttpReq {
       reqInterceptor = defaultConfig.reqInterceptor
     }
     if (defaultConfig.respInterceptor) {
-      respInterceptor = defaultConfig.respInterceptor as any
+      respInterceptor = defaultConfig.respInterceptor as unknown as RespInterceptor<T>
     }
     if (defaultConfig.respErrInterceptor) {
       respErrInterceptor = defaultConfig.respErrInterceptor
@@ -440,7 +430,7 @@ export class BaseReq implements BaseHttpReq {
       reqInterceptor = config.reqInterceptor
     }
     if (config.respInterceptor) {
-      respInterceptor = config.respInterceptor as any
+      respInterceptor = config.respInterceptor as unknown as RespInterceptor<T>
     }
     if (config.respErrInterceptor) {
       respErrInterceptor = config.respErrInterceptor
