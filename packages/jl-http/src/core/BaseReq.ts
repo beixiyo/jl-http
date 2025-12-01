@@ -87,6 +87,7 @@ export class BaseReq implements BaseHttpReq {
               rawResp: response,
               data: null as T,
               reader,
+              request: formatConfig,
             }
           }
           else {
@@ -94,6 +95,7 @@ export class BaseReq implements BaseHttpReq {
             res = {
               rawResp: response,
               data,
+              request: formatConfig,
             }
           }
 

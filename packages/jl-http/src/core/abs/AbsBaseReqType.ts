@@ -174,4 +174,6 @@ export interface Resp<T> {
   data: T
   /** 如果 respType = stream，则返回一个可读流 */
   reader?: ReadableStreamDefaultReader<Uint8Array>
+  /** 请求时使用的最终配置 */
+  request: BaseReqConfig
 }
