@@ -46,7 +46,7 @@ describe('Http (缓存功能)', () => {
 
       instance.cacheTimeout = 0
 
-      expect(consoleSpy).toHaveBeenCalledWith('缓存时间不能小于 1 毫秒')
+      expect(consoleSpy).toHaveBeenCalledWith('缓存时间不能小于 1ms')
       consoleSpy.mockRestore()
     })
   })

@@ -154,6 +154,8 @@ export interface BaseReqConstructorConfig {
   respInterceptor?: (resp: Resp<any>) => any
   /** 错误拦截 */
   respErrInterceptor?: (error: RespErrInterceptorError) => any
+  /** Fetch 配置选项，优先级最低 */
+  fetchOption?: FetchOptions
 }
 
 export type RespErrInterceptorError = {

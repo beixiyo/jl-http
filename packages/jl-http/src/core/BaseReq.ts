@@ -27,6 +27,9 @@ export class BaseReq implements BaseHttpReq {
 
     const { data, url } = await getReqConfig(formatConfig, reqInterceptor, rest.method, withPrefixUrl)
 
+    // 获取构造器的 fetchOption，优先级最低
+    const fetchOption = this.defaultConfig.fetchOption || {}
+
     return new Promise((resolve, reject) => {
       const abort = new AbortController()
       const reason: RespData = {
@@ -56,6 +59,7 @@ export class BaseReq implements BaseHttpReq {
 
     async function _req(signal: AbortSignal) {
       return fetch(url, {
+        ...fetchOption,
         ...data,
         signal: rest.signal || signal,
       })
@@ -175,6 +179,9 @@ export class BaseReq implements BaseHttpReq {
       ...rest
     } = formatConfig
 
+    // 获取构造器的 fetchOption，优先级最低
+    const fetchOption = this.defaultConfig.fetchOption || {}
+
     const {
       reqInterceptor,
       respErrInterceptor,
@@ -186,7 +193,10 @@ export class BaseReq implements BaseHttpReq {
 
     fetch(
       withQueryUrl,
-      data,
+      {
+        ...fetchOption,
+        ...data,
+      },
     )
       .then(async (resp) => {
         if (!resp.ok) {
