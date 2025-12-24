@@ -16,6 +16,7 @@
     "@jl-org/eslint-plugins": "^1.0.0",
     "@unocss/eslint-plugin": "^66.1.2",
     "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint": "^9.37.0",
     "eslint-plugin-react-refresh": "^0.4.19"
   },
   "author": "CJL <2662442385@qq.com>",

@@ -19,8 +19,7 @@
     "test:cli": "vitest run test/cli",
     "test:all": "pnpm test:unit && pnpm test:integration && pnpm test:cli",
     "test:verify": "node run-all-tests.js --categories",
-    "test:full": "node run-all-tests.js --full",
-    "lint": "eslint ./src --fix"
+    "test:full": "node run-all-tests.js --full"
   },
   "dependencies": {
     "@jl-org/http": "workspace:*",

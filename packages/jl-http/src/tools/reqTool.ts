@@ -13,7 +13,8 @@ export function parseBody(data: any) {
     return {
       body: data,
       headers: {
-        'Content-Type': 'multipart/form-data',
+        /** 不需要手动设置 Content-Type，让 FormData 自己处理 boundary，否则可能会报错 */
+        // 'Content-Type': 'multipart/form-data',
       },
     }
   }
@@ -103,7 +104,7 @@ export function handleRespErrInterceptor(
     finalResp = error
   }
   else {
-    // 将非 Response 错误包装成一个 mock Response，保证错误拦截器拿到的始终是 Response
+    /** 将非 Response 错误包装成一个 mock Response，保证错误拦截器拿到的始终是 Response */
     finalResp = {
       ok: false,
       status: 0,

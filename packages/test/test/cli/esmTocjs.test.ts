@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
 // Create a simple test that doesn't rely on complex mocking
 // We'll test the transformation logic directly
@@ -15,57 +15,10 @@ function testEsmTocjs(content: string): string {
     .replace(/export default/g, 'module.exports =')
 }
 
-// Mock fs functions for writeTempFile tests
-vi.mock('node:fs', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('node:fs')>()
-  return {
-    ...actual,
-    readFileSync: vi.fn(),
-    writeFileSync: vi.fn(),
-    existsSync: vi.fn(),
-    mkdirSync: vi.fn(),
-  }
-})
-
-vi.mock('node:path', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('node:path')>()
-  return {
-    ...actual,
-    resolve: vi.fn(),
-  }
-})
-
-// Mock process.cwd
-const mockProcessCwd = vi.fn(() => '/mocked/cwd')
-Object.defineProperty(process, 'cwd', {
-  value: mockProcessCwd,
-  writable: true,
-  configurable: true,
-})
-
 // Import the actual functions for writeTempFile testing
 import { writeTempFile } from '../../../jl-http/src/cli/tools'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-
-// Get the mocked functions
-const mockReadFileSync = vi.mocked(readFileSync)
-const mockWriteFileSync = vi.mocked(writeFileSync)
-const mockExistsSync = vi.mocked(existsSync)
-const mockMkdirSync = vi.mocked(mkdirSync)
-const mockResolve = vi.mocked(resolve)
-
-
 
 describe('esmTocjs', () => {
-  beforeEach(() => {
-    // Clear call history but keep mock implementations
-    mockReadFileSync.mockClear()
-    mockWriteFileSync.mockClear()
-    mockExistsSync.mockClear()
-    mockMkdirSync.mockClear()
-    mockResolve.mockClear()
-  })
 
   describe('esmTocjs 函数', () => {
     it('应该将 ES6 import 转换为 CommonJS require', () => {

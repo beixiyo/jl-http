@@ -27,7 +27,7 @@ export class BaseReq implements BaseHttpReq {
 
     const { data, url } = await getReqConfig(formatConfig, reqInterceptor, rest.method, withPrefixUrl)
 
-    // 获取构造器的 fetchOption，优先级最低
+    /** 获取构造器的 fetchOption，优先级最低 */
     const fetchOption = this.defaultConfig.fetchOption || {}
 
     return new Promise((resolve, reject) => {
@@ -178,7 +178,7 @@ export class BaseReq implements BaseHttpReq {
       ...rest
     } = formatConfig
 
-    // 获取构造器的 fetchOption，优先级最低
+    /** 获取构造器的 fetchOption，优先级最低 */
     const fetchOption = this.defaultConfig.fetchOption || {}
 
     const {

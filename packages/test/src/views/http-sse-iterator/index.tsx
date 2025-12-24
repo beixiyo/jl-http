@@ -38,7 +38,7 @@ export default function HttpSSEIteratorTest() {
       /** 使用异步迭代器 */
       const iterator = http.fetchSSEAsIterator('/api/sse/chat', {
         method: 'POST',
-        body: { message: inputMessage || '测试异步迭代器功能', }
+        body: { message: inputMessage || '测试异步迭代器功能' },
       })
 
       addMessage('✅ 迭代器已创建，开始接收数据...')
@@ -136,25 +136,25 @@ export default function HttpSSEIteratorTest() {
         <div className="max-h-96 overflow-y-auto space-y-2">
           { messages.length === 0
             ? (
-              <div className="flex flex-col items-center justify-center py-12 text-gray-500">
-                <div className="mb-3 text-4xl">📋</div>
-                <p className="text-sm">暂无测试日志</p>
-                <p className="mt-1 text-xs">点击"开始迭代器测试"开始</p>
-              </div>
-            )
-            : (
-              messages.map(message => (
-                <div
-                  key={ message.id }
-                  className="border border-gray-200 rounded-lg bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="flex-1 text-sm">{ message.content }</span>
-                    <span className="flex-shrink-0 text-xs text-gray-500">{ message.timestamp }</span>
-                  </div>
+                <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                  <div className="mb-3 text-4xl">📋</div>
+                  <p className="text-sm">暂无测试日志</p>
+                  <p className="mt-1 text-xs">点击"开始迭代器测试"开始</p>
                 </div>
-              ))
-            ) }
+              )
+            : (
+                messages.map(message => (
+                  <div
+                    key={ message.id }
+                    className="border border-gray-200 rounded-lg bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="flex-1 text-sm">{ message.content }</span>
+                      <span className="flex-shrink-0 text-xs text-gray-500">{ message.timestamp }</span>
+                    </div>
+                  </div>
+                ))
+              ) }
         </div>
       </Card>
 
