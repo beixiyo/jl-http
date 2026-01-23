@@ -9,12 +9,12 @@ export interface BaseHttpReq {
   get: <T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig) => Promise<HttpResponse>
   head: <T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig) => Promise<HttpResponse>
 
-  delete: <T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig) => Promise<HttpResponse>
-  options: <T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig) => Promise<HttpResponse>
+  delete: <T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseReqMethodConfig, config?: BaseReqMethodConfig) => Promise<HttpResponse>
+  options: <T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseReqMethodConfig, config?: BaseReqMethodConfig) => Promise<HttpResponse>
 
-  post: <T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig) => Promise<HttpResponse>
-  put: <T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig) => Promise<HttpResponse>
-  patch: <T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig) => Promise<HttpResponse>
+  post: <T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseReqMethodConfig, config?: BaseReqMethodConfig) => Promise<HttpResponse>
+  put: <T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseReqMethodConfig, config?: BaseReqMethodConfig) => Promise<HttpResponse>
+  patch: <T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseReqMethodConfig, config?: BaseReqMethodConfig) => Promise<HttpResponse>
 
   fetchSSE: (url: string, config?: SSEOptions) => Promise<FetchSSEReturn>
   fetchSSEAsIterator: (url: string, config?: SSEOptions) => AsyncIterableIterator<SSEData>

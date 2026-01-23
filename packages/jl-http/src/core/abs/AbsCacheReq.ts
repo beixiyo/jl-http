@@ -148,23 +148,23 @@ export abstract class AbsCacheReq implements BaseHttpReq {
     return this.http.head<T, HttpResponse>(url, config)
   }
 
-  delete<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+  delete<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseReqMethodConfig, config?: BaseReqMethodConfig): Promise<HttpResponse> {
     return this.http.delete<T, HttpResponse>(url, data, config)
   }
 
-  options<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+  options<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseReqMethodConfig, config?: BaseReqMethodConfig): Promise<HttpResponse> {
     return this.http.options<T, HttpResponse>(url, data, config)
   }
 
-  post<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+  post<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseReqMethodConfig, config?: BaseReqMethodConfig): Promise<HttpResponse> {
     return this.http.post<T, HttpResponse>(url, data, config)
   }
 
-  put<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+  put<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseReqMethodConfig, config?: BaseReqMethodConfig): Promise<HttpResponse> {
     return this.http.put<T, HttpResponse>(url, data, config)
   }
 
-  patch<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+  patch<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseReqMethodConfig, config?: BaseReqMethodConfig): Promise<HttpResponse> {
     return this.http.patch<T, HttpResponse>(url, data, config)
   }
 
@@ -219,18 +219,28 @@ export abstract class AbsCacheReq implements BaseHttpReq {
   }
 
   /** 缓存响应，如果下次请求未超过缓存时间，则直接从缓存中获取 */
-  async cachePost<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config: BaseCacheReqMethodConfig = {}): Promise<HttpResponse> {
+  async cachePost<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseCacheReqMethodConfig, config: BaseCacheReqMethodConfig = {}): Promise<HttpResponse> {
     return this.cacheReq('post', url, data, config)
   }
 
   /** 缓存响应，如果下次请求未超过缓存时间，则直接从缓存中获取 */
-  async cachePut<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config: BaseCacheReqMethodConfig = {}): Promise<HttpResponse> {
+  async cachePut<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseCacheReqMethodConfig, config: BaseCacheReqMethodConfig = {}): Promise<HttpResponse> {
     return this.cacheReq('put', url, data, config)
   }
 
   /** 缓存响应，如果下次请求未超过缓存时间，则直接从缓存中获取 */
-  async cachePatch<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config: BaseCacheReqMethodConfig = {}): Promise<HttpResponse> {
+  async cachePatch<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseCacheReqMethodConfig, config: BaseCacheReqMethodConfig = {}): Promise<HttpResponse> {
     return this.cacheReq('patch', url, data, config)
+  }
+
+  /** 缓存响应，如果下次请求未超过缓存时间，则直接从缓存中获取 */
+  async cacheDelete<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseCacheReqMethodConfig, config: BaseCacheReqMethodConfig = {}): Promise<HttpResponse> {
+    return this.cacheReq('delete', url, data, config)
+  }
+
+  /** 缓存响应，如果下次请求未超过缓存时间，则直接从缓存中获取 */
+  async cacheOptions<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseCacheReqMethodConfig, config: BaseCacheReqMethodConfig = {}): Promise<HttpResponse> {
+    return this.cacheReq('options', url, data, config)
   }
 }
 

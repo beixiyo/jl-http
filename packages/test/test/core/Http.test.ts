@@ -9,7 +9,7 @@ global.fetch = mockFetch
 const mockPerformanceNow = vi.fn()
 global.performance = { now: mockPerformanceNow } as any
 
-describe('Http (缓存功能)', () => {
+describe('http (缓存功能)', () => {
   let http: Http
 
   beforeEach(() => {
@@ -37,7 +37,7 @@ describe('Http (缓存功能)', () => {
     it('应该设置缓存超时时间', () => {
       const instance = new Http({ cacheTimeout: 3000 })
       instance.cacheTimeout = 5000
-      // 缓存超时时间应该被更新（通过后续测试验证）
+      /** 缓存超时时间应该被更新（通过后续测试验证） */
     })
 
     it('应该拒绝小于1毫秒的缓存时间', () => {
@@ -66,7 +66,7 @@ describe('Http (缓存功能)', () => {
         '/test',
         expect.objectContaining({
           method: 'GET',
-        })
+        }),
       )
       expect(result.data).toEqual({ data: 'test' })
     })
@@ -87,7 +87,7 @@ describe('Http (缓存功能)', () => {
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify(data),
-        })
+        }),
       )
     })
   })
@@ -101,10 +101,10 @@ describe('Http (缓存功能)', () => {
       }
       mockFetch.mockResolvedValue(mockResponse)
 
-      // 第一次请求
+      /** 第一次请求 */
       const result1 = await http.cacheGet('/test', { query: { page: 1 } })
 
-      // 第二次相同请求应该从缓存返回
+      /** 第二次相同请求应该从缓存返回 */
       const result2 = await http.cacheGet('/test', { query: { page: 1 } })
 
       expect(mockFetch).toHaveBeenCalledTimes(1) // 只调用一次 fetch
@@ -127,7 +127,7 @@ describe('Http (缓存功能)', () => {
         .mockResolvedValueOnce(mockResponse1)
         .mockResolvedValueOnce(mockResponse2)
 
-      // 不同的查询参数应该分别缓存
+      /** 不同的查询参数应该分别缓存 */
       const result1 = await http.cacheGet('/test', { query: { page: 1 } })
       const result2 = await http.cacheGet('/test', { query: { page: 2 } })
 
@@ -152,11 +152,11 @@ describe('Http (缓存功能)', () => {
         .mockResolvedValueOnce(mockResponse1)
         .mockResolvedValueOnce(mockResponse2)
 
-      // 第一次请求
+      /** 第一次请求 */
       mockPerformanceNow.mockReturnValue(1000)
       const result1 = await http.cacheGet('/test')
 
-      // 模拟时间过去，缓存过期
+      /** 模拟时间过去，缓存过期 */
       mockPerformanceNow.mockReturnValue(4000) // 超过 2000ms 缓存时间
       const result2 = await http.cacheGet('/test')
 
@@ -173,11 +173,11 @@ describe('Http (缓存功能)', () => {
       }
       mockFetch.mockResolvedValue(mockResponse)
 
-      // 使用自定义缓存时间
+      /** 使用自定义缓存时间 */
       mockPerformanceNow.mockReturnValue(1000)
       await http.cacheGet('/test', { cacheTimeout: 5000 })
 
-      // 在默认缓存时间内，但在自定义缓存时间内
+      /** 在默认缓存时间内，但在自定义缓存时间内 */
       mockPerformanceNow.mockReturnValue(3000)
       await http.cacheGet('/test', { cacheTimeout: 5000 })
 
@@ -196,10 +196,10 @@ describe('Http (缓存功能)', () => {
 
       const data = { name: 'test' }
 
-      // 第一次请求
+      /** 第一次请求 */
       const result1 = await http.cachePost('/test', data)
 
-      // 第二次相同请求应该从缓存返回
+      /** 第二次相同请求应该从缓存返回 */
       const result2 = await http.cachePost('/test', data)
 
       expect(mockFetch).toHaveBeenCalledTimes(1)
@@ -222,7 +222,7 @@ describe('Http (缓存功能)', () => {
         .mockResolvedValueOnce(mockResponse1)
         .mockResolvedValueOnce(mockResponse2)
 
-      // 不同的请求体应该分别缓存
+      /** 不同的请求体应该分别缓存 */
       const result1 = await http.cachePost('/test', { id: 1 })
       const result2 = await http.cachePost('/test', { id: 2 })
 
@@ -252,7 +252,7 @@ describe('Http (缓存功能)', () => {
   })
 
   describe('缓存 PATCH 请求', () => {
-    it('应该缓存 PATCH 请求结果', async () => {
+    it('should cache PATCH 请求结果', async () => {
       const mockResponse = {
         ok: true,
         status: 200,
@@ -287,11 +287,11 @@ describe('Http (缓存功能)', () => {
         .mockResolvedValueOnce(mockResponse1)
         .mockResolvedValueOnce(mockResponse2)
 
-      // 第一次请求
+      /** 第一次请求 */
       mockPerformanceNow.mockReturnValue(1000)
       const result1 = await http.cacheGet('/test')
 
-      // 模拟时间过去，缓存过期
+      /** 模拟时间过去，缓存过期 */
       mockPerformanceNow.mockReturnValue(4000) // 超过 2000ms 缓存时间
       const result2 = await http.cacheGet('/test')
 
@@ -308,11 +308,11 @@ describe('Http (缓存功能)', () => {
       }
       mockFetch.mockResolvedValue(mockResponse)
 
-      // 相同的复杂对象应该命中缓存
+      /** 相同的复杂对象应该命中缓存 */
       const complexQuery = {
         filters: { status: 'active', type: 'user' },
         sort: { field: 'name', order: 'asc' },
-        pagination: { page: 1, size: 10 }
+        pagination: { page: 1, size: 10 },
       }
 
       const result1 = await http.cacheGet('/test', { query: complexQuery })
@@ -389,7 +389,7 @@ describe('Http (缓存功能)', () => {
       }
       mockFetch.mockResolvedValue(mockResponse)
 
-      // 使用不同的对象引用但相同的内容
+      /** 使用不同的对象引用但相同的内容 */
       const params1 = { page: 1, size: 10 }
       const params2 = { page: 1, size: 10 }
 

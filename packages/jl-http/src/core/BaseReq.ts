@@ -1,7 +1,7 @@
 import type { BaseHttpReq, BaseReqConfig, BaseReqConstructorConfig, BaseReqMethodConfig, FetchSSEReturn, Resp, RespErrInterceptor, RespInterceptor, SSEOptions } from './abs/AbsBaseReqType'
 import type { HttpMethod, ReqBody, RespData, SSEData } from '@/types'
 import { TIME_OUT } from '@/constants'
-import { callbackToAsyncIterator, retryTask } from '@/tools'
+import { callbackToAsyncIterator, maybeIsConfig, retryTask } from '@/tools'
 import { getReqConfig, handleRespErrInterceptor } from '@/tools/reqTool'
 import { SSEStreamProcessor } from '@/tools/SSEStreamProcessor'
 
@@ -137,23 +137,38 @@ export class BaseReq implements BaseHttpReq {
     return this.request({ url, method: 'HEAD', ...config })
   }
 
-  delete<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+  delete<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseReqMethodConfig, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+    if (maybeIsConfig(data, config)) {
+      return this.request({ url, method: 'DELETE', ...data })
+    }
     return this.request({ url, method: 'DELETE', body: data, ...config })
   }
 
-  options<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+  options<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseReqMethodConfig, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+    if (maybeIsConfig(data, config)) {
+      return this.request({ url, method: 'OPTIONS', ...data })
+    }
     return this.request({ url, method: 'OPTIONS', body: data, ...config })
   }
 
-  post<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+  post<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseReqMethodConfig, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+    if (maybeIsConfig(data, config)) {
+      return this.request({ url, method: 'POST', ...data })
+    }
     return this.request({ url, method: 'POST', body: data, ...config })
   }
 
-  put<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+  put<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseReqMethodConfig, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+    if (maybeIsConfig(data, config)) {
+      return this.request({ url, method: 'PUT', ...data })
+    }
     return this.request({ url, method: 'PUT', body: data, ...config })
   }
 
-  patch<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+  patch<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseReqMethodConfig, config?: BaseReqMethodConfig): Promise<HttpResponse> {
+    if (maybeIsConfig(data, config)) {
+      return this.request({ url, method: 'PATCH', ...data })
+    }
     return this.request({ url, method: 'PATCH', body: data, ...config })
   }
 

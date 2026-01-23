@@ -1,3 +1,6 @@
+import type { BaseReqMethodConfig } from '@/core'
+import type { ReqBody } from '@/types'
+
 /** 获取类型 */
 export const getType = (data: any) => (Object.prototype.toString.call(data) as string).slice(8, -1).toLowerCase()
 
@@ -64,4 +67,22 @@ export function deepCompare(o1: any, o2: any, seen = new WeakMap()) {
 
 export function isObj(data: any): data is object {
   return typeof data === 'object' && data !== null
+}
+
+/**
+ * 判断参数是否可能是配置对象
+ */
+export function maybeIsConfig(
+  data?: ReqBody | BaseReqMethodConfig,
+  config?: BaseReqMethodConfig
+): data is BaseReqMethodConfig {
+  if (
+    isObj(data) &&
+    !config &&
+    ('query' in data || 'headers' in data || 'body' in data || 'timeout' in data)
+  ) {
+    return true
+  }
+
+  return false
 }

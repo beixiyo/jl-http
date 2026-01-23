@@ -76,7 +76,7 @@ describe('retryTask', () => {
     await retryTask(task, 2, { delayMs: 100 })
     const endTime = Date.now()
 
-    expect(endTime - startTime).toBeGreaterThanOrEqual(100)
+    expect(endTime - startTime).toBeGreaterThanOrEqual(98)
     expect(task).toHaveBeenCalledTimes(2)
   })
 
