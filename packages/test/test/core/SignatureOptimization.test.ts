@@ -39,10 +39,31 @@ describe('method Signature Optimization: POST/PUT/PATCH/DELETE', () => {
 
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('action=sync'),
+      expect.not.objectContaining({
+        body: expect.anything(),
+      }),
+    )
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('action=sync'),
       expect.objectContaining({
         method: 'POST',
-        // When treated as config, body should NOT be the config object itself
-        body: undefined,
+      }),
+    )
+  })
+
+  it('should NOT include body when null is passed as body', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: vi.fn().mockResolvedValue({ success: true }),
+    })
+
+    await http.post('/api/test', null)
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/test',
+      expect.not.objectContaining({
+        body: expect.anything(),
       }),
     )
   })

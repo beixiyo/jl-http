@@ -9,6 +9,12 @@ import qs from 'query-string'
  * @returns 请求体和请求头
  */
 export function parseBody(data: any) {
+  if (data === undefined || data === null) {
+    return {
+      body: data,
+    }
+  }
+
   if (data instanceof FormData) {
     return {
       body: data,
@@ -67,10 +73,16 @@ export async function getReqConfig(
 
   const { body, headers } = parseBody(config.body)
   Object.assign(config.headers || {}, headers)
-  const data = await reqInterceptor({
-    ...config,
-    body,
-  })
+
+  const reqConfig: any = { ...config }
+  if (body === undefined || body === null) {
+    delete reqConfig.body
+  }
+  else {
+    reqConfig.body = body
+  }
+
+  const data = await reqInterceptor(reqConfig)
 
   return {
     data,
