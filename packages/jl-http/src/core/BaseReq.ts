@@ -371,15 +371,19 @@ export class BaseReq implements BaseHttpReq {
 
     const defaultConfig = this.defaultConfig || {}
 
+    /** 先 spread config，再显式合并 headers，避免 config.headers 为 undefined 时覆盖构造器的 defaultConfig.headers */
     const finalConfig = {
       respType,
       method,
-      headers: config.headers || defaultConfig.headers || {},
       timeout: config.timeout || defaultConfig.timeout || TIME_OUT,
       signal: config.signal,
       retry: config.retry ?? defaultConfig.retry ?? 0,
       onProgress: config.onProgress || defaultConfig.onProgress,
       ...config,
+      headers: {
+        ...(defaultConfig.headers || {}),
+        ...(config.headers || {}),
+      },
       url: (config.baseUrl ?? defaultConfig.baseUrl ?? '') + config.url,
     }
 
@@ -392,21 +396,12 @@ export class BaseReq implements BaseHttpReq {
       method = 'GET',
     } = config
 
-    const headers = {
-      Accept: 'text/event-stream',
-      ...(config.headers || defaultConfig.headers || {}),
-    }
-    if (method === 'POST') {
-      // @ts-ignore
-      headers['Content-Type'] = 'application/json'
-    }
-
+    /** 先 spread config，再显式合并 headers，避免 config.headers 为 undefined 时覆盖构造器的 defaultConfig.headers */
     const finalConfig: SSEOptions & {
       url: string
       method: HttpMethod
     } = {
       method,
-      headers,
       needParseData: true,
       needParseJSON: true,
       ignoreInvalidDataPrefix: true,
@@ -417,6 +412,14 @@ export class BaseReq implements BaseHttpReq {
         return currentContent
       },
       ...config,
+      headers: {
+        Accept: 'text/event-stream',
+        ...(defaultConfig.headers || {}),
+        ...(config.headers || {}),
+        ...(method === 'POST'
+          ? { 'Content-Type': 'application/json' }
+          : {}),
+      },
       url: ((config.baseUrl ?? defaultConfig.baseUrl) || '') + url,
     }
 

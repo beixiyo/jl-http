@@ -72,7 +72,8 @@ export async function getReqConfig(
   }
 
   const { body, headers } = parseBody(config.body)
-  Object.assign(config.headers || {}, headers)
+  /** 合并后赋值，避免 config.headers 为 undefined 时 Content-Type 丢失 */
+  config.headers = { ...(config.headers || {}), ...headers } as HeadersInit
 
   const reqConfig: any = { ...config }
   if (body === undefined || body === null) {

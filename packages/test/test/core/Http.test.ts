@@ -92,6 +92,63 @@ describe('http (缓存功能)', () => {
     })
   })
 
+  describe('默认 headers 传递', () => {
+    it('构造函数传入的 headers 应随 GET 请求发送', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue({ data: 'ok' }),
+      }
+      mockFetch.mockResolvedValue(mockResponse)
+
+      const httpWithHeaders = new Http({
+        headers: { 'X-Admin-Service-Key': 'test-key-12345' },
+      })
+      await httpWithHeaders.get('/api/test')
+
+      const [, fetchOptions] = mockFetch.mock.calls[0]
+      expect(fetchOptions.headers).toBeDefined()
+      expect(fetchOptions.headers['X-Admin-Service-Key']).toBe('test-key-12345')
+    })
+
+    it('构造函数传入的 headers 应随 POST 请求发送', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue({ success: true }),
+      }
+      mockFetch.mockResolvedValue(mockResponse)
+
+      const httpWithHeaders = new Http({
+        headers: { 'X-Admin-Service-Key': 'my-secret-key' },
+      })
+      await httpWithHeaders.post('/api/submit', { name: 'test' })
+
+      const [, fetchOptions] = mockFetch.mock.calls[0]
+      expect(fetchOptions.headers).toBeDefined()
+      expect(fetchOptions.headers['X-Admin-Service-Key']).toBe('my-secret-key')
+    })
+
+    /** 回归测试：当请求 config 显式传入 headers: undefined 时，构造器的 headers 仍应生效（防止 ...config 覆盖） */
+    it('请求 config 传入 headers: undefined 时，构造器 headers 仍应生效', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue({ data: 'ok' }),
+      }
+      mockFetch.mockResolvedValue(mockResponse)
+
+      const httpWithHeaders = new Http({
+        headers: { 'X-Admin-Service-Key': 'must-persist' },
+      })
+      await httpWithHeaders.get('/api/test', { headers: undefined } as any)
+
+      const [, fetchOptions] = mockFetch.mock.calls[0]
+      expect(fetchOptions.headers).toBeDefined()
+      expect(fetchOptions.headers['X-Admin-Service-Key']).toBe('must-persist')
+    })
+  })
+
   describe('缓存 GET 请求', () => {
     it('应该缓存 GET 请求结果', async () => {
       const mockResponse = {
