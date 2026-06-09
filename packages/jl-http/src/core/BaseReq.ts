@@ -65,7 +65,13 @@ export class BaseReq implements BaseHttpReq {
       })
         .then(async (response) => {
           if (!response.ok) {
-            handleRespErrInterceptor(
+            /**
+             * 错误拦截器与 respInterceptor 对称：其返回值会被消费。
+             * - 返回非 undefined 值 → 作为本次请求的 resolve 值（可实现「刷新 token 后透明重放」等错误恢复）
+             * - 抛出 / 返回 rejected Promise → 本次请求以该错误 reject（可改写错误对象，如附带业务 code）
+             * - 返回 undefined（纯副作用拦截器，含未显式 return 的 async）→ 向后兼容：以原始 Response reject
+             */
+            const recovered = await handleRespErrInterceptor(
               {
                 error: response,
                 rawResp: response,
@@ -73,6 +79,10 @@ export class BaseReq implements BaseHttpReq {
               },
               respErrInterceptor,
             )
+
+            if (recovered !== undefined) {
+              return recovered as HttpResponse
+            }
             return Promise.reject(response)
           }
 

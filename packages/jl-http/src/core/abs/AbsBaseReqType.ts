@@ -152,7 +152,14 @@ export interface BaseReqConstructorConfig {
   reqInterceptor?: (config: Omit<BaseReqConfig, 'headers'> & { headers: any }) => any
   /** 响应拦截 */
   respInterceptor?: RespInterceptor
-  /** 错误拦截 */
+  /**
+   * 错误拦截（仅 HTTP 非 2xx 时触发；网络错误 / 超时不经过此拦截器）
+   *
+   * 与 {@link RespInterceptor} 对称，返回值会被消费：
+   * - 返回非 `undefined` 值 → 作为本次请求的 resolve 值（错误恢复，如刷新 token 后透明重放）
+   * - 抛出 / 返回 rejected Promise → 本次请求以该错误 reject（可改写错误对象）
+   * - 返回 `undefined`（纯副作用，含未显式 return 的 async）→ 以原始 fetch `Response` reject
+   */
   respErrInterceptor?: RespErrInterceptor
   /** Fetch 配置选项，优先级最低 */
   fetchOption?: FetchOptions
@@ -173,6 +180,12 @@ export type RespErrInterceptorError = {
   error: any
 }
 
+/**
+ * 错误拦截器
+ *
+ * 返回值会被 `request` 消费（见 {@link BaseReqConstructorConfig.respErrInterceptor}）：
+ * 返回值→恢复为 resolve；抛出 / rejected Promise→reject；返回 `undefined`→以原始 Response reject
+ */
 export type RespErrInterceptor = (error: RespErrInterceptorError) => any
 
 export interface Resp<T> {

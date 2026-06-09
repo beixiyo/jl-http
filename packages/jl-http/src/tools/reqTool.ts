@@ -96,8 +96,12 @@ export async function getReqConfig(
 /**
  * 统一处理响应错误拦截器，兼容 Response 和非 Response 错误
  * 入参只需要提供原始 error、可选的 rawResp 以及 request，最终都会转为 RespErrInterceptorError
+ *
+ * 返回拦截器的执行结果（可能是值或 Promise），交由调用方决定是否消费：
+ * `request` 路径会消费它实现「错误恢复 / 改写 reject」，SSE 路径仅作副作用调用、忽略返回值
  * @param data 错误及请求信息
  * @param respErrInterceptor 响应错误拦截器
+ * @returns 错误拦截器的返回值（未配置拦截器时为 `undefined`）
  */
 export function handleRespErrInterceptor(
   data: {
@@ -133,5 +137,5 @@ export function handleRespErrInterceptor(
     error,
   }
 
-  respErrInterceptor?.(interceptorPayload)
+  return respErrInterceptor?.(interceptorPayload)
 }
