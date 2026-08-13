@@ -1,4 +1,5 @@
 import type { SSEStreamProcessorConfig } from '@/tools/SSEStreamProcessor'
+import type { RetryTaskOpts } from '@/tools/retryTask'
 import type { FetchType, HttpMethod, ReqBody, ReqHeaders, SSEData } from '@/types'
 
 /**
@@ -55,7 +56,7 @@ export type BaseReqConfig =
      * 重试请求次数
      * @default 0
      */
-    retry?: number
+    retry?: number | RetryRequestOptions
     /**
      * 请求进度回调函数，接收进度百分比值（0-1）
      * 如果无法计算进度（如服务器未返回 content-length），则传递 -1
@@ -64,6 +65,15 @@ export type BaseReqConfig =
   }
 
 export type BaseReqMethodConfig = Omit<BaseReqConfig, 'url'>
+
+/** 请求重试策略；maxAttempts 包含首次请求 */
+export type RetryRequestOptions = RetryTaskOpts & {
+  /**
+   * 包含首次请求在内的最大尝试次数
+   * @default 1
+   */
+  maxAttempts: number
+}
 
 export type SSEOptions = {
   /**
@@ -142,7 +152,7 @@ export interface BaseReqConstructorConfig {
    * 重试请求次数
    * @default 0
    */
-  retry?: number
+  retry?: number | RetryRequestOptions
   /**
    * 请求进度回调函数，接收进度百分比值（0-1）
    * 如果无法计算进度（如服务器未返回 content-length），则传递 -1

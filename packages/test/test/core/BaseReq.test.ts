@@ -70,6 +70,49 @@ describe('baseReq', () => {
       )
     })
 
+    it('应该在已有查询参数后追加 query 并保留 fragment', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue({ data: 'test' }),
+      })
+
+      await baseReq.get('/test?token=abc#result', {
+        query: { page: 1 },
+      })
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/test?token=abc&page=1#result',
+        expect.objectContaining({
+          method: 'GET',
+        }),
+      )
+    })
+
+    it('应该使用标准 URL 编码并将数组展开为重复参数', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue({ data: 'test' }),
+      })
+
+      await baseReq.get('/test', {
+        query: {
+          keyword: '中文 + &',
+          tag: ['one', 'two'],
+          empty: null,
+          omitted: undefined,
+        },
+      })
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/test?keyword=%E4%B8%AD%E6%96%87+%2B+%26&tag=one&tag=two',
+        expect.objectContaining({
+          method: 'GET',
+        }),
+      )
+    })
+
     it('应该处理 baseUrl', async () => {
       const req = new BaseReq({ baseUrl: 'https://api.example.com' })
       const mockResponse = {
@@ -133,6 +176,24 @@ describe('baseReq', () => {
         expect.objectContaining({
           method: 'POST',
           body: formData,
+        }),
+      )
+    })
+
+    it('应该原样上传 Blob 而不是 JSON 序列化', async () => {
+      mockFetch.mockResolvedValue(new Response('', { status: 200 }))
+      const blob = new Blob(['audio'], { type: 'audio/mp4' })
+
+      await baseReq.put('/upload', blob, {
+        headers: { 'Content-Type': blob.type },
+        respType: 'text',
+      })
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/upload',
+        expect.objectContaining({
+          body: blob,
+          headers: expect.objectContaining({ 'Content-Type': 'audio/mp4' }),
         }),
       )
     })
@@ -347,20 +408,20 @@ describe('baseReq', () => {
     it('应该处理超时', async () => {
       vi.useFakeTimers()
 
-      /** 模拟一个永远不会 resolve 的 Promise */
-      mockFetch.mockImplementation(() =>
-        new Promise(() => {}), // 永远不会 resolve
-      )
+      mockFetch.mockImplementation((_url, options) => new Promise((_resolve, reject) => {
+        options?.signal?.addEventListener('abort', () => reject(options.signal.reason))
+      }))
 
       const promise = baseReq.get('/test', { timeout: 1000 })
+      const assertion = expect(promise).rejects.toMatchObject({
+        code: 408,
+        message: expect.stringContaining('请求超时'),
+      })
 
       /** 快进时间触发超时 */
       await vi.advanceTimersByTimeAsync(1001) // 使用异步版本并稍微超过超时时间
 
-      await expect(promise).rejects.toMatchObject({
-        code: 408,
-        msg: expect.stringContaining('请求超时'),
-      })
+      await assertion
 
       vi.useRealTimers()
     }, 20000) // 增加测试超时时间
@@ -469,6 +530,55 @@ describe('baseReq', () => {
       })
       expect(mockFetch).toHaveBeenCalledTimes(2) // 1 次初始请求 + 1 次重试
     })
+
+    it('不应重试不可恢复的 HTTP 403', async () => {
+      mockFetch.mockResolvedValue(new Response('forbidden', { status: 403 }))
+
+      await expect(baseReq.put('/upload', new Blob(['audio']), {
+        respType: 'text',
+        retry: 3,
+      })).rejects.toMatchObject({ attempts: 1 })
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+    })
+
+    it('每次超时重试应该使用新的未中止 signal', async () => {
+      vi.useFakeTimers()
+      const signals: AbortSignal[] = []
+      mockFetch
+        .mockImplementationOnce((_url, options) => new Promise((_resolve, reject) => {
+          signals.push(options.signal)
+          options.signal.addEventListener('abort', () => reject(options.signal.reason))
+        }))
+        .mockImplementationOnce((_url, options) => {
+          signals.push(options.signal)
+          return Promise.resolve(new Response('', { status: 200 }))
+        })
+
+      const promise = baseReq.put('/upload', new Blob(['audio']), {
+        respType: 'text',
+        timeout: 1000,
+        retry: 2,
+      })
+      await vi.advanceTimersByTimeAsync(1001)
+      await expect(promise).resolves.toMatchObject({ data: '' })
+      expect(signals).toHaveLength(2)
+      expect(signals[0].aborted).toBe(true)
+      expect(signals[1].aborted).toBe(false)
+      vi.useRealTimers()
+    })
+
+    it('外部取消不应该继续重试', async () => {
+      const controller = new AbortController()
+      mockFetch.mockImplementation((_url, options) => new Promise((_resolve, reject) => {
+        options.signal.addEventListener('abort', () => reject(options.signal.reason))
+      }))
+
+      const promise = baseReq.get('/test', { signal: controller.signal, retry: 3 })
+      controller.abort()
+
+      await expect(promise).rejects.toMatchObject({ name: 'RetryError', attempts: 1 })
+      expect(mockFetch).toHaveBeenCalledTimes(0)
+    })
   })
 
   describe('请求中断', () => {
@@ -485,7 +595,7 @@ describe('baseReq', () => {
 
       await expect(baseReq.get('/test', { signal: controller.signal }))
         .rejects
-        .toThrow('The operation was aborted.')
+        .toMatchObject({ name: 'AbortError' })
     }, 15000) // 增加测试超时时间
   })
 
@@ -562,7 +672,7 @@ describe('baseReq', () => {
         const promise = baseReq.get('/test', { signal: controller.signal })
         controller.abort()
 
-        await expect(promise).rejects.toThrow('Aborted')
+        await expect(promise).rejects.toMatchObject({ name: 'AbortError' })
       })
     })
 
@@ -634,7 +744,7 @@ describe('baseReq', () => {
       })
     })
 
-    describe('reqTool 覆盖', () => {
+    describe('响应错误适配', () => {
       it('handleRespErrInterceptor 应处理非 Response 错误并提供 text/json 方法', async () => {
         const respErrInterceptor = vi.fn(async (err) => {
           await err.rawResp.text()

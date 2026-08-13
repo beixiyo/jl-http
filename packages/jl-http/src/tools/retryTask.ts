@@ -23,7 +23,7 @@ export async function retryTask<T>(
   maxAttempts = 3,
   opts: RetryTaskOpts = {},
 ): Promise<T> {
-  const { delayMs = 0 } = opts
+  const { delayMs = 0, onRetry, shouldRetry = () => true } = opts
   let attempts = 0
   let lastError: Error | undefined
   maxAttempts = Math.max(maxAttempts, 1)
@@ -39,7 +39,12 @@ export async function retryTask<T>(
         ? error
         : new Error(String(error))
 
-      if (attempts >= maxAttempts) {
+      const context = {
+        attempt: attempts,
+        maxAttempts,
+        error,
+      }
+      if (attempts >= maxAttempts || !shouldRetry(context)) {
         /** 所有尝试已用尽，抛出最终错误 */
         throw new RetryError(
           `Task failed after ${attempts} attempts. Last error: ${lastError.message}`,
@@ -48,11 +53,13 @@ export async function retryTask<T>(
         )
       }
       /** 如果还有重试机会，并且设置了延迟 */
-      if (delayMs > 0) {
-        await wait(delayMs)
+      const retryDelay = typeof delayMs === 'function'
+        ? delayMs(context)
+        : delayMs
+      onRetry?.(context)
+      if (retryDelay > 0) {
+        await wait(retryDelay)
       }
-      /** 可以在这里添加日志，记录重试尝试 */
-      console.log(`Attempt ${attempts} failed for task. Retrying...`)
     }
   }
 
@@ -71,5 +78,17 @@ export type RetryTaskOpts = {
   /**
    * 重试任务的延迟时间
    */
-  delayMs?: number
+  delayMs?: number | ((context: RetryContext) => number)
+  /** 返回 false 时立即停止重试并抛出 RetryError */
+  shouldRetry?: (context: RetryContext) => boolean
+  /** 下一次尝试开始前调用 */
+  onRetry?: (context: RetryContext) => void
+}
+
+export type RetryContext = {
+  /** 刚刚失败的尝试序号，从 1 开始 */
+  attempt: number
+  /** 包含首次请求在内的最大尝试次数 */
+  maxAttempts: number
+  error: unknown
 }

@@ -1,140 +1,17 @@
-import type { BaseHttpReq, BaseReqConfig, BaseReqConstructorConfig, BaseReqMethodConfig, FetchSSEReturn, Resp, RespErrInterceptor, RespInterceptor, SSEOptions } from './abs/AbsBaseReqType'
-import type { HttpMethod, ReqBody, RespData, SSEData } from '@/types'
-import { TIME_OUT } from '@/constants'
-import { callbackToAsyncIterator, maybeIsConfig, retryTask } from '@/tools'
-import { getReqConfig, handleRespErrInterceptor } from '@/tools/reqTool'
+import type { BaseHttpReq, BaseReqConfig, BaseReqConstructorConfig, BaseReqMethodConfig, FetchSSEReturn, Resp, SSEOptions } from './abs/AbsBaseReqType'
+import type { ReqBody, SSEData } from '@/types'
+import { normalizeSSEConfig, resolveInterceptors } from './requestConfig'
+import { executeRequest } from './requestExecutor'
+import { callbackToAsyncIterator, maybeIsConfig } from '@/tools'
+import { getReqConfig } from '@/tools/requestPreparation'
+import { handleRespErrInterceptor } from '@/tools/responseError'
 import { SSEStreamProcessor } from '@/tools/SSEStreamProcessor'
 
 export class BaseReq implements BaseHttpReq {
   constructor(private defaultConfig: BaseReqConstructorConfig = {}) { }
 
   async request<T, HttpResponse = Resp<T>>(config: BaseReqConfig): Promise<HttpResponse> {
-    const formatConfig = this.normalizeOpts(config)
-    const {
-      url: withPrefixUrl,
-      timeout,
-      respType,
-      retry,
-      onProgress,
-      ...rest
-    } = formatConfig
-
-    const {
-      reqInterceptor,
-      respInterceptor,
-      respErrInterceptor,
-    } = this.getInterceptor<HttpResponse>(config)
-
-    const { data, url } = await getReqConfig(formatConfig, reqInterceptor, rest.method, withPrefixUrl)
-
-    /** 获取构造器的 fetchOption，优先级最低 */
-    const fetchOption = this.defaultConfig.fetchOption || {}
-
-    return new Promise((resolve, reject) => {
-      const abort = new AbortController()
-      const reason: RespData = {
-        msg: `${url} 请求超时（Request Timeout）`,
-        code: 408,
-      }
-
-      /** 同步外部 */
-      if (rest.signal) {
-        rest.signal.addEventListener('abort', () => {
-          abort.abort()
-        })
-      }
-
-      if (timeout > 0) {
-        setTimeout(() => {
-          reject(reason)
-          abort.abort(reason)
-        }, timeout)
-      }
-
-      const res = retry >= 1
-        ? retryTask<HttpResponse>(() => _req(abort.signal), retry)
-        : _req(abort.signal)
-      res.then(resolve).catch(reject)
-    })
-
-    async function _req(signal: AbortSignal) {
-      return fetch(url, {
-        ...fetchOption,
-        ...data,
-        signal: rest.signal || signal,
-      })
-        .then(async (response) => {
-          if (!response.ok) {
-            /**
-             * 错误拦截器与 respInterceptor 对称：其返回值会被消费。
-             * - 返回非 undefined 值 → 作为本次请求的 resolve 值（可实现「刷新 token 后透明重放」等错误恢复）
-             * - 抛出 / 返回 rejected Promise → 本次请求以该错误 reject（可改写错误对象，如附带业务 code）
-             * - 返回 undefined（纯副作用拦截器，含未显式 return 的 async）→ 向后兼容：以原始 Response reject
-             */
-            const recovered = await handleRespErrInterceptor(
-              {
-                error: response,
-                rawResp: response,
-                request: formatConfig,
-              },
-              respErrInterceptor,
-            )
-
-            if (recovered !== undefined) {
-              return recovered as HttpResponse
-            }
-            return Promise.reject(response)
-          }
-
-          let res: Resp<T>
-          if (respType === 'stream') {
-            const reader = response.body?.getReader()
-
-            res = {
-              rawResp: response,
-              data: null as T,
-              reader,
-              request: formatConfig,
-            }
-          }
-          else {
-            const data = await response[respType]()
-            res = {
-              rawResp: response,
-              data,
-              request: formatConfig,
-            }
-          }
-
-          /**
-           * 进度处理
-           */
-          let contentLength: number
-          if (
-            onProgress
-            && (contentLength = Number(response.headers.get('content-length'))) > 0
-          ) {
-            const res = response.clone()
-            const reader = res.body!.getReader()
-            let loaded = 0
-            while (true) {
-              const { done, value } = await reader.read()
-              if (done) {
-                break
-              }
-
-              loaded += value.length
-              const progress = Number((loaded / contentLength).toFixed(2))
-              onProgress?.(progress)
-            }
-          }
-          else if (onProgress) {
-            onProgress(-1)
-          }
-
-          return await respInterceptor(res as unknown as HttpResponse)
-        })
-    }
+    return executeRequest<T, HttpResponse>(config, this.defaultConfig)
   }
 
   // ======================= 请求方法 =======================
@@ -186,7 +63,7 @@ export class BaseReq implements BaseHttpReq {
    * SSE 请求，默认使用 GET
    */
   async fetchSSE(url: string, config?: SSEOptions): Promise<FetchSSEReturn> {
-    const formatConfig = this.normalizeSSEOpts(url, config)
+    const formatConfig = normalizeSSEConfig(url, config, this.defaultConfig)
     const {
       url: withPrefixUrl,
       needParseData,
@@ -209,7 +86,7 @@ export class BaseReq implements BaseHttpReq {
     const {
       reqInterceptor,
       respErrInterceptor,
-    } = this.getInterceptor(formatConfig)
+    } = resolveInterceptors(formatConfig, this.defaultConfig)
     const { data, url: withQueryUrl } = await getReqConfig(formatConfig, reqInterceptor, rest.method, withPrefixUrl)
 
     const { promise, resolve, reject } = Promise.withResolvers<SSEData>()
@@ -371,103 +248,5 @@ export class BaseReq implements BaseHttpReq {
         cancelFn?.()
       }
     })
-  }
-
-  private normalizeOpts(config: BaseReqConfig) {
-    const {
-      respType = 'json',
-      method = 'GET',
-    } = config
-
-    const defaultConfig = this.defaultConfig || {}
-
-    /** 先 spread config，再显式合并 headers，避免 config.headers 为 undefined 时覆盖构造器的 defaultConfig.headers */
-    const finalConfig = {
-      respType,
-      method,
-      timeout: config.timeout || defaultConfig.timeout || TIME_OUT,
-      signal: config.signal,
-      retry: config.retry ?? defaultConfig.retry ?? 0,
-      onProgress: config.onProgress || defaultConfig.onProgress,
-      ...config,
-      headers: {
-        ...(defaultConfig.headers || {}),
-        ...(config.headers || {}),
-      },
-      url: (config.baseUrl ?? defaultConfig.baseUrl ?? '') + config.url,
-    }
-
-    return finalConfig
-  }
-
-  private normalizeSSEOpts(url: string, config: SSEOptions = {}) {
-    const defaultConfig = this.defaultConfig || {}
-    const {
-      method = 'GET',
-    } = config
-
-    /** 先 spread config，再显式合并 headers，避免 config.headers 为 undefined 时覆盖构造器的 defaultConfig.headers */
-    const finalConfig: SSEOptions & {
-      url: string
-      method: HttpMethod
-    } = {
-      method,
-      needParseData: true,
-      needParseJSON: true,
-      ignoreInvalidDataPrefix: true,
-      separator: '\n\n',
-      dataPrefix: 'data:',
-      doneSignal: '[DONE]',
-      handleData(currentContent) {
-        return currentContent
-      },
-      ...config,
-      headers: {
-        Accept: 'text/event-stream',
-        ...(defaultConfig.headers || {}),
-        ...(config.headers || {}),
-        ...(method === 'POST'
-          ? { 'Content-Type': 'application/json' }
-          : {}),
-      },
-      url: ((config.baseUrl ?? defaultConfig.baseUrl) || '') + url,
-    }
-
-    return finalConfig
-  }
-
-  private getInterceptor<T>(config: BaseReqConfig) {
-    let reqInterceptor = async (config: BaseReqMethodConfig) => config
-    let respInterceptor: RespInterceptor<T> = async (config: T) => config
-    let respErrInterceptor: RespErrInterceptor = () => { }
-
-    const defaultConfig = this.defaultConfig
-    if (defaultConfig.reqInterceptor) {
-      // @ts-ignore
-      reqInterceptor = defaultConfig.reqInterceptor
-    }
-    if (defaultConfig.respInterceptor) {
-      respInterceptor = defaultConfig.respInterceptor as unknown as RespInterceptor<T>
-    }
-    if (defaultConfig.respErrInterceptor) {
-      respErrInterceptor = defaultConfig.respErrInterceptor
-    }
-
-    if (config.reqInterceptor) {
-      // @ts-ignore
-      reqInterceptor = config.reqInterceptor
-    }
-    if (config.respInterceptor) {
-      respInterceptor = config.respInterceptor as unknown as RespInterceptor<T>
-    }
-    if (config.respErrInterceptor) {
-      respErrInterceptor = config.respErrInterceptor
-    }
-
-    return {
-      reqInterceptor,
-      respInterceptor,
-      respErrInterceptor,
-    }
   }
 }

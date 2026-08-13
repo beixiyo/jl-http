@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 describe('retryTask', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.spyOn(console, 'log').mockImplementation(() => {})
   })
 
   it('应该在第一次尝试成功时返回结果', async () => {
@@ -87,15 +86,26 @@ describe('retryTask', () => {
     expect(task).toHaveBeenCalledTimes(1)
   })
 
-  it('应该记录重试日志', async () => {
-    const consoleSpy = vi.spyOn(console, 'log')
+  it('应该通过回调报告重试而不是写控制台', async () => {
+    const onRetry = vi.fn()
     const task = vi.fn()
       .mockRejectedValueOnce(new Error('fail'))
       .mockResolvedValue('success')
 
-    await retryTask(task, 2)
+    await retryTask(task, 2, { onRetry })
 
-    expect(consoleSpy).toHaveBeenCalledWith('Attempt 1 failed for task. Retrying...')
+    expect(onRetry).toHaveBeenCalledWith(expect.objectContaining({
+      attempt: 1,
+      maxAttempts: 2,
+    }))
+  })
+
+  it('shouldRetry 返回 false 时应该立即停止', async () => {
+    const task = vi.fn().mockRejectedValue(new Error('do not retry'))
+
+    await expect(retryTask(task, 3, { shouldRetry: () => false }))
+      .rejects.toMatchObject({ attempts: 1 })
+    expect(task).toHaveBeenCalledTimes(1)
   })
 })
 

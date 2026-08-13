@@ -28,7 +28,7 @@ describe('baseReq Coverage Expansion', () => {
       const promise = baseReq.get('/test', { signal: controller.signal })
       controller.abort()
 
-      await expect(promise).rejects.toThrow('Aborted')
+      await expect(promise).rejects.toMatchObject({ name: 'AbortError' })
     })
   })
 
@@ -100,7 +100,7 @@ describe('baseReq Coverage Expansion', () => {
     })
   })
 
-  describe('reqTool 覆盖', () => {
+  describe('响应错误适配', () => {
     it('handleRespErrInterceptor 应处理非 Response 错误并提供 text/json 方法', async () => {
       const respErrInterceptor = vi.fn(async (err) => {
         await err.rawResp.text()
