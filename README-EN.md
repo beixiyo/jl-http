@@ -118,7 +118,48 @@ iotHttp.cacheGet('/device/list', {
 }).then(console.log)
 ```
 
-> 📝 Note: Cache is in-memory and is lost after a page refresh. A global sweep runs every 2 seconds by default to remove expired entries; additionally, each cached request checks and cleans its own expired entry on access. You can configure per-entry TTL via `cacheTimeout` (globally or per request); customizing the global sweep interval is not supported currently.
+> 📝 Note: Cache is in-memory and is lost after a page refresh. A global sweep runs every 2 seconds by default to remove expired entries; additionally, each cached request checks and cleans its own expired entry on access. You can configure per-entry TTL via `cacheTimeout` (globally or per request) and the sweep frequency via `cacheSweepInterval`.
+
+## ⚙️ Dynamic Configuration
+
+Instance configuration is not frozen at construction time. `baseUrl`, `headers`, `timeout`,
+`retry`, `fetchOption` and `cacheTimeout` accept a synchronous function that is evaluated
+once per request:
+
+```ts
+const http = new Http({
+  baseUrl: () => currentTenant.apiOrigin,
+  headers: () => ({ Authorization: `Bearer ${getToken()}` }),
+})
+```
+
+Any constructor field can also be updated at runtime with `setConfig`. Changes only affect
+requests started afterwards:
+
+```ts
+http.setConfig({
+  baseUrl: '/v2',
+  /** headers are merged incrementally; other fields are replaced */
+  headers: { 'X-Tenant': 'acme' },
+  /** passing undefined explicitly removes the field */
+  retry: undefined,
+  /** restarts the background sweep timer */
+  cacheSweepInterval: 5000,
+})
+
+/** Read-only snapshot; function-valued fields are returned as-is */
+http.getConfig()
+
+/** Stop the background sweep and clear the cache when the instance is no longer used */
+http.dispose()
+```
+
+Semantics:
+
+- Priority: per-request options > constructor config (including function results) > built-in defaults
+- Interceptors and `Resp.request` always see resolved plain values; per-request options do not accept functions
+- In-flight requests, SSE streams and their `reopen()` keep the snapshot taken when they started and are not affected by `setConfig`
+- A function-valued `cacheTimeout` is evaluated on every expiry check; `cacheSweepInterval` only accepts a number
 
 ## 🌊 SSE Incremental Streams
 
@@ -389,15 +430,19 @@ export class Test {
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `baseUrl` | `string` | `''` | Base URL for requests |
-| `timeout` | `number` | `10000` | Request timeout (ms) |
-| `retry` | `number` | `0` | Retry count on request failure |
-| `cacheTimeout` | `number` | `1000` | Cache expiration time (ms) |
-| `headers` | `object` | `{}` | Default request headers |
+| `baseUrl` | `string \| () => string` | `''` | Base URL for requests |
+| `timeout` | `number \| () => number` | `10000` | Request timeout (ms) |
+| `retry` | `number \| RetryRequestOptions \| () => ...` | `0` | Retry count on request failure |
+| `cacheTimeout` | `number \| () => number` | `1000` | Cache expiration time (ms) |
+| `cacheSweepInterval` | `number` | `2000` | Background sweep interval (ms); only affects sweep frequency |
+| `headers` | `HeadersInit \| () => HeadersInit` | `{}` | Default request headers |
+| `fetchOption` | `RequestInit \| () => RequestInit` | `{}` | Options passed through to fetch, lowest priority |
 | `reqInterceptor` | `function` | - | Request interceptor |
 | `respInterceptor` | `function` | - | Response interceptor |
 | `respErrInterceptor` | `function` | - | Error interceptor |
 | `onProgress` | `function` | - | Progress callback function |
+
+Function-valued fields are evaluated once per request; see "Dynamic Configuration" for `setConfig` / `getConfig` / `dispose`.
 
 ### Request Methods
 

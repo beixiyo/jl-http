@@ -1,15 +1,23 @@
 import type { HttpMethod, ReqBody } from '../../types'
 import type { SSEStream } from '../sse'
-import type { BaseHttpReq, BaseReqConstructorConfig, BaseReqMethodConfig, Resp, SSEOptions } from './AbsBaseReqType'
+import type { BaseHttpReq, BaseReqConstructorConfig, BaseReqMethodConfig, Resolvable, Resp, SSEOptions } from './AbsBaseReqType'
 import { deepCompare } from '../../tools'
+import { resolveValue } from '../requestConfig'
+
+const DEFAULT_CACHE_TIMEOUT = 1000
+const DEFAULT_CACHE_SWEEP_INTERVAL = 2000
 
 /**
  * 带缓存控制的请求基类
  */
 export abstract class AbsCacheReq implements BaseHttpReq {
   abstract http: BaseHttpReq
-  /** 缓存过期时间(ms)，默认 1000ms */
-  protected _cacheTimeout = 1000
+  /** 缓存过期时间(ms)，默认 1000ms；函数形式在每次过期判断时求值 */
+  protected _cacheTimeout: Resolvable<number> = DEFAULT_CACHE_TIMEOUT
+  /** 后台清扫间隔(ms) */
+  protected cacheSweepInterval = DEFAULT_CACHE_SWEEP_INTERVAL
+  /** 后台清扫定时器，`dispose()` 后为空 */
+  protected sweepTimer?: ReturnType<typeof setInterval>
   /** 未命中缓存 */
   protected static NO_MATCH_TAG = Symbol('No Match')
   /** 缓存已超时 */
@@ -19,13 +27,47 @@ export abstract class AbsCacheReq implements BaseHttpReq {
 
   // ====================================================
 
-  constructor(protected config: BaseCacheConstructorConfig) {
-    this.clearCachePeriodically(config.cacheSweepInterval ?? 2000)
+  constructor(config: BaseCacheConstructorConfig) {
+    this.clearCachePeriodically(config.cacheSweepInterval ?? DEFAULT_CACHE_SWEEP_INTERVAL)
 
     const { cacheTimeout } = config
     if (cacheTimeout === undefined)
       return
     this.cacheTimeout = cacheTimeout
+  }
+
+  getConfig(): Readonly<BaseCacheConstructorConfig> {
+    return {
+      ...this.http.getConfig(),
+      cacheTimeout: this._cacheTimeout,
+      cacheSweepInterval: this.cacheSweepInterval,
+    }
+  }
+
+  /**
+   * 更新实例默认配置，只影响之后发起的请求
+   *
+   * 请求相关字段转发给底层 `http`；`cacheTimeout`、`cacheSweepInterval` 传 `undefined` 时恢复默认值，
+   * 修改 `cacheSweepInterval` 会重启后台清扫定时器
+   */
+  setConfig(patch: BaseCacheConstructorConfig) {
+    const { cacheTimeout, cacheSweepInterval, ...reqPatch } = patch
+
+    if ('cacheTimeout' in patch)
+      this.cacheTimeout = cacheTimeout ?? DEFAULT_CACHE_TIMEOUT
+    if ('cacheSweepInterval' in patch)
+      this.clearCachePeriodically(cacheSweepInterval ?? DEFAULT_CACHE_SWEEP_INTERVAL)
+
+    this.http.setConfig(reqPatch)
+  }
+
+  /** 停止后台清扫并清空缓存；可重复调用 */
+  dispose() {
+    if (this.sweepTimer !== undefined) {
+      clearInterval(this.sweepTimer)
+      this.sweepTimer = undefined
+    }
+    this.cacheMap.clear()
   }
 
   static getErrMsg(status: number | string, msg?: string) {
@@ -72,13 +114,18 @@ export abstract class AbsCacheReq implements BaseHttpReq {
     })
   }
 
-  /** 设置全局缓存过期时间(ms) */
-  set cacheTimeout(timeout: number) {
-    if (timeout < 1) {
+  /** 设置全局缓存过期时间(ms)，可传每次过期判断时求值的函数 */
+  set cacheTimeout(timeout: Resolvable<number>) {
+    if (typeof timeout === 'number' && timeout < 1) {
       console.warn('缓存时间不能小于 1ms')
       return
     }
     this._cacheTimeout = timeout
+  }
+
+  /** 当前生效的全局缓存过期时间(ms) */
+  get cacheTimeout(): number {
+    return resolveValue(this._cacheTimeout)
   }
 
   protected compareCache(url: string, params: any) {
@@ -110,9 +157,13 @@ export abstract class AbsCacheReq implements BaseHttpReq {
     return ![AbsCacheReq.CACHE_TIMEOUT_TAG, AbsCacheReq.NO_MATCH_TAG, false].includes(cache)
   }
 
-  /** 定期清理缓存。控制后台清扫频率(ms)，不影响读取时的即时过期判断 */
-  protected clearCachePeriodically(cacheSweepInterval = 2000) {
-    setInterval(
+  /** 定期清理缓存。控制后台清扫频率(ms)，不影响读取时的即时过期判断；重复调用会替换旧定时器 */
+  protected clearCachePeriodically(cacheSweepInterval = DEFAULT_CACHE_SWEEP_INTERVAL) {
+    if (this.sweepTimer !== undefined)
+      clearInterval(this.sweepTimer)
+
+    this.cacheSweepInterval = cacheSweepInterval
+    this.sweepTimer = setInterval(
       () => {
         for (const url of this.cacheMap.keys()) {
           this.clearOneCache(url)
@@ -129,7 +180,7 @@ export abstract class AbsCacheReq implements BaseHttpReq {
       return AbsCacheReq.NO_MATCH_TAG
 
     const now = performance.now()
-    const { cacheTimeout = this._cacheTimeout, time } = cache
+    const { cacheTimeout = this.cacheTimeout, time } = cache
     /** 超时则删除 */
     if (now - time > cacheTimeout) {
       this.cacheMap.delete(url)
@@ -216,34 +267,57 @@ export abstract class AbsCacheReq implements BaseHttpReq {
   }
 
   /** 缓存响应，如果下次请求未超过缓存时间，则直接从缓存中获取 */
-  async cachePost<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseCacheReqMethodConfig, config: BaseCacheReqMethodConfig = {}): Promise<HttpResponse> {
+  async cachePost<T, HttpResponse = Resp<T>>(
+    url: string,
+    data?: ReqBody | BaseCacheReqMethodConfig,
+    config: BaseCacheReqMethodConfig = {},
+  ): Promise<HttpResponse> {
     return this.cacheReq('post', url, data, config)
   }
 
   /** 缓存响应，如果下次请求未超过缓存时间，则直接从缓存中获取 */
-  async cachePut<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseCacheReqMethodConfig, config: BaseCacheReqMethodConfig = {}): Promise<HttpResponse> {
+  async cachePut<T, HttpResponse = Resp<T>>(
+    url: string,
+    data?: ReqBody | BaseCacheReqMethodConfig,
+    config: BaseCacheReqMethodConfig = {},
+  ): Promise<HttpResponse> {
     return this.cacheReq('put', url, data, config)
   }
 
   /** 缓存响应，如果下次请求未超过缓存时间，则直接从缓存中获取 */
-  async cachePatch<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseCacheReqMethodConfig, config: BaseCacheReqMethodConfig = {}): Promise<HttpResponse> {
+  async cachePatch<T, HttpResponse = Resp<T>>(
+    url: string,
+    data?: ReqBody | BaseCacheReqMethodConfig,
+    config: BaseCacheReqMethodConfig = {},
+  ): Promise<HttpResponse> {
     return this.cacheReq('patch', url, data, config)
   }
 
   /** 缓存响应，如果下次请求未超过缓存时间，则直接从缓存中获取 */
-  async cacheDelete<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseCacheReqMethodConfig, config: BaseCacheReqMethodConfig = {}): Promise<HttpResponse> {
+  async cacheDelete<T, HttpResponse = Resp<T>>(
+    url: string,
+    data?: ReqBody | BaseCacheReqMethodConfig,
+    config: BaseCacheReqMethodConfig = {},
+  ): Promise<HttpResponse> {
     return this.cacheReq('delete', url, data, config)
   }
 
   /** 缓存响应，如果下次请求未超过缓存时间，则直接从缓存中获取 */
-  async cacheOptions<T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseCacheReqMethodConfig, config: BaseCacheReqMethodConfig = {}): Promise<HttpResponse> {
+  async cacheOptions<T, HttpResponse = Resp<T>>(
+    url: string,
+    data?: ReqBody | BaseCacheReqMethodConfig,
+    config: BaseCacheReqMethodConfig = {},
+  ): Promise<HttpResponse> {
     return this.cacheReq('options', url, data, config)
   }
 }
 
 export interface BaseCacheConstructorConfig extends BaseReqConstructorConfig {
-  /** 全局缓存过期时间(ms)，默认 1000ms */
-  cacheTimeout?: number
+  /**
+   * 全局缓存过期时间(ms)，可传每次过期判断时求值的函数
+   * @default 1000
+   */
+  cacheTimeout?: Resolvable<number>
   /** 定期清理间隔(ms)，仅影响后台清扫频率，默认 2000ms */
   cacheSweepInterval?: number
 }

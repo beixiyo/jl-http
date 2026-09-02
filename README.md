@@ -120,6 +120,45 @@ iotHttp.cacheGet('/device/list', {
 
 > 📝 注意：缓存为内存缓存，刷新页面后会丢失。默认每 2000ms 执行一次全局过期清理（可通过 `cacheSweepInterval` 配置）；此外，在发起缓存请求时也会同步检查并清理该请求对应的过期条目。可通过 `cacheTimeout` 配置每条缓存的过期时间（全局或按请求）
 
+## ⚙️ 动态配置
+
+实例配置不是一次性的。`baseUrl`、`headers`、`timeout`、`retry`、`fetchOption` 和
+`cacheTimeout` 可以传同步函数，每次请求发起时求值一次：
+
+```ts
+const http = new Http({
+  baseUrl: () => currentTenant.apiOrigin,
+  headers: () => ({ Authorization: `Bearer ${getToken()}` }),
+})
+```
+
+也可以在运行时用 `setConfig` 更新任意构造字段，只影响之后发起的请求：
+
+```ts
+http.setConfig({
+  baseUrl: '/v2',
+  /** headers 增量合并，其余字段覆盖 */
+  headers: { 'X-Tenant': 'acme' },
+  /** 显式传 undefined 会删除该字段 */
+  retry: undefined,
+  /** 修改后会重启后台清扫定时器 */
+  cacheSweepInterval: 5000,
+})
+
+/** 只读快照；函数形式的字段原样返回 */
+http.getConfig()
+
+/** 停止后台清扫并清空缓存，实例不再使用时调用 */
+http.dispose()
+```
+
+语义说明：
+
+- 优先级：单次请求参数 > 构造配置（含函数返回值） > 内置默认值
+- 拦截器和 `Resp.request` 看到的始终是求值后的纯值，单次请求参数不接受函数
+- 进行中的请求、SSE 流及其 `reopen()` 使用各自发起时的快照，不受 `setConfig` 影响
+- `cacheTimeout` 的函数形式在每次过期判断时求值；`cacheSweepInterval` 只接受数字
+
 ## 🌊 SSE 增量流
 
 `2.0.0` 起，`fetchSSE` 直接返回一次性异步迭代器。库内部只保存当前尚未被空行
@@ -387,16 +426,19 @@ export class Test {
 
 | 选项 | 类型 | 默认值 | 描述 |
 |------|------|--------|------|
-| `baseUrl` | `string` | `''` | 请求的基础URL |
-| `timeout` | `number` | `10000` | 请求超时时间(ms) |
-| `retry` | `number` | `0` | 请求失败重试次数 |
-| `cacheTimeout` | `number` | `1000` | 全局缓存过期时间(ms) |
+| `baseUrl` | `string \| () => string` | `''` | 请求的基础URL |
+| `timeout` | `number \| () => number` | `10000` | 请求超时时间(ms) |
+| `retry` | `number \| RetryRequestOptions \| () => ...` | `0` | 请求失败重试次数 |
+| `cacheTimeout` | `number \| () => number` | `1000` | 全局缓存过期时间(ms) |
 | `cacheSweepInterval` | `number` | `2000` | 定期清理间隔(ms)，仅影响后台清扫频率 |
-| `headers` | `object` | `{}` | 默认请求头 |
+| `headers` | `HeadersInit \| () => HeadersInit` | `{}` | 默认请求头 |
+| `fetchOption` | `RequestInit \| () => RequestInit` | `{}` | 透传给 fetch 的选项，优先级最低 |
 | `reqInterceptor` | `function` | - | 请求拦截器 |
 | `respInterceptor` | `function` | - | 响应拦截器 |
 | `respErrInterceptor` | `function` | - | 错误拦截器 |
 | `onProgress` | `function` | - | 进度回调函数 |
+
+函数形式在每次请求发起时求值；运行时修改见「动态配置」章节的 `setConfig` / `getConfig` / `dispose`
 
 ### 请求方法
 

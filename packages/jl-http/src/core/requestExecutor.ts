@@ -1,16 +1,16 @@
+import type { BaseReqConfig, BaseReqResolvedConfig, Resp, RetryRequestOptions } from './abs/AbsBaseReqType'
 /**
  * 执行普通 HTTP 请求，负责单次请求、超时、响应解析与重试生命周期
  */
-import type { BaseReqConfig, BaseReqConstructorConfig, Resp, RetryRequestOptions } from './abs/AbsBaseReqType'
-import { RequestTimeoutError } from './errors'
-import { normalizeRequestConfig, resolveInterceptors } from './requestConfig'
 import { getReqConfig } from '@/tools/requestPreparation'
 import { handleRespErrInterceptor } from '@/tools/responseError'
 import { retryTask } from '@/tools/retryTask'
+import { RequestTimeoutError } from './errors'
+import { normalizeRequestConfig, resolveInterceptors } from './requestConfig'
 
 export async function executeRequest<T, HttpResponse = Resp<T>>(
   config: BaseReqConfig,
-  defaultConfig: BaseReqConstructorConfig,
+  defaultConfig: BaseReqResolvedConfig,
 ): Promise<HttpResponse> {
   const formatConfig = normalizeRequestConfig(config, defaultConfig)
   const {
@@ -40,7 +40,8 @@ export async function executeRequest<T, HttpResponse = Resp<T>>(
     retryOptions.maxAttempts,
     {
       ...retryOptions,
-      shouldRetry: context => !isExternalAbort(context.error, rest.signal)
+      shouldRetry: context =>
+        !isExternalAbort(context.error, rest.signal)
         && (retryOptions.shouldRetry?.(context) ?? isRetryableRequestError(context.error)),
     },
   )

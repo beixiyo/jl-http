@@ -1,4 +1,4 @@
-import type { BaseReqConfig, BaseReqConstructorConfig, SSEOptions, SSEReopenOptions } from '../abs/AbsBaseReqType'
+import type { BaseReqConfig, BaseReqResolvedConfig, SSEOptions, SSEReopenOptions } from '../abs/AbsBaseReqType'
 import type { ParsedSSEMessage, SSEMessage, SSEStream } from './types'
 /**
  * SSE 增量请求执行器
@@ -344,7 +344,7 @@ export interface ExecuteSSERequestOptions<T> {
   /** 请求、解析和传输选项。 */
   config?: SSEOptions<T>
   /** BaseReq 实例级默认配置。 */
-  defaultConfig: BaseReqConstructorConfig
+  defaultConfig: BaseReqResolvedConfig
 }
 
 /** SSE 物理请求失败阶段。 */

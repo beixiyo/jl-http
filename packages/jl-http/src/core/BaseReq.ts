@@ -2,14 +2,27 @@ import type { BaseHttpReq, BaseReqConfig, BaseReqConstructorConfig, BaseReqMetho
 import type { SSEStream } from './sse'
 import type { ReqBody } from '@/types'
 import { maybeIsConfig } from '@/tools'
+import { mergeConstructorConfig, resolveConstructorConfig } from './requestConfig'
 import { executeRequest } from './requestExecutor'
 import { executeSSERequest } from './sse'
 
 export class BaseReq implements BaseHttpReq {
-  constructor(private defaultConfig: BaseReqConstructorConfig = {}) { }
+  private defaultConfig: BaseReqConstructorConfig
+
+  constructor(defaultConfig: BaseReqConstructorConfig = {}) {
+    this.defaultConfig = { ...defaultConfig }
+  }
+
+  getConfig(): Readonly<BaseReqConstructorConfig> {
+    return { ...this.defaultConfig }
+  }
+
+  setConfig(patch: BaseReqConstructorConfig) {
+    this.defaultConfig = mergeConstructorConfig(this.defaultConfig, patch)
+  }
 
   async request<T, HttpResponse = Resp<T>>(config: BaseReqConfig): Promise<HttpResponse> {
-    return executeRequest<T, HttpResponse>(config, this.defaultConfig)
+    return executeRequest<T, HttpResponse>(config, resolveConstructorConfig(this.defaultConfig))
   }
 
   // ======================= 请求方法 =======================
@@ -66,7 +79,7 @@ export class BaseReq implements BaseHttpReq {
     return executeSSERequest({
       url,
       config,
-      defaultConfig: this.defaultConfig,
+      defaultConfig: resolveConstructorConfig(this.defaultConfig),
     })
   }
 }

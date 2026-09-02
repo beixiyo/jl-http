@@ -2,7 +2,7 @@
  * 测试模块的核心类型定义
  */
 
-import type { BaseCacheConstructorConfig } from '@jl-org/http'
+import type { BaseCacheConstructorConfig, BaseReqResolvedConfig } from '@jl-org/http'
 
 /** 测试状态 */
 export type TestStatus = 'idle' | 'running' | 'success' | 'error'
@@ -90,8 +90,13 @@ export interface TestReport {
   logs: TestLogEntry[]
 }
 
-/** HTTP 测试配置 */
-export type HttpTestConfig = BaseCacheConstructorConfig
+/** HTTP 测试配置；测试页由表单驱动，只使用纯值形式，不接受函数字段 */
+export type HttpTestConfig =
+  & BaseReqResolvedConfig
+  & Pick<BaseCacheConstructorConfig, 'cacheSweepInterval'>
+  & {
+    cacheTimeout?: number
+  }
 
 /** 并发测试配置 */
 export interface ConcurrentTestConfig extends HttpTestConfig {

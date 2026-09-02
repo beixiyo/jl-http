@@ -5,7 +5,7 @@ import { BaseReq } from './BaseReq'
 export class Http extends AbsCacheReq {
   http: BaseReq
 
-  constructor(protected config: BaseCacheConstructorConfig) {
+  constructor(config: BaseCacheConstructorConfig = {}) {
     super(config)
     this.http = new BaseReq(config)
   }

@@ -7,7 +7,6 @@ import type { FetchType, HttpMethod, ReqBody, ReqHeaders } from '@/types'
  * 请求基础接口
  */
 export interface BaseHttpReq {
-
   get: <T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig) => Promise<HttpResponse>
   head: <T, HttpResponse = Resp<T>>(url: string, config?: BaseReqMethodConfig) => Promise<HttpResponse>
 
@@ -19,15 +18,28 @@ export interface BaseHttpReq {
   patch: <T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseReqMethodConfig, config?: BaseReqMethodConfig) => Promise<HttpResponse>
 
   fetchSSE: <T = unknown>(url: string, config?: SSEOptions<T>) => Promise<SSEStream<T>>
+
+  /** 返回实例默认配置的只读快照；函数形式的字段原样返回，不求值 */
+  getConfig: () => Readonly<BaseReqConstructorConfig>
+  /**
+   * 更新实例默认配置，只影响之后发起的请求
+   *
+   * 浅合并：`headers` 在双方都是纯值时增量合并，其余字段覆盖；显式传入 `undefined` 的字段会被删除
+   * 进行中的请求、SSE 流及其 `reopen()` 使用各自发起时的快照，不受影响
+   */
+  setConfig: (patch: BaseReqConstructorConfig) => void
 }
+
+/** 构造配置可以直接给值，也可以给每次请求发起时求值的同步函数 */
+export type Resolvable<T> = T | (() => T)
 
 export type FetchOptions = Omit<RequestInit, 'method'> & {
   method?: HttpMethod
 }
 
 export type BaseReqConfig =
-  Omit<FetchOptions, 'body'>
-  & BaseReqConstructorConfig
+  & Omit<FetchOptions, 'body'>
+  & BaseReqResolvedConfig
   & {
     /**
      * 返回类型，默认 json
@@ -91,10 +103,40 @@ export type SSEOptions<T = unknown> = SSEParserOptions & {
    * @default true
    */
   validateContentType?: boolean
-}
-& Omit<BaseReqConfig, 'url' | 'retry' | 'respType' | 'timeout' | 'onProgress'>
+} & Omit<BaseReqConfig, 'url' | 'retry' | 'respType' | 'timeout' | 'onProgress'>
 
-export interface BaseReqConstructorConfig {
+/**
+ * 实例级默认配置
+ *
+ * `baseUrl`、`headers`、`timeout`、`retry`、`fetchOption` 可以传同步函数，
+ * 每次请求发起时求值一次；单次请求参数和拦截器看到的始终是求值后的纯值
+ */
+export interface BaseReqConstructorConfig extends Omit<BaseReqResolvedConfig, ResolvableConfigKey> {
+  /**
+   * 基路径
+   * @default ''
+   */
+  baseUrl?: Resolvable<string>
+  headers?: Resolvable<ReqHeaders>
+  /**
+   * 请求超时时间，默认 10 秒
+   * @default 10000
+   */
+  timeout?: Resolvable<number>
+  /**
+   * 重试请求次数
+   * @default 0
+   */
+  retry?: Resolvable<number | RetryRequestOptions>
+  /** Fetch 配置选项，优先级最低 */
+  fetchOption?: Resolvable<FetchOptions>
+}
+
+/** 允许传函数的构造配置字段 */
+export type ResolvableConfigKey = 'baseUrl' | 'headers' | 'timeout' | 'retry' | 'fetchOption'
+
+/** 构造配置在单次请求发起时求值后的纯值形式 */
+export interface BaseReqResolvedConfig {
   /**
    * 基路径
    * @default ''
@@ -199,19 +241,21 @@ export interface SSEReopenOptions {
 }
 
 /** `reopen()` 允许修改的物理请求参数。 */
-export type SSEReopenRequestOverrides = Partial<Omit<
-  BaseReqConfig,
-  | 'baseUrl'
-  | 'fetchOption'
-  | 'onProgress'
-  | 'reqInterceptor'
-  | 'respErrInterceptor'
-  | 'respInterceptor'
-  | 'respType'
-  | 'retry'
-  | 'signal'
-  | 'timeout'
->>
+export type SSEReopenRequestOverrides = Partial<
+  Omit<
+    BaseReqConfig,
+    | 'baseUrl'
+    | 'fetchOption'
+    | 'onProgress'
+    | 'reqInterceptor'
+    | 'respErrInterceptor'
+    | 'respInterceptor'
+    | 'respType'
+    | 'retry'
+    | 'signal'
+    | 'timeout'
+  >
+>
 
 export interface Resp<T> {
   /** fetch 返回的原始对象 */
