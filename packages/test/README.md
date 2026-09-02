@@ -1,6 +1,6 @@
 # jl-http 完整测试文档
 
-这是 `@jl-org/http` 包的完整测试系统，包含两种测试方式：**Web页面真实测试** 和 **Vitest自动化测试**。
+这是 `@jl-org/http` 包的完整测试系统，包含两种测试方式：**Web页面真实测试** 和 **Vitest自动化测试**
 
 ## 📋 测试概述
 
@@ -20,7 +20,7 @@ cd packages/test
 pnpm dev
 ```
 
-项目将在 `http://localhost:5173` 启动（默认端口）。
+项目将在 `http://localhost:5173` 启动（默认端口）
 
 ### 2. Vitest自动化测试
 
@@ -95,7 +95,7 @@ test/
 │   ├── tool.test.ts      # 基础工具函数测试
 │   ├── retryTask.test.ts # 重试机制测试
 │   ├── concurrentTask.test.ts # 并发任务测试
-│   ├── SSEStreamProcessor.test.ts # SSE 流处理测试
+│   ├── SSEParser.test.ts # SSE 增量协议解析测试
 │   └── defineConfig.test.ts # 配置定义测试
 ├── cli/                  # CLI 工具测试
 │   ├── esmTocjs.test.ts  # ES6 到 CommonJS 转换测试
@@ -211,4 +211,4 @@ pnpm vitest run --grep "缓存"              # 运行匹配模式的测试
 
 ## 📞 反馈
 
-如果在测试过程中发现问题或有改进建议，请提交 Issue 或 Pull Request。
+如果在测试过程中发现问题或有改进建议，请提交 Issue 或 Pull Request

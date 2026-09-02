@@ -1,9 +1,9 @@
 import { BaseReq } from '@jl-org/http'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Mock fetch
+/** Mock fetch */
 const mockFetch = vi.fn()
-global.fetch = mockFetch
+globalThis.fetch = mockFetch
 
 describe('baseReq', () => {
   let baseReq: BaseReq
@@ -408,9 +408,11 @@ describe('baseReq', () => {
     it('应该处理超时', async () => {
       vi.useFakeTimers()
 
-      mockFetch.mockImplementation((_url, options) => new Promise((_resolve, reject) => {
-        options?.signal?.addEventListener('abort', () => reject(options.signal.reason))
-      }))
+      mockFetch.mockImplementation((_url, options) =>
+        new Promise((_resolve, reject) => {
+          options?.signal?.addEventListener('abort', () => reject(options.signal.reason))
+        }),
+      )
 
       const promise = baseReq.get('/test', { timeout: 1000 })
       const assertion = expect(promise).rejects.toMatchObject({
@@ -545,10 +547,12 @@ describe('baseReq', () => {
       vi.useFakeTimers()
       const signals: AbortSignal[] = []
       mockFetch
-        .mockImplementationOnce((_url, options) => new Promise((_resolve, reject) => {
-          signals.push(options.signal)
-          options.signal.addEventListener('abort', () => reject(options.signal.reason))
-        }))
+        .mockImplementationOnce((_url, options) =>
+          new Promise((_resolve, reject) => {
+            signals.push(options.signal)
+            options.signal.addEventListener('abort', () => reject(options.signal.reason))
+          }),
+        )
         .mockImplementationOnce((_url, options) => {
           signals.push(options.signal)
           return Promise.resolve(new Response('', { status: 200 }))
@@ -569,9 +573,11 @@ describe('baseReq', () => {
 
     it('外部取消不应该继续重试', async () => {
       const controller = new AbortController()
-      mockFetch.mockImplementation((_url, options) => new Promise((_resolve, reject) => {
-        options.signal.addEventListener('abort', () => reject(options.signal.reason))
-      }))
+      mockFetch.mockImplementation((_url, options) =>
+        new Promise((_resolve, reject) => {
+          options.signal.addEventListener('abort', () => reject(options.signal.reason))
+        }),
+      )
 
       const promise = baseReq.get('/test', { signal: controller.signal, retry: 3 })
       controller.abort()
@@ -652,6 +658,32 @@ describe('baseReq', () => {
         }),
       )
     })
+
+    it('应该支持所有 HeadersInit 形式并按大小写不敏感覆盖同名头部', async () => {
+      const req = new BaseReq({
+        headers: new Headers({
+          'Authorization': 'Bearer stale-token',
+          'X-Default': 'default-value',
+        }),
+      })
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue({ data: 'test' }),
+      })
+
+      await req.get('/test', {
+        headers: [
+          ['authorization', 'Bearer fresh-token'],
+          ['X-Request', 'request-value'],
+        ],
+      })
+
+      const requestHeaders = new Headers(mockFetch.mock.calls[0][1]?.headers)
+      expect(requestHeaders.get('authorization')).toBe('Bearer fresh-token')
+      expect(requestHeaders.get('x-default')).toBe('default-value')
+      expect(requestHeaders.get('x-request')).toBe('request-value')
+    })
   })
 
   describe('覆盖率补充', () => {
@@ -692,7 +724,9 @@ describe('baseReq', () => {
           body: {
             getReader: vi.fn().mockReturnValue(mockReader),
           },
-          clone() { return this },
+          clone() {
+            return this
+          },
           json: vi.fn().mockResolvedValue({ success: true }),
         }
         mockFetch.mockResolvedValue(mockResponse)
@@ -755,8 +789,7 @@ describe('baseReq', () => {
         /** 在 fetchSSE 中，catch 块会调用 handleRespErrInterceptor */
         mockFetch.mockRejectedValue(new Error('SSE Network Error'))
 
-        const { promise } = await req.fetchSSE('/sse')
-        await expect(promise).rejects.toThrow('SSE Network Error')
+        await expect(req.fetchSSE('/sse')).rejects.toThrow('SSE Network Error')
         expect(respErrInterceptor).toHaveBeenCalled()
       })
 
@@ -769,105 +802,6 @@ describe('baseReq', () => {
 
         await expect(req.get('/test')).rejects.toEqual(mockResp)
         expect(respErrInterceptor).toHaveBeenCalled()
-      })
-    })
-
-    describe('sSE 异常处理', () => {
-      it('fetchSSE 响应不 OK 时应触发 onError 和拦截器', async () => {
-        const onError = vi.fn()
-        const respErrInterceptor = vi.fn()
-        const mockResponse = {
-          ok: false,
-          status: 500,
-        }
-        mockFetch.mockResolvedValue(mockResponse)
-
-        const req = new BaseReq({ respErrInterceptor })
-        const { promise } = await req.fetchSSE('/sse', { onError })
-
-        await expect(promise).rejects.toEqual(mockResponse)
-        expect(onError).toHaveBeenCalledWith(mockResponse)
-        expect(respErrInterceptor).toHaveBeenCalled()
-      })
-
-      it('fetchSSE 取消应调用 reader.cancel', async () => {
-        const mockReader = {
-          read: vi.fn().mockReturnValue(new Promise(() => { })),
-          cancel: vi.fn(),
-        }
-        const mockResponse = {
-          ok: true,
-          body: {
-            getReader: vi.fn().mockReturnValue(mockReader),
-          },
-          headers: new Headers(),
-        }
-        mockFetch.mockResolvedValue(mockResponse)
-
-        const { promise, cancel } = await baseReq.fetchSSE('/sse')
-        cancel()
-
-        expect(mockReader.cancel).toHaveBeenCalled()
-        await expect(promise).rejects.toThrow('Request canceled by user')
-      })
-    })
-
-    describe('sSE Iterator 异常处理', () => {
-      it('fetchSSEAsIterator 初始化失败应触发 onError', async () => {
-        const onError = vi.fn()
-        /** 让 normalizeSSEOpts -> getReqConfig -> reqInterceptor 抛出错误 */
-        const req = new BaseReq({
-          reqInterceptor: () => { throw new Error('Interceptor failed') },
-        })
-
-        const iterator = req.fetchSSEAsIterator('/sse', { onError })
-        const result = await iterator.next()
-
-        expect(result.done).toBe(true)
-        expect(onError).toHaveBeenCalled()
-      })
-
-      it('fetchSSEAsIterator 取消应调用 cancelFn', async () => {
-        const mockReader = {
-          read: vi.fn().mockReturnValue(new Promise(() => { })),
-          cancel: vi.fn(),
-        }
-        mockFetch.mockResolvedValue({
-          ok: true,
-          body: { getReader: vi.fn().mockReturnValue(mockReader) },
-          headers: new Headers(),
-        })
-
-        const iterator = baseReq.fetchSSEAsIterator('/sse')
-        /** 启动请求 */
-        iterator.next()
-
-        /** 等待 fetchSSE 完成并设置 cancelFn */
-        await new Promise(resolve => setTimeout(resolve, 0))
-
-        await iterator.return?.()
-        expect(mockReader.cancel).toHaveBeenCalled()
-      })
-    })
-
-    describe('sSE POST Content-Type', () => {
-      it('sSE POST 请求应自动设置 Content-Type', async () => {
-        mockFetch.mockResolvedValue({
-          ok: true,
-          body: { getReader: vi.fn().mockReturnValue({ read: vi.fn().mockResolvedValue({ done: true }) }) },
-          headers: new Headers(),
-        })
-
-        await baseReq.fetchSSE('/sse', { method: 'POST' })
-
-        expect(mockFetch).toHaveBeenCalledWith(
-          '/sse',
-          expect.objectContaining({
-            headers: expect.objectContaining({
-              'Content-Type': 'application/json',
-            }),
-          }),
-        )
       })
     })
 

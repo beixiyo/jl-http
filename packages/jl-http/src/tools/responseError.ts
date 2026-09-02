@@ -8,10 +8,13 @@ export function handleRespErrInterceptor(
     error: any
     request: BaseReqConfig
     rawResp?: Response
+    transport?: RespErrInterceptorError['transport']
+    phase?: RespErrInterceptorError['phase']
+    reopen?: RespErrInterceptorError['reopen']
   },
   respErrInterceptor: BaseReqConstructorConfig['respErrInterceptor'],
 ) {
-  const { error, request, rawResp } = data
+  const { error, request, rawResp, transport, phase, reopen } = data
 
   let finalResp: Response
   if (rawResp instanceof Response) {
@@ -34,6 +37,9 @@ export function handleRespErrInterceptor(
     rawResp: finalResp,
     request,
     error,
+    transport,
+    phase,
+    reopen,
   }
 
   return respErrInterceptor?.(interceptorPayload)

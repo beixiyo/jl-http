@@ -1,5 +1,5 @@
-import type { SSEData, SSEOptions } from '@jl-org/http'
-import type { ChatMessage, SSELog, SSEMessage } from './type'
+import type { SSEOptions, SSEStream } from '@jl-org/http'
+import type { ChatMessage, SSEConnectionOptions, SSELog, SSEMessage } from './type'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
@@ -15,6 +15,65 @@ const http = createHttpInstance({
   baseUrl: '', // 使用不同的 SSE 服务
   timeout: 30000,
 })
+
+const MAX_LOG_ENTRIES = 50
+const MAX_SSE_MESSAGES = 100
+const MAX_CHAT_MESSAGES = 50
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function formatHttpError(status: number, statusText?: string): string {
+  const parts = [`HTTP ${status}`]
+  if (statusText)
+    parts.push(statusText)
+  return parts.join(' ')
+}
+
+function getSSEErrorMessage(error: unknown): string {
+  if (typeof Response !== 'undefined' && error instanceof Response) {
+    return formatHttpError(error.status, error.statusText)
+  }
+
+  if (error instanceof Error)
+    return error.message || error.name || 'SSE 连接失败'
+
+  if (typeof error === 'string' && error)
+    return error
+
+  if (typeof error === 'number' || typeof error === 'boolean' || typeof error === 'bigint')
+    return String(error)
+
+  if (isRecord(error) && typeof error.status === 'number') {
+    let statusText: string | undefined
+    if (typeof error.statusText === 'string')
+      statusText = error.statusText
+    return formatHttpError(error.status, statusText)
+  }
+
+  try {
+    const serialized = JSON.stringify(error)
+    if (serialized)
+      return serialized
+  }
+  catch {
+    /** 某些错误值无法序列化，继续使用统一的兜底文本 */
+  }
+
+  return '未知 SSE 错误'
+}
+
+function isSSECancellation(error: unknown, signal: AbortSignal): boolean {
+  if (signal.aborted)
+    return true
+
+  if (error instanceof DOMException)
+    return error.name === 'AbortError'
+
+  return error instanceof Error
+    && (error.name === 'AbortError' || error.message.toLowerCase().includes('cancel'))
+}
 
 export default function HttpSSETest() {
   const [showManualTest, setShowManualTest] = useState(true)
@@ -64,10 +123,8 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
   const [sseUrl, setSseUrl] = useState('/api/sse/chat')
   const [method, setMethod] = useState<'GET' | 'POST'>('POST')
   const [requestBody, setRequestBody] = useState('{"message": "你好，请介绍一下 SSE 技术的优势和应用场景"}')
-  const [needParseData, setNeedParseData] = useState(true)
   const [needParseJSON, setNeedParseJSON] = useState(true)
   const [dataPrefix, setDataPrefix] = useState('data:')
-  const [separator, setSeparator] = useState('\n\n')
   const [doneSignal, setDoneSignal] = useState('[DONE]')
   const [currentChatMessage, setCurrentChatMessage] = useState('')
   const [activeTab, setActiveTab] = useState<'chat' | 'advanced'>('chat')
@@ -75,6 +132,10 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
   const messageIdRef = useRef(0)
   const chatIdRef = useRef(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const activeStreamRef = useRef<SSEStream<unknown> | null>(null)
+  const activeCancelRef = useRef<(() => void) | null>(null)
+  const connectionGenerationRef = useRef(0)
+  const mountedRef = useRef(true)
 
   const addLog = useCallback((log: Omit<SSELog, 'id' | 'timestamp'>) => {
     const newLog: SSELog = {
@@ -82,7 +143,7 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
       id: ++logIdRef.current,
       timestamp: new Date().toLocaleTimeString(),
     }
-    setLogs(prev => [newLog, ...prev])
+    setLogs(prev => [newLog, ...prev].slice(0, MAX_LOG_ENTRIES))
     return newLog
   }, [])
 
@@ -94,7 +155,7 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
     ))
   }, [])
 
-  const addMessage = useCallback((content: string, jsonData?: any, isComplete = false, type?: SSEMessage['type']) => {
+  const addMessage = useCallback((content: string, jsonData?: unknown, isComplete = false, type?: SSEMessage['type']) => {
     const newMessage: SSEMessage = {
       id: ++messageIdRef.current,
       timestamp: new Date().toLocaleTimeString(),
@@ -102,9 +163,11 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
       jsonData,
       isComplete,
       type,
-      progress: jsonData?.progress,
+      progress: isRecord(jsonData) && typeof jsonData.progress === 'number'
+        ? jsonData.progress
+        : undefined,
     }
-    setMessages(prev => [newMessage, ...prev])
+    setMessages(prev => [newMessage, ...prev].slice(0, MAX_SSE_MESSAGES))
   }, [])
 
   /** 聊天消息管理 */
@@ -116,7 +179,7 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
       timestamp: Date.now(),
       isStreaming,
     }
-    setChatMessages(prev => [...prev, newMessage])
+    setChatMessages(prev => [...prev, newMessage].slice(-MAX_CHAT_MESSAGES))
     return newMessage.id
   }, [])
 
@@ -149,153 +212,216 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
     }
   }, [chatMessages.length, scrollToBottom])
 
-  const startSSEConnection = useCallback(async () => {
-    if (currentConnection) {
-      currentConnection.cancel()
-      setCurrentConnection(null)
-    }
+  const cancelActiveConnection = useCallback(() => {
+    activeCancelRef.current?.()
+    activeCancelRef.current = null
+    activeStreamRef.current = null
+  }, [])
 
+  const cancelConnection = useCallback(() => {
+    connectionGenerationRef.current++
+    cancelActiveConnection()
+    setCurrentConnection(null)
+  }, [cancelActiveConnection])
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      connectionGenerationRef.current++
+      cancelActiveConnection()
+    }
+  }, [cancelActiveConnection])
+
+  const startSSEConnection = useCallback(async (options: SSEConnectionOptions = {}) => {
+    cancelActiveConnection()
+    const generation = ++connectionGenerationRef.current
+    const connectionUrl = options.url ?? sseUrl
+    const connectionMethod = options.method ?? method
+    const connectionRequestBody = options.requestBody ?? requestBody
+    const controller = new AbortController()
+    const isCurrentConnection = () => mountedRef.current && connectionGenerationRef.current === generation
+
+    activeCancelRef.current = () => {
+      controller.abort()
+      activeStreamRef.current?.cancel()
+    }
+    setCurrentConnection({ cancel: cancelConnection })
     setMessages([])
     const startTime = Date.now()
     let currentAssistantMessageId: string | null = null
+    let streamError = false
 
     /** 如果是聊天模式，添加用户消息 */
-    if (sseUrl.includes('/api/sse/chat') && method === 'POST') {
+    if (connectionUrl.includes('/api/sse/chat') && connectionMethod === 'POST') {
       try {
-        const body = JSON.parse(requestBody || '{}')
-        if (body.message) {
-          addChatMessage('user', body.message)
-        }
+        const body = JSON.parse(connectionRequestBody || '{}') as { message?: unknown }
+        const bodyMessage = typeof body.message === 'string'
+          ? body.message
+          : undefined
+        const chatMessage = options.chatMessage ?? bodyMessage
+        if (chatMessage)
+          addChatMessage('user', chatMessage)
       }
-      catch (e) {
-        console.warn('解析请求体失败:', e)
+      catch {
+        if (options.chatMessage)
+          addChatMessage('user', options.chatMessage)
       }
     }
 
     const log = addLog({
-      url: sseUrl,
-      method,
+      url: connectionUrl,
+      method: connectionMethod,
       status: 'connecting',
       duration: 0,
       messageCount: 0,
-      totalContent: '',
+      dataLength: 0,
       progress: 0,
     })
 
+    const finishAssistantMessage = (progress?: number) => {
+      if (currentAssistantMessageId)
+        updateChatMessage(currentAssistantMessageId, prev => prev, false, progress)
+    }
+
     try {
-      const config: SSEOptions = {
+      const config: SSEOptions<unknown> = {
         baseUrl: '',
-        method,
-        needParseData,
-        needParseJSON,
+        method: connectionMethod,
+        signal: controller.signal,
         dataPrefix,
-        separator,
-        doneSignal,
-        ...(method === 'POST' && { body: JSON.parse(requestBody || '{}') }),
-        onMessage: (data: SSEData) => {
-          console.log('SSE onMessage 收到数据:', data)
-          const duration = Date.now() - startTime
-
-          /** 解析 JSON 数据获取消息类型 */
-          let messageType: string | undefined
-          let messageContent = data.currentContent
-          let progress: number | undefined
-
-          if (data.currentJson && data.currentJson.length > 0) {
-            const jsonData = data.currentJson[data.currentJson.length - 1]
-            messageType = jsonData.type
-            progress = jsonData.progress
-
-            /** 对于聊天消息，使用 content 字段 */
-            if (jsonData.content !== undefined) {
-              messageContent = jsonData.content
-            }
-          }
-
-          updateLog(log.id, {
-            status: 'streaming',
-            duration,
-            messageCount: data.allJson.length || data.allContent.split('\n').filter(Boolean).length,
-            totalContent: data.allContent,
-            progress: progress || 0,
-          })
-
-          /** 处理不同类型的消息 */
-          if (messageType === 'connection') {
-            addMessage('🔗 连接已建立', data.currentJson, false, 'connection')
-            /** 为聊天创建助手消息 */
-            if (sseUrl.includes('/api/sse/chat')) {
-              currentAssistantMessageId = addChatMessage('assistant', '', true)
-            }
-          }
-          else if (messageType === 'message' && messageContent) {
-            addMessage(messageContent, data.currentJson, false, 'message')
-            /** 更新聊天消息 */
-            if (currentAssistantMessageId && sseUrl.includes('/api/sse/chat')) {
-              updateChatMessage(currentAssistantMessageId, prev => prev + messageContent, true, progress)
-            }
-          }
-          else if (messageType === 'complete') {
-            addMessage('✅ 传输完成', data.currentJson, true, 'complete')
-            /** 完成聊天消息 */
-            if (currentAssistantMessageId) {
-              updateChatMessage(currentAssistantMessageId, prev => prev, false, 1)
-            }
-          }
-          else if (messageType === 'heartbeat') {
-            addMessage('💓 心跳', data.currentJson, false, 'heartbeat')
-          }
-          else if (messageType === 'error') {
-            addMessage('❌ 错误', data.currentJson, true, 'error')
-          }
-          else if (messageContent) {
-            /** 通用消息处理 */
-            addMessage(messageContent, data.currentJson.length > 0
-              ? data.currentJson
-              : undefined)
-          }
-        },
-        onProgress: (progress: number) => {
-          console.log('SSE onProgress:', progress)
-          updateLog(log.id, {
-            progress: progress > 0 && progress !== Infinity
-              ? progress
-              : 0,
-          })
-        },
-        onError: (error: any) => {
-          console.error('SSE onError:', error)
-          const duration = Date.now() - startTime
-          updateLog(log.id, {
-            status: 'error',
-            duration,
-            error: error.message || '连接错误',
-          })
-        },
+        doneSignal: doneSignal || undefined,
+        parseData: needParseJSON
+          ? JSON.parse
+          : dataText => dataText,
+        ...(connectionMethod === 'POST' && { body: JSON.parse(connectionRequestBody || '{}') }),
       }
 
-      const { promise, cancel } = await http.fetchSSE(sseUrl, config)
-      setCurrentConnection({ cancel })
+      const stream = await http.fetchSSE(connectionUrl, config)
+      if (!isCurrentConnection()) {
+        stream.cancel()
+        if (mountedRef.current && controller.signal.aborted) {
+          updateLog(log.id, {
+            status: 'cancelled',
+            duration: Date.now() - startTime,
+            error: '连接已取消',
+          })
+        }
+        return
+      }
 
+      activeStreamRef.current = stream
       updateLog(log.id, { status: 'streaming' })
 
-      const finalData = await promise
+      let messageCount = 0
+      let dataLength = 0
+      for await (const event of stream) {
+        if (!isCurrentConnection()) {
+          stream.cancel()
+          return
+        }
+
+        const duration = Date.now() - startTime
+        const jsonData = needParseJSON && isRecord(event.data)
+          ? event.data
+          : undefined
+        const messageType = typeof jsonData?.type === 'string'
+          ? jsonData.type
+          : undefined
+        const progress = typeof jsonData?.progress === 'number'
+          ? jsonData.progress
+          : undefined
+        const messageContent = typeof jsonData?.content === 'string'
+          ? jsonData.content
+          : event.dataText
+        messageCount++
+        dataLength += event.dataText.length
+
+        updateLog(log.id, {
+          status: 'streaming',
+          duration,
+          messageCount,
+          dataLength,
+          progress: progress ?? 0,
+        })
+
+        if (messageType === 'connection') {
+          addMessage('🔗 连接已建立', jsonData, false, 'connection')
+          if (connectionUrl.includes('/api/sse/chat'))
+            currentAssistantMessageId = addChatMessage('assistant', '', true)
+        }
+        else if (messageType === 'message' && messageContent) {
+          addMessage(messageContent, jsonData, false, 'message')
+          if (currentAssistantMessageId && connectionUrl.includes('/api/sse/chat'))
+            updateChatMessage(currentAssistantMessageId, prev => prev + messageContent, true, progress)
+        }
+        else if (messageType === 'complete') {
+          addMessage('✅ 传输完成', jsonData, true, 'complete')
+          finishAssistantMessage(1)
+        }
+        else if (messageType === 'heartbeat') {
+          addMessage('💓 心跳', jsonData, false, 'heartbeat')
+        }
+        else if (messageType === 'error') {
+          addMessage('❌ 错误', jsonData, true, 'error')
+          streamError = true
+          finishAssistantMessage()
+        }
+        else if (messageContent) {
+          addMessage(messageContent, event.data)
+        }
+      }
+
+      if (!isCurrentConnection()) {
+        if (mountedRef.current && controller.signal.aborted) {
+          finishAssistantMessage()
+          updateLog(log.id, {
+            status: 'cancelled',
+            duration: Date.now() - startTime,
+            error: '连接已取消',
+          })
+        }
+        return
+      }
+
       const duration = Date.now() - startTime
+      finishAssistantMessage(streamError
+        ? undefined
+        : 1)
 
       updateLog(log.id, {
-        status: 'completed',
+        status: streamError
+          ? 'error'
+          : 'completed',
         duration,
-        messageCount: finalData.allJson.length || finalData.allContent.split('\n').filter(Boolean).length,
-        totalContent: finalData.allContent,
+        messageCount,
+        dataLength,
       })
 
-      /** 添加完成标记 */
-      addMessage('连接已完成', undefined, true)
-      setCurrentConnection(null)
+      if (!streamError)
+        addMessage('连接已完成', undefined, true)
     }
-    catch (err: any) {
+    catch (error: unknown) {
+      const cancelled = isSSECancellation(error, controller.signal)
+      if (!isCurrentConnection()) {
+        if (mountedRef.current) {
+          finishAssistantMessage()
+          updateLog(log.id, {
+            status: cancelled
+              ? 'cancelled'
+              : 'error',
+            duration: Date.now() - startTime,
+            error: cancelled
+              ? '连接已取消'
+              : getSSEErrorMessage(error),
+          })
+        }
+        return
+      }
+
       const duration = Date.now() - startTime
-      if (err.name === 'AbortError' || err.message?.includes('cancel')) {
+      finishAssistantMessage()
+      if (cancelled) {
         updateLog(log.id, {
           status: 'cancelled',
           duration,
@@ -304,23 +430,29 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
         addMessage('连接已取消', undefined, true)
       }
       else {
+        const errorMessage = getSSEErrorMessage(error)
         updateLog(log.id, {
           status: 'error',
           duration,
-          error: err.message || 'SSE 连接失败',
+          error: errorMessage,
         })
-        addMessage(`连接错误: ${err.message}`, undefined, true)
+        addMessage(`连接错误: ${errorMessage}`, undefined, true, 'error')
       }
-      setCurrentConnection(null)
+    }
+    finally {
+      if (isCurrentConnection()) {
+        activeStreamRef.current = null
+        activeCancelRef.current = null
+        setCurrentConnection(null)
+      }
     }
   }, [
-    currentConnection,
+    cancelActiveConnection,
+    cancelConnection,
     sseUrl,
     method,
-    needParseData,
     needParseJSON,
     dataPrefix,
-    separator,
     doneSignal,
     requestBody,
     addLog,
@@ -328,19 +460,10 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
     addMessage,
   ])
 
-  const cancelConnection = useCallback(() => {
-    if (currentConnection) {
-      currentConnection.cancel()
-      setCurrentConnection(null)
-    }
-  }, [currentConnection])
-
   const clearLogs = useCallback(() => {
     cancelConnection()
     setLogs([])
     setMessages([])
-    logIdRef.current = 0
-    messageIdRef.current = 0
   }, [cancelConnection])
 
   const sseEndpoints = [
@@ -348,7 +471,6 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
       name: '🚀 基础数据流',
       url: '/api/sse/stream',
       method: 'GET' as const,
-      parseData: true,
       parseJSON: true,
       description: '体验基础的 SSE 数据流传输，包含连接状态和进度信息',
       icon: '🚀',
@@ -358,7 +480,6 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
       name: '💬 AI 聊天对话',
       url: '/api/sse/chat',
       method: 'POST' as const,
-      parseData: true,
       parseJSON: true,
       description: '模拟 AI 助手的智能对话，支持流式响应和进度跟踪',
       icon: '💬',
@@ -368,7 +489,6 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
       name: '🔢 计数器流',
       url: '/api/sse/counter?max=20&interval=500',
       method: 'GET' as const,
-      parseData: true,
       parseJSON: true,
       description: '数字递增计数器，可自定义最大值和时间间隔',
       icon: '🔢',
@@ -378,7 +498,6 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
       name: '📊 随机数据流',
       url: '/api/sse/random',
       method: 'GET' as const,
-      parseData: true,
       parseJSON: true,
       description: '模拟传感器数据，包含温度、湿度等随机指标',
       icon: '📊',
@@ -388,7 +507,6 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
       name: '🔧 自定义端点',
       url: '',
       method: 'GET' as const,
-      parseData: true,
       parseJSON: true,
       description: '配置你自己的 SSE 端点进行测试',
       icon: '🔧',
@@ -397,12 +515,11 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
   ]
 
   const loadEndpoint = useCallback((endpoint: typeof sseEndpoints[0]) => {
-    if (endpoint.url) {
-      setSseUrl(endpoint.url)
-    }
+    setSseUrl(endpoint.url)
     setMethod(endpoint.method)
-    setNeedParseData(endpoint.parseData)
     setNeedParseJSON(endpoint.parseJSON)
+    setDataPrefix('data:')
+    setDoneSignal('[DONE]')
   }, [])
 
   const getStatusColor = (status: SSELog['status']) => {
@@ -435,29 +552,35 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
 
   /** 发送聊天消息 */
   const sendChatMessage = useCallback(async () => {
-    if (!currentChatMessage.trim() || currentConnection)
+    if (!currentChatMessage.trim() || activeCancelRef.current)
       return
 
     const message = currentChatMessage.trim()
     setCurrentChatMessage('')
 
     /** 更新请求体 */
-    setRequestBody(JSON.stringify({ message, model: 'gpt-3.5-turbo', stream: true }))
+    const rawRequestBody = JSON.stringify({ message, model: 'gpt-3.5-turbo', stream: true })
+    setRequestBody(rawRequestBody)
 
     /** 启动连接 */
-    await startSSEConnection()
-  }, [currentChatMessage, currentConnection, startSSEConnection])
+    await startSSEConnection({
+      url: '/api/sse/chat',
+      method: 'POST',
+      requestBody: rawRequestBody,
+      chatMessage: message,
+    })
+  }, [currentChatMessage, startSSEConnection])
 
   return (
     <div className="mx-auto max-w-7xl p-6">
       <div className="mb-8">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 flex items-center justify-center rounded-xl from-blue-500 to-purple-600 bg-gradient-to-br text-white">
+            <div className="h-12 w-12 flex items-center justify-center rounded-xl from-blue-500 to-purple-600 bg-linear-to-br text-white">
               <span className="text-2xl">🚀</span>
             </div>
             <div>
-              <h1 className="from-blue-600 to-purple-600 bg-gradient-to-r bg-clip-text text-3xl text-transparent font-bold">
+              <h1 className="from-blue-600 to-purple-600 bg-linear-to-r bg-clip-text text-3xl text-transparent font-bold">
                 SSE 流式数据测试平台 - 手动模式
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
@@ -574,7 +697,7 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
                             ) }
                           >
                             { message.role === 'assistant' && (
-                              <div className="mt-1 h-6 w-6 flex flex-shrink-0 items-center justify-center rounded bg-blue-500 text-xs text-white">
+                              <div className="mt-1 h-6 w-6 flex shrink-0 items-center justify-center rounded bg-blue-500 text-xs text-white">
                                 🤖
                               </div>
                             ) }
@@ -586,7 +709,7 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
                                   : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700',
                               ) }
                             >
-                              <div className="whitespace-pre-wrap break-words">
+                              <div className="whitespace-pre-wrap wrap-break-word">
                                 { message.content }
                                 { message.isStreaming && (
                                   <span className="ml-1 inline-block h-4 w-1 animate-pulse bg-current align-middle"></span>
@@ -606,7 +729,7 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
                               </div>
                             </div>
                             { message.role === 'user' && (
-                              <div className="mt-1 h-6 w-6 flex flex-shrink-0 items-center justify-center rounded bg-green-500 text-xs text-white">
+                              <div className="mt-1 h-6 w-6 flex shrink-0 items-center justify-center rounded bg-green-500 text-xs text-white">
                                 👤
                               </div>
                             ) }
@@ -795,7 +918,11 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
                 <label className="mb-2 block text-sm font-medium">请求方法</label>
                 <Select
                   value={ method }
-                  onChange={ value => setMethod(value as any) }
+                  onChange={ (value) => {
+                    setMethod(value === 'POST'
+                      ? 'POST'
+                      : 'GET')
+                  } }
                   options={ [
                     { label: 'GET', value: 'GET' },
                     { label: 'POST', value: 'POST' },
@@ -819,18 +946,6 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
-                    id="needParseData"
-                    checked={ needParseData }
-                    onChange={ e => setNeedParseData(e.target.checked) }
-                    className="rounded"
-                  />
-                  <label htmlFor="needParseData" className="text-sm">
-                    解析 SSE 数据
-                  </label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
                     id="needParseJSON"
                     checked={ needParseJSON }
                     onChange={ e => setNeedParseJSON(e.target.checked) }
@@ -842,34 +957,22 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
                 </div>
               </div>
 
-              { needParseData && (
-                <>
-                  <div>
-                    <label className="mb-2 block text-sm font-medium">数据前缀</label>
-                    <Input
-                      value={ dataPrefix }
-                      onChange={ setDataPrefix }
-                      placeholder="data:"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-sm font-medium">分隔符</label>
-                    <Input
-                      value={ separator }
-                      onChange={ setSeparator }
-                      placeholder="\\n\\n"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-sm font-medium">结束信号</label>
-                    <Input
-                      value={ doneSignal }
-                      onChange={ setDoneSignal }
-                      placeholder="[DONE]"
-                    />
-                  </div>
-                </>
-              ) }
+              <div>
+                <label className="mb-2 block text-sm font-medium">数据前缀</label>
+                <Input
+                  value={ dataPrefix }
+                  onChange={ setDataPrefix }
+                  placeholder="data:"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium">结束信号</label>
+                <Input
+                  value={ doneSignal }
+                  onChange={ setDoneSignal }
+                  placeholder="[DONE]"
+                />
+              </div>
 
               <div className="flex gap-2">
                 <Button
@@ -929,7 +1032,7 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
                         <div className="break-all text-sm font-mono">
                           { message.content }
                         </div>
-                        { message.jsonData && (
+                        { message.jsonData !== undefined && (
                           <details className="mt-2">
                             <summary className="cursor-pointer text-xs text-gray-500">
                               JSON 数据
@@ -990,6 +1093,10 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
                       { ' ' }
                       | 消息数:
                       { log.messageCount }
+                      { ' ' }
+                      | 数据量:
+                      { log.dataLength }
+                      字符
                       { log.progress > 0 && log.progress !== Infinity && ` | 进度: ${(log.progress * 100).toFixed(1)}%` }
                     </div>
 
@@ -1033,7 +1140,7 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
             >
               {/* 背景渐变 */ }
               <div className={ cn(
-                'absolute inset-0 bg-gradient-to-br opacity-5 group-hover:opacity-10 transition-opacity',
+                'absolute inset-0 bg-linear-to-br opacity-5 group-hover:opacity-10 transition-opacity',
                 endpoint.color,
               ) } />
 
@@ -1041,7 +1148,7 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
               <div className="relative">
                 <div className="mb-3 flex items-start gap-3">
                   <div className={ cn(
-                    'flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br text-white text-lg',
+                    'flex h-10 w-10 items-center justify-center rounded-lg bg-linear-to-br text-white text-lg',
                     endpoint.color,
                   ) }>
                     { endpoint.icon }
@@ -1161,7 +1268,7 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
           ].map((feature, index) => (
             <div key={ index } className="flex gap-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-800/50">
               <div className={ cn(
-                'flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br text-white text-xl flex-shrink-0',
+                'flex h-12 w-12 items-center justify-center rounded-lg bg-linear-to-br text-white text-xl shrink-0',
                 feature.color,
               ) }>
                 { feature.icon }
@@ -1178,7 +1285,7 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
           )) }
         </div>
 
-        <div className="mt-6 border border-blue-200 rounded-lg from-blue-50 to-purple-50 bg-gradient-to-r p-4 dark:border-blue-800 dark:from-blue-900/20 dark:to-purple-900/20">
+        <div className="mt-6 border border-blue-200 rounded-lg from-blue-50 to-purple-50 bg-linear-to-r p-4 dark:border-blue-800 dark:from-blue-900/20 dark:to-purple-900/20">
           <div className="flex items-start gap-3">
             <span className="text-2xl">💡</span>
             <div>
@@ -1186,8 +1293,8 @@ function ManualTestMode({ onBack }: { onBack: () => void }) {
                 开发提示
               </h4>
               <p className="text-sm text-blue-800 dark:text-blue-200">
-                SSE 非常适合实时通知、聊天应用、实时数据监控、进度更新等场景。
-                相比 WebSocket，SSE 更简单且自动支持断线重连。
+                SSE 非常适合实时通知、聊天应用、实时数据监控、进度更新等场景
+                相比 WebSocket，SSE 更简单且自动支持断线重连
               </p>
             </div>
           </div>

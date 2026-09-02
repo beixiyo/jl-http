@@ -1,367 +1,85 @@
-import { BaseReq, SSEStreamProcessor } from '@jl-org/http'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { BaseReq } from '@jl-org/http'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-// Mock fetch and ReadableStream
-const mockFetch = vi.fn()
-global.fetch = mockFetch
-
-describe('SSE 集成测试', () => {
-  let baseReq: BaseReq
-
-  beforeEach(() => {
-    vi.clearAllMocks()
-    baseReq = new BaseReq({
-      baseUrl: 'https://api.example.com',
-      timeout: 10000,
-    })
+describe('sse 端到端增量数据流', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
-  describe('BaseReq 与 SSEStreamProcessor 集成', () => {
-    it('应该正确处理 SSE 流数据', async () => {
-      const sseData = [
-        'data: {"id": 1, "message": "Hello"}\n\n',
-        'data: {"id": 2, "message": "World"}\n\n',
-        'data: [DONE]\n\n',
-      ]
-
-      const mockReader = {
-        read: vi.fn()
-          .mockResolvedValueOnce({
-            done: false,
-            value: new TextEncoder().encode(sseData[0]),
-          })
-          .mockResolvedValueOnce({
-            done: false,
-            value: new TextEncoder().encode(sseData[1]),
-          })
-          .mockResolvedValueOnce({
-            done: false,
-            value: new TextEncoder().encode(sseData[2]),
-          })
-          .mockResolvedValueOnce({
-            done: true,
-            value: undefined,
-          }),
-        cancel: vi.fn(),
-      }
-
-      const mockResponse = {
-        ok: true,
-        status: 200,
-        headers: {
-          get: vi.fn().mockReturnValue('100'),
-        },
-        body: {
-          getReader: vi.fn().mockReturnValue(mockReader),
-        },
-      }
-
-      mockFetch.mockResolvedValue(mockResponse)
-
-      const messages: any[] = []
-      const progressUpdates: number[] = []
-
-      const { promise } = await baseReq.fetchSSE('/stream', {
-        onMessage: (data) => {
-          messages.push(data)
-        },
-        onProgress: (progress) => {
-          progressUpdates.push(progress)
-        },
-      })
-
-      const finalData = await promise
-
-      // 验证消息处理
-      expect(messages).toHaveLength(2) // 不包括 [DONE] 消息
-      expect(messages[0].currentJson[0]).toEqual({
-        id: 1,
-        message: 'Hello',
-      })
-      expect(messages[1].currentJson[0]).toEqual({
-        id: 2,
-        message: 'World',
-      })
-
-      // 验证最终数据
-      expect(finalData.allJson).toHaveLength(2)
-
-      // 验证进度更新
-      expect(progressUpdates.length).toBeGreaterThan(0)
+  it('大量混合换行事件经过不规则字节分块后保持顺序和完整性', async () => {
+    const lineEndings = ['\n', '\r\n', '\r']
+    const messages = Array.from({ length: 2_000 }, (_, index) => {
+      const eol = lineEndings[index % lineEndings.length]
+      return `data: {"index":${index},"text":"消息-${index}"}${eol}${eol}`
     })
+    const encoded = new TextEncoder().encode(messages.join(''))
+    const chunks = splitBytes(encoded, [1, 2, 3, 5, 8, 13, 21])
+    const activityBytes: number[] = []
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(createResponse(chunks)))
 
-    it('应该处理 SSE 错误和中断', async () => {
-      const mockReader = {
-        read: vi.fn()
-          .mockResolvedValueOnce({
-            done: false,
-            value: new TextEncoder().encode('data: {"id": 1}\n\n'),
-          })
-          .mockRejectedValue(new Error('Stream error')),
-        cancel: vi.fn(),
-      }
-
-      const mockResponse = {
-        ok: true,
-        status: 200,
-        headers: {
-          get: vi.fn().mockReturnValue(null),
-        },
-        body: {
-          getReader: vi.fn().mockReturnValue(mockReader),
-        },
-      }
-
-      mockFetch.mockResolvedValue(mockResponse)
-
-      const onError = vi.fn()
-
-      const { promise, cancel } = await baseReq.fetchSSE('/stream', {
-        onError,
-      })
-
-      // 测试中断功能
-      setTimeout(() => cancel(), 100)
-
-      await expect(promise).rejects.toThrow()
+    const stream = await new BaseReq().fetchSSE<{ index: number, text: string }>('/stream', {
+      onActivity: ({ byteLength }) => activityBytes.push(byteLength),
     })
+    const indexes: number[] = []
+    for await (const message of stream)
+      indexes.push(message.data.index)
 
-    it('应该处理自定义 SSE 配置', async () => {
-      const customData = [
-        'event: custom\ndata: {"type": "custom", "data": "test"}\n\n',
-        'event: update\ndata: {"type": "update", "data": "modified"}\n\n',
-        'data: END\n\n',
-      ]
-
-      const mockReader = {
-        read: vi.fn()
-          .mockResolvedValueOnce({
-            done: false,
-            value: new TextEncoder().encode(customData[0]),
-          })
-          .mockResolvedValueOnce({
-            done: false,
-            value: new TextEncoder().encode(customData[1]),
-          })
-          .mockResolvedValueOnce({
-            done: false,
-            value: new TextEncoder().encode(customData[2]),
-          })
-          .mockResolvedValueOnce({
-            done: true,
-            value: undefined,
-          }),
-        cancel: vi.fn(),
-      }
-
-      const mockResponse = {
-        ok: true,
-        status: 200,
-        headers: {
-          get: vi.fn().mockReturnValue(null),
-        },
-        body: {
-          getReader: vi.fn().mockReturnValue(mockReader),
-        },
-      }
-
-      mockFetch.mockResolvedValue(mockResponse)
-
-      const messages: any[] = []
-
-      const { promise } = await baseReq.fetchSSE('/stream', {
-        doneSignal: 'END',
-        onMessage: (data) => {
-          messages.push(data)
-        },
-        handleData: (content) => content.toUpperCase(),
-      })
-
-      const finalData = await promise
-
-      // 验证自定义处理
-      expect(messages).toHaveLength(2)
-      expect(messages[0].currentJson[0]).toEqual({
-        TYPE: 'CUSTOM',
-        DATA: 'TEST',
-        __internal__event: 'custom',
-      })
-      expect(messages[1].currentJson[0]).toEqual({
-        TYPE: 'UPDATE',
-        DATA: 'MODIFIED',
-        __internal__event: 'update',
-      })
-
-      // 验证自定义数据处理
-      expect(finalData.allContent).toContain('{"TYPE": "CUSTOM"')
-    })
+    expect(indexes).toEqual(Array.from({ length: 2_000 }, (_, index) => index))
+    expect(activityBytes.reduce((total, value) => total + value, 0)).toBe(encoded.byteLength)
   })
 
-  describe('SSE 错误处理', () => {
-    it('应该正确处理 SSE 连接失败', async () => {
-      const req = new BaseReq({
-        baseUrl: 'https://api.example.com',
-      })
+  it('异步 parseData 完成前不会解析或交付下一事件', async () => {
+    const firstParse = Promise.withResolvers<number>()
+    let parseCount = 0
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(createResponse([
+      new TextEncoder().encode('data: 1\n\ndata: 2\n\n'),
+    ])))
 
-      // 模拟连接失败
-      mockFetch.mockRejectedValue(new Error('Connection failed'))
-
-      const errorHandler = vi.fn()
-
-      const { promise } = await req.fetchSSE('/stream', {
-        onError: errorHandler,
-        onMessage: vi.fn(),
-      })
-
-      await expect(promise).rejects.toThrow('Connection failed')
-      expect(errorHandler).toHaveBeenCalledWith(expect.any(Error))
-      expect(mockFetch).toHaveBeenCalledTimes(1)
+    const stream = await new BaseReq().fetchSSE<number>('/stream', {
+      parseData: async (text) => {
+        parseCount++
+        if (text === '1')
+          return firstParse.promise
+        return Number(text)
+      },
     })
-  })
+    const firstNext = stream.next()
 
-  describe('SSE 性能和内存管理', () => {
-    it('应该正确处理大量 SSE 数据', async () => {
-      // 模拟大量数据流
-      const largeDataChunks = Array.from({ length: 100 }, (_, i) =>
-        `data: {"id": ${i}, "data": "chunk-${i}"}\n\n`
-      ).concat(['data: [DONE]\n\n'])
+    await vi.waitFor(() => expect(parseCount).toBe(1))
+    expect(parseCount).toBe(1)
+    firstParse.resolve(1)
 
-      const mockReader = {
-        read: vi.fn(),
-        cancel: vi.fn(),
-      }
-
-      // 为每个数据块设置 mock 返回值
-      largeDataChunks.forEach((chunk, index) => {
-        if (index < largeDataChunks.length - 1) {
-          mockReader.read.mockResolvedValueOnce({
-            done: false,
-            value: new TextEncoder().encode(chunk),
-          })
-        } else {
-          mockReader.read.mockResolvedValueOnce({
-            done: false,
-            value: new TextEncoder().encode(chunk),
-          })
-          mockReader.read.mockResolvedValueOnce({
-            done: true,
-            value: undefined,
-          })
-        }
-      })
-
-      const mockResponse = {
-        ok: true,
-        status: 200,
-        headers: {
-          get: vi.fn().mockReturnValue(String(largeDataChunks.join('').length)),
-        },
-        body: {
-          getReader: vi.fn().mockReturnValue(mockReader),
-        },
-      }
-
-      mockFetch.mockResolvedValue(mockResponse)
-
-      let messageCount = 0
-      const progressUpdates: number[] = []
-
-      const { promise } = await baseReq.fetchSSE('/large-stream', {
-        onMessage: (data) => {
-          messageCount++
-          // 验证数据完整性
-          expect(data.currentJson).toHaveLength(1)
-          expect(data.allJson).toHaveLength(messageCount)
-        },
-        onProgress: (progress) => {
-          progressUpdates.push(progress)
-        },
-      })
-
-      const finalData = await promise
-
-      expect(messageCount).toBe(100) // 不包括 [DONE]
-      expect(finalData.allJson).toHaveLength(100)
-      expect(progressUpdates.length).toBeGreaterThan(0)
-      expect(progressUpdates[progressUpdates.length - 1]).toBe(1) // 最终进度（实际测试中发现是 1）
-    })
-
-    it('应该正确处理 SSE 流的内存清理', async () => {
-      const processor = new SSEStreamProcessor({
-        onMessage: vi.fn(),
-      })
-
-      // 处理一些数据
-      processor.processChunk('data: {"test": 1}\n\n')
-      processor.processChunk('data: {"test": 2}\n\n')
-      processor.processChunk('data: [DONE]\n\n')
-
-      // 流结束后，处理器应该拒绝新数据
-      const result = processor.processChunk('data: {"test": 3}\n\n')
-
-      expect(result.currentRawPayload).toBe('')
-      expect(result.currentJson).toEqual([])
-      expect(result.isEnd).toBe(true)
-    })
-  })
-
-  describe('SSE 边界情况', () => {
-    it('应该处理不完整的 SSE 数据块', async () => {
-      const incompleteData = [
-        'data: {"incomplete":', // 不完整的 JSON
-        ' "value"}\n\n',        // 完成 JSON
-        'data: [DONE]\n\n',
-      ]
-
-      const mockReader = {
-        read: vi.fn()
-          .mockResolvedValueOnce({
-            done: false,
-            value: new TextEncoder().encode(incompleteData[0]),
-          })
-          .mockResolvedValueOnce({
-            done: false,
-            value: new TextEncoder().encode(incompleteData[1]),
-          })
-          .mockResolvedValueOnce({
-            done: false,
-            value: new TextEncoder().encode(incompleteData[2]),
-          })
-          .mockResolvedValueOnce({
-            done: true,
-            value: undefined,
-          }),
-        cancel: vi.fn(),
-      }
-
-      const mockResponse = {
-        ok: true,
-        status: 200,
-        headers: {
-          get: vi.fn().mockReturnValue(null),
-        },
-        body: {
-          getReader: vi.fn().mockReturnValue(mockReader),
-        },
-      }
-
-      mockFetch.mockResolvedValue(mockResponse)
-
-      const messages: any[] = []
-
-      const { promise } = await baseReq.fetchSSE('/incomplete-stream', {
-        onMessage: (data) => {
-          messages.push(data)
-        },
-      })
-
-      const finalData = await promise
-
-      // 应该正确处理完整的消息
-      expect(messages).toHaveLength(1)
-      expect(finalData.allJson[0]).toEqual({
-        incomplete: 'value',
-      })
-    })
+    await expect(firstNext).resolves.toMatchObject({ value: { data: 1 } })
+    expect(parseCount).toBe(1)
+    await expect(stream.next()).resolves.toMatchObject({ value: { data: 2 } })
+    expect(parseCount).toBe(2)
   })
 })
+
+function splitBytes(bytes: Uint8Array, sizes: number[]) {
+  const chunks: Uint8Array[] = []
+  let offset = 0
+  let sizeIndex = 0
+  while (offset < bytes.length) {
+    const size = sizes[sizeIndex++ % sizes.length]
+    chunks.push(bytes.slice(offset, offset + size))
+    offset += size
+  }
+  return chunks
+}
+
+function createResponse(chunks: Uint8Array[]) {
+  let index = 0
+  return new Response(new ReadableStream<Uint8Array>({
+    pull(controller) {
+      const chunk = chunks[index++]
+      if (chunk) {
+        controller.enqueue(chunk)
+        return
+      }
+      controller.close()
+    },
+  }), {
+    headers: { 'content-type': 'text/event-stream' },
+  })
+}

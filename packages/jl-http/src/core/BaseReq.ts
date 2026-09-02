@@ -1,11 +1,9 @@
-import type { BaseHttpReq, BaseReqConfig, BaseReqConstructorConfig, BaseReqMethodConfig, FetchSSEReturn, Resp, SSEOptions } from './abs/AbsBaseReqType'
-import type { ReqBody, SSEData } from '@/types'
-import { normalizeSSEConfig, resolveInterceptors } from './requestConfig'
+import type { BaseHttpReq, BaseReqConfig, BaseReqConstructorConfig, BaseReqMethodConfig, Resp, SSEOptions } from './abs/AbsBaseReqType'
+import type { SSEStream } from './sse'
+import type { ReqBody } from '@/types'
+import { maybeIsConfig } from '@/tools'
 import { executeRequest } from './requestExecutor'
-import { callbackToAsyncIterator, maybeIsConfig } from '@/tools'
-import { getReqConfig } from '@/tools/requestPreparation'
-import { handleRespErrInterceptor } from '@/tools/responseError'
-import { SSEStreamProcessor } from '@/tools/SSEStreamProcessor'
+import { executeSSERequest } from './sse'
 
 export class BaseReq implements BaseHttpReq {
   constructor(private defaultConfig: BaseReqConstructorConfig = {}) { }
@@ -60,193 +58,15 @@ export class BaseReq implements BaseHttpReq {
   }
 
   /**
-   * SSE 请求，默认使用 GET
+   * 打开只能消费一次的 SSE 增量流，默认使用 GET
+   *
+   * 完整事件通过 AsyncIterator 逐条交付；除当前未完成事件外不会保存响应历史
    */
-  async fetchSSE(url: string, config?: SSEOptions): Promise<FetchSSEReturn> {
-    const formatConfig = normalizeSSEConfig(url, config, this.defaultConfig)
-    const {
-      url: withPrefixUrl,
-      needParseData,
-      onError,
-      onMessage: onMsg,
-      onRawMessage,
-      onProgress,
-      needParseJSON,
-      ignoreInvalidDataPrefix,
-      handleData,
-      separator,
-      dataPrefix,
-      doneSignal,
-      ...rest
-    } = formatConfig
-
-    /** 获取构造器的 fetchOption，优先级最低 */
-    const fetchOption = this.defaultConfig.fetchOption || {}
-
-    const {
-      reqInterceptor,
-      respErrInterceptor,
-    } = resolveInterceptors(formatConfig, this.defaultConfig)
-    const { data, url: withQueryUrl } = await getReqConfig(formatConfig, reqInterceptor, rest.method, withPrefixUrl)
-
-    const { promise, resolve, reject } = Promise.withResolvers<SSEData>()
-    let cancelFn: Function = () => { }
-
-    fetch(
-      withQueryUrl,
-      {
-        ...fetchOption,
-        ...data,
-      },
-    )
-      .then(async (resp) => {
-        if (!resp.ok) {
-          onError?.(resp)
-          reject(resp)
-          handleRespErrInterceptor(
-            {
-              error: resp,
-              rawResp: resp,
-              request: formatConfig,
-            },
-            respErrInterceptor,
-          )
-          return
-        }
-
-        const rawSSEData: string[] = []
-        const sseData: SSEData = {
-          currentContent: '',
-          currentJson: [],
-
-          allJson: [],
-          allContent: '',
-        }
-
-        const sseParser = new SSEStreamProcessor({
-          onMessage: (data) => {
-            Object.assign(sseData, { ...data })
-            onMsg?.(data)
-          },
-          handleData,
-          needParseData,
-          needParseJSON,
-          ignoreInvalidDataPrefix,
-          separator,
-          dataPrefix,
-          doneSignal,
-        })
-
-        const reader = resp.body!.getReader()
-        const decoder = new TextDecoder()
-        cancelFn = () => {
-          reader.cancel()
-        }
-
-        const total = resp.headers.get('content-length')
-          ? Number(resp.headers.get('content-length'))
-          : 0
-
-        let loaded = 0
-
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) {
-            resolve?.(sseData)
-            break
-          }
-
-          loaded += value.length
-          const currentContent = decoder.decode(value)
-          const parsedCurrentSSEData = needParseData
-            ? SSEStreamProcessor.parseSSEMessages({
-                content: currentContent,
-                handleData,
-                ignoreInvalidDataPrefix,
-                separator,
-                dataPrefix,
-                doneSignal,
-              })
-            : [currentContent]
-
-          rawSSEData.push(...parsedCurrentSSEData)
-
-          /** 当有 onMsg 才需要解析 */
-          onMsg && sseParser.processChunk(currentContent)
-          onRawMessage?.({
-            allRawSSEData: rawSSEData,
-            currentRawSSEData: parsedCurrentSSEData,
-          })
-
-          const progress = loaded / total
-          onProgress?.(
-            progress > 0
-              ? progress
-              : -1,
-          )
-        }
-      })
-      .catch((error) => {
-        onError?.(error)
-        reject(error)
-        handleRespErrInterceptor(
-          {
-            error,
-            request: formatConfig,
-          },
-          respErrInterceptor,
-        )
-      })
-
-    return {
-      promise,
-      cancel: () => {
-        cancelFn()
-        reject(new Error('Request canceled by user'))
-      },
-    }
-  }
-
-  fetchSSEAsIterator(url: string, config?: SSEOptions): AsyncIterableIterator<SSEData> {
-    return callbackToAsyncIterator<SSEData>((callback) => {
-      let cancelFn: (() => void) | undefined
-
-      /** 启动 SSE 请求 */
-      this.fetchSSE(url, {
-        ...config,
-        onMessage: (data) => {
-          /** 调用用户提供的 onMessage 回调（如果有） */
-          config?.onMessage?.(data)
-          /** 向迭代器传递数据 */
-          callback(data)
-        },
-        onError: (error) => {
-          /** 调用用户提供的 onError 回调（如果有） */
-          config?.onError?.(error)
-          /** 发送结束信号 */
-          callback(null)
-        },
-      }).then(({ promise, cancel }) => {
-        /** 保存 cancel 函数 */
-        cancelFn = cancel
-
-        /** 当 SSE 完成时，发送结束信号 */
-        promise.then(() => {
-          callback(null)
-        }).catch(() => {
-          /** 错误已经在 onError 中处理 */
-          callback(null)
-        })
-      }).catch((error) => {
-        // fetchSSE 初始化失败
-        config?.onError?.(error)
-        callback(null)
-      })
-
-      /** 返回取消函数 */
-      return () => {
-        cancelFn?.()
-      }
+  async fetchSSE<T = unknown>(url: string, config?: SSEOptions<T>): Promise<SSEStream<T>> {
+    return executeSSERequest({
+      url,
+      config,
+      defaultConfig: this.defaultConfig,
     })
   }
 }

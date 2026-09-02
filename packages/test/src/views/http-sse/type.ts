@@ -6,7 +6,7 @@ export interface SSELog {
   status: 'connecting' | 'streaming' | 'completed' | 'error' | 'cancelled'
   duration: number
   messageCount: number
-  totalContent: string
+  dataLength: number
   error?: string
   progress: number
 }
@@ -15,7 +15,7 @@ export interface SSEMessage {
   id: number
   timestamp: string
   content: string
-  jsonData?: any
+  jsonData?: unknown
   isComplete?: boolean
   type?: 'connection' | 'message' | 'complete' | 'error' | 'heartbeat'
   role?: 'user' | 'assistant' | 'system'
@@ -29,4 +29,11 @@ export interface ChatMessage {
   timestamp: number
   isStreaming?: boolean
   progress?: number
+}
+
+export interface SSEConnectionOptions {
+  url?: string
+  method?: 'GET' | 'POST'
+  requestBody?: string
+  chatMessage?: string
 }

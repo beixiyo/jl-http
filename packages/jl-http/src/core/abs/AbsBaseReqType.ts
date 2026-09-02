@@ -1,6 +1,7 @@
-import type { SSEStreamProcessorConfig } from '@/tools/SSEStreamProcessor'
+import type { SSEParserOptions } from '@/core/sse/SSEParser'
+import type { SSEStream, SSETransportActivity } from '@/core/sse/types'
 import type { RetryTaskOpts } from '@/tools/retryTask'
-import type { FetchType, HttpMethod, ReqBody, ReqHeaders, SSEData } from '@/types'
+import type { FetchType, HttpMethod, ReqBody, ReqHeaders } from '@/types'
 
 /**
  * 请求基础接口
@@ -17,17 +18,11 @@ export interface BaseHttpReq {
   put: <T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseReqMethodConfig, config?: BaseReqMethodConfig) => Promise<HttpResponse>
   patch: <T, HttpResponse = Resp<T>>(url: string, data?: ReqBody | BaseReqMethodConfig, config?: BaseReqMethodConfig) => Promise<HttpResponse>
 
-  fetchSSE: (url: string, config?: SSEOptions) => Promise<FetchSSEReturn>
-  fetchSSEAsIterator: (url: string, config?: SSEOptions) => AsyncIterableIterator<SSEData>
+  fetchSSE: <T = unknown>(url: string, config?: SSEOptions<T>) => Promise<SSEStream<T>>
 }
 
 export type FetchOptions = Omit<RequestInit, 'method'> & {
   method?: HttpMethod
-}
-
-export type FetchSSEReturn = {
-  cancel: () => void
-  promise: Promise<SSEData>
 }
 
 export type BaseReqConfig =
@@ -75,66 +70,29 @@ export type RetryRequestOptions = RetryTaskOpts & {
   maxAttempts: number
 }
 
-export type SSEOptions = {
+/** `fetchSSE` 的请求、解析与生命周期选项。 */
+export type SSEOptions<T = unknown> = SSEParserOptions & {
   /**
-   * 每次都会拿到之前到现在累加的所有内容
+   * 转换一条已经完整提交的 SSE data 事件
+   *
+   * 默认使用 `JSON.parse`。需要原始文本时显式传入 `dataText => dataText`。回调可以
+   * 异步执行，在 Promise settle 前不会读取下一条事件
+   * @default JSON.parse
    */
-  onMessage?: (data: SSEData) => void
+  parseData?: (dataText: string) => T | Promise<T>
   /**
-   * 原始 SSE 数据，按照数组分段存储，较好处理
+   * 每当响应体读取到非空字节块时触发
+   *
+   * 该回调不要求字节已组成完整 SSE 帧，适合刷新空闲超时；包括注释心跳在内的任意字节都会触发
    */
-  onRawMessage?: (data: {
-    /** 当前原始 SSE 拼接的数据，未经过任何处理 */
-    currentRawSSEData: string[]
-    /** 累积原始 SSE 拼接的数据，未经过任何处理 */
-    allRawSSEData: string[]
-  }) => void
+  onActivity?: (activity: SSETransportActivity) => void
   /**
-   * 处理数据的自定义函数，用于对提取的数据进行进一步处理
-   */
-  handleData?: SSEStreamProcessorConfig['handleData']
-
-  /**
-   * 计算进度，接口必须有 content-length 响应头
-   */
-  onProgress?: (progress: number) => void
-  onError?: (error: any) => void
-
-  /**
-   * 是否解析 SSE 数据，删除 data: 内容
+   * 是否要求成功响应的 Content-Type 为 `text/event-stream`
    * @default true
    */
-  needParseData?: boolean
-  /**
-   * 是否解析 JSON，开启后，会解析出 JSON 对象，放入 onMessage 回调
-   * @default true
-   */
-  needParseJSON?: boolean
-
-  /**
-   * 以什么作为分隔符切割
-   * @default '\n\n'
-   */
-  separator?: SSEStreamProcessorConfig['separator']
-  /**
-   * 以什么作为数据前缀
-   * @default 'data:'
-   */
-  dataPrefix?: SSEStreamProcessorConfig['dataPrefix']
-
-  /**
-   * 以什么作为结束信号
-   * @default '[DONE]'
-   */
-  doneSignal?: SSEStreamProcessorConfig['doneSignal']
-  /**
-   * 是否忽略无效数据前缀 (如不以 dataPrefix(data: 开头))。
-   * 通常用来忽略事件名，如 event:xxx。
-   * @default true
-   */
-  ignoreInvalidDataPrefix?: boolean
+  validateContentType?: boolean
 }
-& Omit<BaseReqConfig, 'url' | 'retry' | 'respType' | 'timeout'>
+& Omit<BaseReqConfig, 'url' | 'retry' | 'respType' | 'timeout' | 'onProgress'>
 
 export interface BaseReqConstructorConfig {
   /**
@@ -163,40 +121,97 @@ export interface BaseReqConstructorConfig {
   /** 响应拦截 */
   respInterceptor?: RespInterceptor
   /**
-   * 错误拦截（仅 HTTP 非 2xx 时触发；网络错误 / 超时不经过此拦截器）
+   * 错误拦截
    *
-   * 与 {@link RespInterceptor} 对称，返回值会被消费：
+   * 普通 HTTP 请求仅在非 2xx 响应时触发，网络错误 / 超时不经过此拦截器；
+   * SSE 请求还会在建连、响应校验或读取流失败时触发，并通过错误上下文标明阶段
+   *
+   * 普通 HTTP 路径与 {@link RespInterceptor} 对称，返回值会被消费：
    * - 返回非 `undefined` 值 → 作为本次请求的 resolve 值（错误恢复，如刷新 token 后透明重放）
    * - 抛出 / 返回 rejected Promise → 本次请求以该错误 reject（可改写错误对象）
    * - 返回 `undefined`（纯副作用，含未显式 return 的 async）→ 以原始 fetch `Response` reject
+   *
+   * SSE 是增量流，不能用一个返回值替代后续事件。SSE 路径只响应显式 `reopen()`；
+   * 未调用时继续抛出原错误，拦截器自身抛错时则抛出该错误
    */
   respErrInterceptor?: RespErrInterceptor
   /** Fetch 配置选项，优先级最低 */
   fetchOption?: FetchOptions
 }
 
+/** 响应错误拦截器收到的请求与恢复上下文 */
 export type RespErrInterceptorError = {
   /**
    * fetch 返回的原始 Response
    */
   rawResp: Response
   /**
-   * 请求时使用的最终配置
+   * 请求时使用的最终配置只读视图
+   *
+   * 需要调整重新建连的物理请求时，使用 `reopen({ request })`，不要直接修改该对象
    */
-  request: BaseReqConfig
+  request: Readonly<BaseReqConfig>
   /**
    * 原始错误对象（可能是 Response 或其它错误）
    */
   error: any
+  /**
+   * 发生错误的传输类型
+   *
+   * 旧请求路径可能不提供该字段，调用方应保留兼容分支
+   */
+  transport?: 'http' | 'sse'
+  /**
+   * 发生错误的生命周期阶段
+   *
+   * `request` 表示建连失败，`response` 表示响应不合法，`stream` 表示读取响应体失败
+   */
+  phase?: 'request' | 'response' | 'stream'
+  /**
+   * 重新打开当前 SSE 逻辑流的物理连接
+   *
+   * SSE 请求会提供该函数。调用后只登记重新打开请求；错误拦截器完成后，执行器才会
+   * 重新执行请求拦截器并打开新的物理连接。它不会回放已经收到的响应或事件
+   */
+  reopen?: (options?: SSEReopenOptions) => Promise<void>
 }
 
 /**
  * 错误拦截器
  *
- * 返回值会被 `request` 消费（见 {@link BaseReqConstructorConfig.respErrInterceptor}）：
- * 返回值→恢复为 resolve；抛出 / rejected Promise→reject；返回 `undefined`→以原始 Response reject
+ * 普通 HTTP 路径会消费返回值；SSE 路径忽略返回值，只通过载荷中的 `reopen()` 重新建连
+ * 详见 {@link BaseReqConstructorConfig.respErrInterceptor}
  */
 export type RespErrInterceptor = (error: RespErrInterceptorError) => any
+
+/** `reopen()` 的显式物理请求调整。 */
+export interface SSEReopenOptions {
+  /**
+   * 当前逻辑流在重新建连时使用的请求参数覆盖
+   *
+   * 省略时完整沿用当前请求。`headers` 和 `query` 与当前值合并，其余字段覆盖；覆盖会
+   * 保留到该逻辑流后续的物理连接。解析规则、拦截器和 AbortSignal 属于逻辑流生命周期，
+   * 不能在重新建连时替换
+   *
+   * @default undefined
+   */
+  request?: SSEReopenRequestOverrides
+}
+
+/** `reopen()` 允许修改的物理请求参数。 */
+export type SSEReopenRequestOverrides = Partial<Omit<
+  BaseReqConfig,
+  | 'baseUrl'
+  | 'fetchOption'
+  | 'onProgress'
+  | 'reqInterceptor'
+  | 'respErrInterceptor'
+  | 'respInterceptor'
+  | 'respType'
+  | 'retry'
+  | 'signal'
+  | 'timeout'
+>>
 
 export interface Resp<T> {
   /** fetch 返回的原始对象 */

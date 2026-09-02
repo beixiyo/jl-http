@@ -1,9 +1,10 @@
+import type { BaseReqConfig, BaseReqConstructorConfig, RespErrInterceptor, RespInterceptor, SSEOptions } from './abs/AbsBaseReqType'
+import type { HttpMethod } from '@/types'
 /**
  * 统一归一化请求配置，并解析单次请求使用的拦截器
  */
 import { TIME_OUT } from '@/constants'
-import type { HttpMethod } from '@/types'
-import type { BaseReqConfig, BaseReqConstructorConfig, RespErrInterceptor, RespInterceptor, SSEOptions } from './abs/AbsBaseReqType'
+import { mergeHeaders } from '@/tools/headers'
 
 export function normalizeRequestConfig(config: BaseReqConfig, defaultConfig: BaseReqConstructorConfig) {
   const {
@@ -19,42 +20,33 @@ export function normalizeRequestConfig(config: BaseReqConfig, defaultConfig: Bas
     retry: config.retry ?? defaultConfig.retry ?? 0,
     onProgress: config.onProgress || defaultConfig.onProgress,
     ...config,
-    headers: {
-      ...(defaultConfig.headers || {}),
-      ...(config.headers || {}),
-    },
+    headers: mergeHeaders(defaultConfig.headers, config.headers),
     url: (config.baseUrl ?? defaultConfig.baseUrl ?? '') + config.url,
   }
 }
 
-export function normalizeSSEConfig(url: string, config: SSEOptions = {}, defaultConfig: BaseReqConstructorConfig) {
+export function normalizeSSEConfig<T>(url: string, config: SSEOptions<T> = {}, defaultConfig: BaseReqConstructorConfig) {
   const {
     method = 'GET',
   } = config
 
-  const finalConfig: SSEOptions & {
+  const finalConfig: SSEOptions<T> & {
     url: string
     method: HttpMethod
+    parseData: NonNullable<SSEOptions<T>['parseData']>
   } = {
     method,
-    needParseData: true,
-    needParseJSON: true,
-    ignoreInvalidDataPrefix: true,
-    separator: '\n\n',
-    dataPrefix: 'data:',
-    doneSignal: '[DONE]',
-    handleData(currentContent) {
-      return currentContent
-    },
+    validateContentType: true,
     ...config,
-    headers: {
-      Accept: 'text/event-stream',
-      ...(defaultConfig.headers || {}),
-      ...(config.headers || {}),
-      ...(method === 'POST'
+    parseData: config.parseData ?? JSON.parse,
+    headers: mergeHeaders(
+      { Accept: 'text/event-stream' },
+      defaultConfig.headers,
+      config.headers,
+      method === 'POST'
         ? { 'Content-Type': 'application/json' }
-        : {}),
-    },
+        : undefined,
+    ),
     url: ((config.baseUrl ?? defaultConfig.baseUrl) || '') + url,
   }
 
@@ -65,11 +57,11 @@ export function resolveInterceptors<T>(config: BaseReqConfig, defaultConfig: Bas
   return {
     reqInterceptor: config.reqInterceptor
       ?? defaultConfig.reqInterceptor
-      ?? (async (requestConfig) => requestConfig),
+      ?? (async requestConfig => requestConfig),
     respInterceptor: (
       config.respInterceptor
-        ?? defaultConfig.respInterceptor
-        ?? (async (response: T) => response)
+      ?? defaultConfig.respInterceptor
+      ?? (async (response: T) => response)
     ) as RespInterceptor<T>,
     respErrInterceptor: config.respErrInterceptor
       ?? defaultConfig.respErrInterceptor

@@ -18,25 +18,3 @@ export type RespData = {
   msg: string
   code: number
 }
-
-export type SSEData = {
-  /** 当前处理块/缓冲区中提取的原始有效载荷字符串 */
-  currentContent: string
-  /** 当前处理块/缓冲区中解析出的 JSON 对象数组 (只读) */
-  currentJson: readonly SSEJson[]
-
-  /** 累积的所有原始有效载荷字符串 */
-  allContent: string
-  /** 累积的所有 JSON 对象数组 (只读) */
-  allJson: readonly SSEJson[]
-}
-
-export type SSEJson = {
-  /** SSE 标准事件名 */
-  __internal__event?: string
-  /** SSE 标准 id */
-  __internal__id?: string
-  /** SSE 标准 retry */
-  __internal__retry?: string
-  [key: string]: any
-}

@@ -21,7 +21,7 @@
 - 🔁 **Request Retry** - Automatically retry failed requests to enhance application stability
 - 🚦 **Concurrency Control** - Easily manage concurrent requests while maintaining result order
 - 🧩 **Template Generation** - Quickly generate template code through CLI tools
-- 📊 **SSE Stream Processing** - Perfect support for streaming data, especially suitable for AI interfaces, automatic string to JSON conversion, automatic handling of incomplete JSON (because messages are sent bit by bit, completeness is not guaranteed)
+- 📊 **SSE Incremental Streams** - One-shot async iteration with standard SSE parsing, configurable protocol fields, JSON parsing by default, and configurable limits for incomplete events
 - ⏳ **Progress Tracking** - Real-time request progress monitoring for enhanced user experience
 - 📦 **Lightweight** - Zero external dependencies, small size, fast loading
 - 🔧 **Highly Configurable** - Flexible interceptors and configuration options
@@ -120,125 +120,118 @@ iotHttp.cacheGet('/device/list', {
 
 > 📝 Note: Cache is in-memory and is lost after a page refresh. A global sweep runs every 2 seconds by default to remove expired entries; additionally, each cached request checks and cleans its own expired entry on access. You can configure per-entry TTL via `cacheTimeout` (globally or per request); customizing the global sweep interval is not supported currently.
 
-## 🌊 SSE Streaming Data Processing
+## 🌊 SSE Incremental Streams
 
-### Basic Usage
-
-Perfect support for SSE streaming data, especially suitable for AI interfaces:
+Starting with `2.0.0`, `fetchSSE` directly returns a one-shot async iterator. Internally, the
+library keeps only the current event that has not yet been terminated by a blank line. It no
+longer accumulates `allContent`, `allJson`, or raw event history.
 
 ```ts
-/** Real-time processing of streaming data */
-const { promise, cancel } = await iotHttp.fetchSSE('/ai/chat', {
+interface AgentEvent {
+  type: string
+  content?: string
+}
+
+const stream = await iotHttp.fetchSSE<AgentEvent>('/ai/chat', {
   method: 'POST',
   body: {
     messages: [{ role: 'user', content: 'Hello' }]
   },
-  /** Whether to parse data, remove data: prefix (default true) */
-  needParseData: true,
-  /** Whether to parse JSON (default true) */
-  needParseJSON: true,
-  /** Triggered when new data is received */
-  onMessage: ({ currentContent, allContent, currentJson, allJson }) => {
-    console.log('Current fragment:', currentContent)
-    console.log('Accumulated content:', allContent)
-
-    /** If needParseJSON is enabled */
-    console.log('Current JSON:', currentJson)
-    console.log('Accumulated JSON:', allJson)
-  },
-  /** Track progress */
-  onProgress: (progress) => {
-    console.log(`Progress: ${progress * 100}%`)
-  },
-  /** Error handling */
-  onError: (error) => {
-    console.error(error)
-  },
+  /** `[DONE]` is not part of the SSE standard; configure it only when the server uses it. */
+  doneSignal: '[DONE]',
+  /** The standard SSE comment prefix is `:`. */
+  commentPrefix: ':',
+  onComment: comment => console.log('heartbeat:', comment),
+  onActivity: ({ byteLength }) => console.log('received bytes:', byteLength),
 })
 
-const data = await promise
-console.log('Final data:', data)
-```
-
-Or consume with for-await-of:
-
-```ts
-const iterator = iotHttp.fetchSSEAsIterator('/ai/chat', {
-  method: 'POST',
-  body: { messages: [{ role: 'user', content: '你好' }] },
-})
-for await (const data of iterator) {
-  console.log(data)
+try {
+  for await (const message of stream) {
+    console.log('Current event text:', message.dataText)
+    console.log('Current event JSON:', message.data)
+    console.log('event / id / retry:', message.event, message.id, message.retry)
+  }
+}
+catch (error) {
+  /** Network, protocol, and parseData errors are thrown by the iterator. */
+  console.error(error)
 }
 ```
 
-### SSE Advantages of This Library
+Leaving the loop early cancels the current response body and releases its reader. You can also
+cancel explicitly:
 
-Before diving into the code implementation, let's first understand the standard specification of **Server-Sent Events (SSE)**:
-
-##### 🔧 SSE Protocol Format
-
-SSE is a unidirectional communication protocol where servers can actively push data to clients. Its data format follows these specifications:
-
-```txt
-data: This is data content
-event: Event name (optional)
-id: Message ID (optional)
-retry: Reconnection interval (optional)
-
-data: Another message
+```ts
+stream.cancel(new Error('Stopped by the user'))
 ```
 
-Each field ends with a newline character, and complete message blocks are separated by **two newlines** (`\n\n`).
+The parser is also exported from the package root and can be used without making a request:
 
-##### ⚠️ SSE Data Transmission Unreliability
+```ts
+import { SSEParser } from '@jl-org/http'
+import type { SSEParserOptions } from '@jl-org/http'
 
-Due to network transmission characteristics, SSE data streams have the following unreliability issues:
+const options: SSEParserOptions = {
+  /** Non-standard streams may use an exact separator; standard SSE needs no configuration. */
+  separator: '<END>',
+  /** Customize field matching; returning undefined falls back to the standard rules. */
+  matchField: ({ line }) => {
+    const match = /^payload\s*=>\s?(.*)$/.exec(line)
+    return match
+      ? { type: 'data', value: match[1] }
+      : undefined
+  },
+  isDone: message => message.event === 'close',
+}
 
-1. **📦 Data Fragment Transmission**: A complete JSON may be transmitted in multiple data chunks
-2. **🔀 Ambiguous Message Boundaries**: Data may be cut off at any position
-3. **❌ Incomplete Messages**: Data received in a single instance may not be a complete SSE message
-4. **🎭 Inconsistent Formats**: Different services may have different data formats
-
-For example, a complete message:
-```txt
-data: {"name": "John", "age": 25}
+const parser = new SSEParser(options)
+for (const result of parser.processChunk('payload => hello<END>'))
+  console.log(result)
+parser.finish()
 ```
 
-May be received like this:
-```txt
-// First reception
-"data: {\"name\": \"John"
+### Protocol and Memory Semantics
 
-// Second reception
-"\", \"age\": 25}\n\n"
+- Supports LF, CRLF, CR, arbitrary transport chunk boundaries, and UTF-8 characters split across chunks
+- Emits only events completely terminated by a blank line; an incomplete tail is discarded at EOF
+- Parses `event`, `id`, `retry`, and comments beginning with `:` according to standard SSE semantics
+- `parseData` defaults to `JSON.parse` and may return a Promise; the next event is not read until it settles, so consumers can apply backpressure
+- To receive raw strings, explicitly pass `parseData: dataText => dataText`
+- `maxBufferSize` limits a single incomplete event; omitting it applies no general size limit
+- Normal EOF does not reconnect automatically. An error interceptor opens a new physical connection only when it explicitly calls `reopen()`; it does not replay responses or previously received events
+
+`reopen()` preserves the current request by default and runs the request interceptor again. To
+add a cursor or replace the body for the new connection, explicitly override physical request fields:
+
+```ts
+const http = new BaseReq({
+  respErrInterceptor: async (error) => {
+    if (error.transport !== 'sse' || !error.reopen)
+      return
+
+    await error.reopen({
+      request: {
+        headers: { 'Last-Event-ID': 'event-42' },
+        query: { cursor: 'next-page' },
+      },
+    })
+  },
+})
 ```
 
-##### 5️⃣ Comparison with Other SSE Libraries
+Omitted fields inherit their current values. `headers` and `query` are merged; all other fields are
+replaced. Overrides remain active for subsequent connections in the same logical stream. `signal`,
+parser options, and interceptors belong to the logical stream lifecycle and cannot be replaced by
+`reopen()`. A one-shot `ReadableStream` body must be explicitly replaced by the caller
 
-| Feature Comparison | 🔥 This Library | 🌐 Native EventSource | 📚 Other Libraries |
-|-------------------|-----------------|------------------------|-------------------|
-| **HTTP Methods** | ✅ Supports all methods | ❌ GET only | ⚠️ Partial support |
-| **Request Body** | ✅ Supports any format | ❌ Not supported | ⚠️ Limited support |
-| **Custom Headers** | ✅ Full support | ❌ Not supported | ✅ Supported |
-| **Interceptors** | ✅ Request/Response intercept | ❌ Not supported | ❌ Not supported |
-| **Auto JSON Parsing** | ✅ Smart parsing | ❌ Manual parsing | ⚠️ Basic parsing |
-| **Incomplete Data Handling** | ✅ Buffer mechanism | ❌ May lose data | ⚠️ Simple handling |
-| **Progress Tracking** | ✅ Real-time progress | ❌ Not supported | ❌ Not supported |
-| **Request Cancellation** | ✅ Cancel anytime | ✅ Supported | ⚠️ Limited support |
-| **Error Retry** | ✅ Auto retry | ❌ Manual reconnect | ⚠️ Basic retry |
-| **TypeScript** | ✅ Complete types | ⚠️ Basic types | ⚠️ Incomplete types |
+### Migrating from 1.x
 
-##### 🏆 Core Advantages Summary
-
-1. **🔧 Zero-config Smart Parsing**: Automatically handles SSE format, JSON parsing, incomplete data
-2. **🚀 Universal Request Support**: Breaks through native EventSource GET limitations
-3. **🛡️ Error Tolerance Mechanism**: Network exceptions and data format errors won't interrupt the entire process
-4. **📊 Real-time Progress Tracking**: Know data transmission progress, enhance user experience
-5. **🎯 Native TypeScript Support**: Complete type hints, multiply development efficiency
-6. **🔄 Flexible Interceptors**: Custom processing at any stage of request/response
-
-This SSE processing solution perfectly solves the pain points of traditional solutions, providing powerful and reliable real-time data processing capabilities for modern Web applications
+- Remove `fetchSSEAsIterator`; `fetchSSE` itself is now the async iterator
+- Remove the `{ promise, cancel }` return shape; iterate the returned stream directly and use `stream.cancel()`
+- Remove `onMessage`, `onRawMessage`, `allContent`, `allJson`, `currentContent`, and `currentJson`; aggregate only what the application actually needs
+- Remove `needParseData`, `needParseJSON`, and `handleData`; parsing defaults to `JSON.parse`, and other transformations use `parseData`
+- Standard SSE is always parsed line by line; configure an exact `separator` only for non-standard event streams
+- `[DONE]` is no longer a default; pass it explicitly as `doneSignal` when needed
 
 ---
 
@@ -260,6 +253,10 @@ iotHttp.get('/device/list', {
 /** Cancel request when needed */
 controller.abort()
 ```
+
+While `fetchSSE` is still connecting (before its Promise resolves), `signal` is the only way to
+cancel it. Once you have the stream, both `signal` and `stream.cancel()` stop the current read
+and any subsequent `reopen()`.
 
 > ⚠️ Note: When signal is configured, timeout configuration will be ineffective because custom controllers will override timeout controllers.
 
@@ -456,19 +453,20 @@ function fetchHackProxy() {
 
 ### 1. Unable to get SSE messages
 
-Some LLM vendors may have different separators, such as Gemini's `\r\n\r\n`
+The default parser follows the SSE standard and recognizes LF, CRLF, and CR line endings.
+For a non-standard event boundary, configure an exact `separator` explicitly:
+
 ```ts
-const { promise, cancel } = await iotHttp.fetchSSE('/ai/chat', {
+const stream = await iotHttp.fetchSSE('/ai/chat', {
   method: 'POST',
   body: {
     messages: [{ role: 'user', content: 'Hello' }]
   },
-  /**
-   * SSE standard separator, can be customized. Some LLM vendors may have different separators, such as Gemini's `\r\n\r\n`
-   * @default '\n\n'
-   */
-  separator: '\n\n',
+  separator: '<END>',
 })
+
+for await (const message of stream)
+  console.log(message)
 ```
 
 You can use the following code to see the complete output

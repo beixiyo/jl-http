@@ -3,6 +3,7 @@
  */
 import type { BaseReqMethodConfig } from '@/core'
 import type { HttpMethod } from '@/types'
+import { mergeHeaders } from '@/tools/headers'
 
 /**
  * 解析请求体，自动识别 Fetch 原生 body 和 JSON 对象
@@ -50,13 +51,12 @@ export async function getReqConfig(
   }
 
   const { body, headers } = parseBody(config.body)
-  config.headers = { ...(config.headers || {}), ...headers } as HeadersInit
+  config.headers = mergeHeaders(config.headers, headers)
 
   const reqConfig: any = { ...config }
   if (body === undefined || body === null)
     delete reqConfig.body
-  else
-    reqConfig.body = body
+  else reqConfig.body = body
 
   return {
     data: await reqInterceptor(reqConfig),

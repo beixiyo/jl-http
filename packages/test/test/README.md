@@ -1,8 +1,8 @@
 # jl-http Vitest 测试套件技术文档
 
-这是 `@jl-org/http` 包的 Vitest 自动化测试套件的详细技术文档，包含测试实现细节、Mock 配置和调试指南。
+这是 `@jl-org/http` 包的 Vitest 自动化测试套件的详细技术文档，包含测试实现细节、Mock 配置和调试指南
 
-> 📖 **主要文档**: 请参考 `../README.md` 了解完整的测试系统概述和使用说明。
+> 📖 **主要文档**: 请参考 `../README.md` 了解完整的测试系统概述和使用说明
 
 ## 🏗️ 测试架构
 
@@ -57,13 +57,11 @@ test/
 │   │   ├── 并发执行和顺序保持
 │   │   ├── 任务失败处理
 │   │   └── 并发数限制测试
-│   ├── SSEStreamProcessor.test.ts # SSE 流处理测试 (90+ 覆盖率)
-│   │   ├── 构造函数配置测试
-│   │   ├── 数据块处理测试
-│   │   ├── 缓冲区处理测试
-│   │   ├── SSE 前缀解析测试
-│   │   ├── SSE 消息解析测试
-│   │   └── 边界情况处理测试
+│   ├── SSEParser.test.ts # SSE 增量协议解析测试
+│   │   ├── 任意 chunk 切分与换行格式
+│   │   ├── event / id / retry / comment 字段
+│   │   ├── EOF 截断与显式结束信号
+│   │   └── 单事件缓冲上限
 │   └── defineConfig.test.ts # 配置定义测试 (85+ 覆盖率)
 │       ├── 配置对象返回测试
 │       ├── 完整配置选项测试
@@ -91,10 +89,10 @@ test/
 │   │   ├── 完整工作流集成测试
 │   │   └── 性能和内存管理测试
 │   └── sse-integration.test.ts  # SSE 功能集成测试 (85+ 覆盖率)
-│       ├── BaseReq 与 SSEStreamProcessor 集成测试
-│       ├── SSE 与重试机制集成测试
-│       ├── SSE 性能和内存管理测试
-│       └── SSE 边界情况测试
+│       ├── BaseReq 与 SSEParser 增量集成测试
+│       ├── 异步 parseData 背压
+│       ├── 大量事件不累计历史
+│       └── 不规则字节切分
 ├── setup.ts             # 全局测试环境设置
 │   ├── Mock 配置 (fetch, performance, AbortController 等)
 │   ├── 全局工具函数
@@ -602,4 +600,3 @@ describe('错误处理', () => {
   })
 })
 ```
-

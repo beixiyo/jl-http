@@ -7,6 +7,7 @@ import { abortModule } from './modules/abort'
 import { basicHttpModule } from './modules/basic-http'
 import { cacheModule } from './modules/cache'
 import { concurrentModule } from './modules/concurrent'
+import { sseModule } from './modules/sse'
 
 /** 所有可用的测试模块 */
 export const availableModules = {
@@ -14,6 +15,7 @@ export const availableModules = {
   'cache': cacheModule,
   'concurrent': concurrentModule,
   'abort': abortModule,
+  'sse': sseModule,
 } as const
 
 /** 模块ID类型 */
@@ -37,7 +39,7 @@ export const pageModuleMapping = {
   'http-abort': 'abort',
   'http-interceptors': 'basic-http', // 拦截器功能在基础模块中
   'http-retry': 'basic-http', // 重试功能在基础模块中
-  'http-sse': 'basic-http', // SSE 可以作为基础模块的扩展
+  'http-sse': 'sse',
 } as const
 
 /** 根据页面路径获取对应的测试模块 */
@@ -131,9 +133,10 @@ export const pageConfigs: Record<string, PageRefactorConfig> = {
     title: 'SSE 流式数据测试',
     description: '测试 jl-http 的 SSE 流式数据功能，包括事件监听、连接管理、错误处理等',
     defaultConfig: {
-      url: 'https://httpbin.org/stream/10',
-      timeout: 30000,
-      expectedEvents: 10,
+      baseUrl: '',
+      url: '/api/sse/counter?max=3&interval=10',
+      timeout: 5000,
+      expectedEvents: 3,
     },
   },
 }
@@ -191,11 +194,11 @@ import { createIntegratedPageProps } from '@/lib/test-modules/integration'
 export default function HttpBasicTest() {
   const [showManualTest, setShowManualTest] = useState(false)
   const props = createIntegratedPageProps('http-basic')
-  
+
   if (!showManualTest) {
     return <TestModuleRunner {...props} />
   }
-  
+
   // 保留原有的手动测试功能
   return <div>手动测试界面...</div>
 }

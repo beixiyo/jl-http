@@ -11,6 +11,7 @@ import { abortModule } from './modules/abort'
 import { basicHttpModule } from './modules/basic-http'
 import { cacheModule } from './modules/cache'
 import { concurrentModule } from './modules/concurrent'
+import { sseModule } from './modules/sse'
 
 /** 导出核心类 */
 export { TestExecutor } from './executor'
@@ -25,6 +26,7 @@ export { basicHttpModule } from './modules/basic-http'
 
 export { cacheModule } from './modules/cache'
 export { concurrentModule } from './modules/concurrent'
+export { sseModule } from './modules/sse'
 export * from './types'
 /** 导出工具函数 */
 export * from './utils'
@@ -38,6 +40,7 @@ export function createTestExecutor(): TestExecutor {
   executor.registerModule(cacheModule)
   executor.registerModule(concurrentModule)
   executor.registerModule(abortModule)
+  executor.registerModule(sseModule)
 
   return executor
 }

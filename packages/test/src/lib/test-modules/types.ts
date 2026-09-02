@@ -116,6 +116,8 @@ export interface AbortTestConfig extends HttpTestConfig {
 
 /** SSE 测试配置 */
 export interface SSETestConfig {
+  /** SSE 服务基路径；空字符串表示使用测试页当前源 */
+  baseUrl?: string
   url: string
   timeout?: number
   expectedEvents?: number

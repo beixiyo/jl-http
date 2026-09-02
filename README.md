@@ -21,7 +21,7 @@
 - 🔁 **请求重试** - 自动重试失败的请求，增强应用稳定性
 - 🚦 **并发控制** - 轻松管理并发请求，保持结果顺序
 - 🧩 **模板生成** - 通过 CLI 工具快速生成模板代码
-- 📊 **SSE流处理** - 完美支持流式数据，特别适用于AI接口，自动字符串转 JSON，自动处理不完整的JSON（因为消息是一点点发的，不保证完整性）
+- 📊 **SSE 增量流** - 一次性异步迭代，标准 SSE 增量解析，协议字段可配置，默认按事件 JSON 解析，并可限制未完成事件大小
 - ⏳ **进度追踪** - 实时掌握请求进度，提升用户体验
 - 📦 **轻量级** - 零外部依赖，体积小，加载快
 - 🔧 **高度可配置** - 灵活的拦截器和配置选项
@@ -118,133 +118,119 @@ iotHttp.cacheGet('/device/list', {
 }).then(console.log)
 ```
 
-> 📝 注意：缓存为内存缓存，刷新页面后会丢失。默认每 2000ms 执行一次全局过期清理（可通过 `cacheSweepInterval` 配置）；此外，在发起缓存请求时也会同步检查并清理该请求对应的过期条目。可通过 `cacheTimeout` 配置每条缓存的过期时间（全局或按请求）。
+> 📝 注意：缓存为内存缓存，刷新页面后会丢失。默认每 2000ms 执行一次全局过期清理（可通过 `cacheSweepInterval` 配置）；此外，在发起缓存请求时也会同步检查并清理该请求对应的过期条目。可通过 `cacheTimeout` 配置每条缓存的过期时间（全局或按请求）
 
-## 🌊 SSE流式数据处理
+## 🌊 SSE 增量流
 
-### 基础用法
-
-完美支持SSE流式数据，特别适用于AI接口：
+`2.0.0` 起，`fetchSSE` 直接返回一次性异步迭代器。库内部只保存当前尚未被空行
+完整终止的事件，不再累计 `allContent`、`allJson` 或原始事件历史
 
 ```ts
-/** 实时处理流式数据 */
-const { promise, cancel } = await iotHttp.fetchSSE('/ai/chat', {
+interface AgentEvent {
+  type: string
+  content?: string
+}
+
+const stream = await iotHttp.fetchSSE<AgentEvent>('/ai/chat', {
   method: 'POST',
   body: {
     messages: [{ role: 'user', content: '你好' }]
   },
-  /** 是否解析数据，删除 data: 前缀（默认为 true） */
-  needParseData: true,
-  /** 是否解析 JSON（默认为 true） */
-  needParseJSON: true,
-  /**
-   * SSE 标准分割符，可以自定义。部分 LLM 厂商的分隔符可能不同，比如 Gemini 的是 `\r\n\r\n`
-   * @default '\n\n'
-   */
-  separator: '\n\n',
-  /** 每次接收到新数据时触发 */
-  onMessage: ({ currentContent, allContent, currentJson, allJson }) => {
-    console.log('当前片段:', currentContent)
-    console.log('累积内容:', allContent)
-
-    /** 如果启用了 needParseJSON */
-    console.log('当前 JSON:', currentJson)
-    console.log('累积 JSON:', allJson)
-  },
-  /** 跟踪进度 */
-  onProgress: (progress) => {
-    console.log(`进度: ${progress * 100}%`)
-  },
-  /** 错误处理 */
-  onError: (error) => {
-    console.error(error)
-  },
+  /** `[DONE]` 不是 SSE 标准，只有服务端使用时才显式配置 */
+  doneSignal: '[DONE]',
+  /** SSE 标准注释前缀为 `:` */
+  commentPrefix: ':',
+  onComment: comment => console.log('heartbeat:', comment),
+  onActivity: ({ byteLength }) => console.log('received bytes:', byteLength),
 })
 
-const data = await promise
-console.log('最终数据:', data)
-```
-
-也可以用 for-await-of 逐条处理：
-
-```ts
-const iterator = iotHttp.fetchSSEAsIterator('/ai/chat', {
-  method: 'POST',
-  body: { messages: [{ role: 'user', content: '你好' }] },
-})
-for await (const data of iterator) {
-  console.log(data)
+try {
+  for await (const message of stream) {
+    console.log('当前事件文本:', message.dataText)
+    console.log('当前事件 JSON:', message.data)
+    console.log('event / id / retry:', message.event, message.id, message.retry)
+  }
+}
+catch (error) {
+  /** 网络、协议和 parseData 错误都会从迭代器抛出。 */
+  console.error(error)
 }
 ```
 
-### 此库的 SSE 优势
+提前退出会取消当前响应体并释放 reader；也可以显式取消：
 
-在深入代码实现之前，我们先了解一下 **Server-Sent Events (SSE)** 的标准规范：
-
-##### 🔧 SSE 协议格式
-
-SSE 是一种单向通信协议，服务器可以主动向客户端推送数据。其数据格式遵循以下规范：
-
-```txt
-data: 这是数据内容
-event: 事件名称（可选）
-id: 消息ID（可选）
-retry: 重连间隔（可选）
-
-data: 另一条消息
+```ts
+stream.cancel(new Error('用户停止'))
 ```
 
-每个字段都以换行符结尾，完整的消息块以**两个换行符**（`\n\n`）分隔。
+解析器也可以脱离请求独立使用，并从包根公开导出：
 
-##### ⚠️ SSE 数据传输的不可靠性
+```ts
+import { SSEParser } from '@jl-org/http'
+import type { SSEParserOptions } from '@jl-org/http'
 
-由于网络传输的特性，SSE 数据流存在以下不可靠问题：
+const options: SSEParserOptions = {
+  /** 非标准流可使用精确分隔符；标准 SSE 不需要配置 */
+  separator: '<END>',
+  /** 自定义一行如何匹配和提取字段；undefined 会回落到标准规则 */
+  matchField: ({ line }) => {
+    const match = /^payload\s*=>\s?(.*)$/.exec(line)
+    return match
+      ? { type: 'data', value: match[1] }
+      : undefined
+  },
+  isDone: message => message.event === 'close',
+}
 
-1. **📦 数据分片传输**：一个完整的 JSON 可能被分成多个数据块传输
-2. **🔀 消息边界模糊**：数据可能在任意位置被切断
-3. **❌ 不完整的消息**：单次接收的数据可能不是完整的 SSE 消息
-4. **🎭 格式不一致**：不同服务可能有不同的数据格式
-
-例如，一个完整的消息：
-```txt
-data: {"name": "张三", "age": 25}
-
+const parser = new SSEParser(options)
+for (const result of parser.processChunk('payload => hello<END>'))
+  console.log(result)
+parser.finish()
 ```
 
-可能会被分成这样接收：
-```txt
-// 第一次接收
-"data: {\"name\": \"张"
+### 协议与内存语义
 
-// 第二次接收
-"三\", \"age\": 25}\n\n"
+- 支持 LF、CRLF、CR 以及任意传输 chunk 切分，包括跨 chunk 的 UTF-8 字符
+- 只有空行完整终止的事件才会产出；EOF 时未完成尾部会被丢弃
+- `event`、`id`、`retry` 和以 `:` 开头的 comment 按标准 SSE 语义解析
+- `parseData` 默认是 `JSON.parse`，也可以返回 Promise；完成前不会解析下一事件，因此消费方可以产生背压
+- 需要原始字符串时显式传入 `parseData: dataText => dataText`
+- `maxBufferSize` 可以限制单个未完成事件；省略时不设置通用大小上限
+- 普通 EOF 不会自动重连。错误拦截器只有显式调用 `reopen()` 才会重新打开物理连接；
+  它不会回放已经收到的响应或事件
+
+`reopen()` 默认完整沿用当前请求，并重新执行请求拦截器。需要为新连接增加游标或
+替换请求体时，可显式覆盖物理请求参数：
+
+```ts
+const http = new BaseReq({
+  respErrInterceptor: async (error) => {
+    if (error.transport !== 'sse' || !error.reopen)
+      return
+
+    await error.reopen({
+      request: {
+        headers: { 'Last-Event-ID': 'event-42' },
+        query: { cursor: 'next-page' },
+      },
+    })
+  },
+})
 ```
 
-##### 5️⃣ 与市面上 SSE 库的对比
+省略字段继承当前请求；`headers` 和 `query` 增量合并，其余字段覆盖。覆盖在当前逻辑流
+后续连接中持续有效。`signal`、解析规则和拦截器属于逻辑流生命周期，不能通过
+`reopen()` 替换。若 body 是一次性的 `ReadableStream`，调用方必须显式提供新的 body
 
-| 特性对比 | 🔥 本库 | 🌐 原生 EventSource | 📚 其他库 |
-|---------|---------|---------------------|----------|
-| **HTTP 方法** | ✅ 支持所有方法 | ❌ 仅 GET | ⚠️ 部分支持 |
-| **请求体** | ✅ 支持任意格式 | ❌ 不支持 | ⚠️ 有限支持 |
-| **自定义 Headers** | ✅ 完全支持 | ❌ 不支持 | ✅ 支持 |
-| **拦截器** | ✅ 请求/响应拦截 | ❌ 不支持 | ❌ 不支持 |
-| **自动 JSON 解析** | ✅ 智能解析 | ❌ 手动解析 | ⚠️ 基础解析 |
-| **不完整数据处理** | ✅ 缓冲区机制 | ❌ 可能丢失 | ⚠️ 简单处理 |
-| **进度追踪** | ✅ 实时进度 | ❌ 不支持 | ❌ 不支持 |
-| **请求取消** | ✅ 随时取消 | ✅ 支持 | ⚠️ 有限支持 |
-| **错误重试** | ✅ 自动重试 | ❌ 手动重连 | ⚠️ 基础重试 |
-| **TypeScript** | ✅ 完整类型 | ⚠️ 基础类型 | ⚠️ 类型不全 |
+### 从 1.x 迁移
 
-##### 🏆 核心优势总结
-
-1. **🔧 零配置智能解析**：自动处理 SSE 格式、JSON 解析、不完整数据
-2. **🚀 全能请求支持**：突破原生 EventSource 的 GET 限制
-3. **🛡️ 错误容错机制**：网络异常、数据格式错误不会中断整个流程
-4. **📊 实时进度追踪**：知道数据传输进度，提升用户体验
-5. **🎯 TypeScript 原生支持**：完整的类型提示，开发效率倍增
-6. **🔄 灵活的拦截器**：可以在请求/响应的任何阶段进行自定义处理
-
-这套 SSE 处理方案完美解决了传统方案的痛点，为现代 Web 应用提供了强大而可靠的实时数据处理能力
+- 删除 `fetchSSEAsIterator`；`fetchSSE` 本身就是 AsyncIterator
+- 删除 `{ promise, cancel }` 返回结构；直接遍历返回的 stream，并使用 `stream.cancel()`
+- 删除 `onMessage`、`onRawMessage`、`allContent`、`allJson`、`currentContent` 和
+  `currentJson`。需要聚合时由业务层按实际语义保存
+- 删除 `needParseData`、`needParseJSON` 和 `handleData`；默认使用 `JSON.parse`，其它转换通过 `parseData` 指定
+- 标准 SSE 始终按行解析；只有适配非标准事件流时才显式配置精确 `separator`
+- `[DONE]` 不再是默认值，需要时显式传入 `doneSignal`
 
 ---
 
@@ -267,7 +253,10 @@ iotHttp.get('/device/list', {
 controller.abort()
 ```
 
-> ⚠️ 注意：配置了signal后，timeout配置将无效，因为自定义控制器会覆盖超时控制器。
+`fetchSSE` 在建连阶段（Promise resolve 之前）只能通过 `signal` 取消；拿到 stream 之后，
+`signal` 和 `stream.cancel()` 都会取消当前读取以及后续的 `reopen()`
+
+> ⚠️ 注意：配置了signal后，timeout配置将无效，因为自定义控制器会覆盖超时控制器
 
 ## 🚦 并发请求控制
 
@@ -413,7 +402,7 @@ export class Test {
 
 - **标准请求**: `get`, `post`, `put`, `patch`, `delete`, `head`, `options`
 - **缓存请求**: `cacheGet`, `cachePost`, `cachePut`, `cachePatch`
-- **SSE请求**: `fetchSSE`, `fetchSSEAsIterator`
+- **SSE 请求**: `fetchSSE`
 
 ### 工具函数
 
@@ -464,20 +453,22 @@ function fetchHackProxy() {
 
 ### 1. 无法获取 SSE 消息
 
-部分 LLM 厂商的 SSE 分隔符可能不同，比如 Gemini 的是 `\r\n\r\n`，需要手动设置。
+默认配置按照 SSE 标准同时识别 LF、CRLF 和 CR。非标准事件边界可以通过
+`separator` 显式指定：
+
 ```ts
-const { promise, cancel } = await iotHttp.fetchSSE('/ai/chat', {
+const stream = await iotHttp.fetchSSE('/ai/chat', {
   method: 'POST',
   body: {
     messages: [{ role: 'user', content: '你好' }]
   },
-  /**
-   * SSE 标准分割符，可以自定义。部分 LLM 厂商的分隔符可能不同，比如 Gemini 的是 `\r\n\r\n`
-   * @default '\n\n'
-   */
-  separator: '\n\n',
 })
+
+for await (const message of stream)
+  console.log(message.data)
 ```
+
+流结束时，没有被空行完整终止的数据事件会被丢弃；传输 chunk 在事件内部任意位置切分则会自动缓冲，直到事件完整后再提交
 
 你可以用下面的代码查看完整的输出
 ```ts
