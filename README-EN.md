@@ -206,6 +206,30 @@ cancel explicitly:
 stream.cancel(new Error('Stopped by the user'))
 ```
 
+### Consuming in per-chunk batches
+
+Iterating message by message splits the N events of a single network packet into N
+consecutive microtasks, so the macrotask queue (rendering, timers) never runs until the whole
+packet is drained. With stores that render synchronously (`useSyncExternalStore`, signals) a
+busy stream turns into dozens of back-to-back synchronous renders, which React reports as a
+nested update loop. `stream.batches()` delivers every complete event parsed from one
+underlying read as a single array, so the consumer handles the whole batch in one synchronous
+task and renders once per packet:
+
+```ts
+for await (const batch of stream.batches()) {
+  for (const message of batch)
+    store.apply(message.data)
+}
+```
+
+- Chunks that only carry comments or an unfinished event never produce an empty array; an event
+  that spans chunks belongs to the batch that completes it
+- Batches and per-message iteration are mutually exclusive: once one of them starts consuming,
+  the other throws
+- Early exit, `cancel`, and error semantics match per-message iteration; if the stream is
+  cancelled while a batch is being parsed, that batch is not delivered
+
 The parser is also exported from the package root and can be used without making a request:
 
 ```ts

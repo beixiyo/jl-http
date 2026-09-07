@@ -25,24 +25,62 @@ export async function executeSSERequest<T = unknown>(options: ExecuteSSERequestO
   const initialResponse = await openResponse()
   let started = false
 
-  const generator = iterate() as unknown as SSEStream<T>
-  generator.cancel = (reason?: unknown) => {
-    if (operationAbort.signal.aborted)
-      return
+  let mode: SSEConsumeMode | undefined
+  const units = iterate()
+  const messages = iterateMessages()
 
-    operationAbort.abort(reason)
-    if (activeReader) {
-      void cancelReader(activeReader, reason)
-      return
-    }
+  const stream: SSEStream<T> = {
+    next: input => messages.next(input),
+    return: value => messages.return(value),
+    throw: error => messages.throw(error),
+    [Symbol.asyncIterator]() {
+      return this
+    },
+    batches: () => {
+      claimMode('batch')
+      return iterateBatches()
+    },
+    cancel: (reason?: unknown) => {
+      if (operationAbort.signal.aborted)
+        return
 
-    if (!started)
-      void Promise.resolve(initialResponse.body?.cancel(reason)).catch(() => {})
+      operationAbort.abort(reason)
+      if (activeReader) {
+        void cancelReader(activeReader, reason)
+        return
+      }
+
+      if (!started)
+        void Promise.resolve(initialResponse.body?.cancel(reason)).catch(() => {})
+    },
   }
 
-  return generator
+  return stream
 
-  async function* iterate(): AsyncGenerator<SSEMessage<T>> {
+  /** 逐条视图：每个交付单元恰好一条事件，保持按消费者请求逐条解析。 */
+  async function* iterateMessages(): AsyncGenerator<SSEMessage<T>> {
+    claimMode('message')
+    for await (const unit of units) yield* unit
+  }
+
+  /** 批量视图：每个交付单元是一次底层读取解析出的全部完整事件。 */
+  async function* iterateBatches(): AsyncGenerator<SSEMessage<T>[]> {
+    yield* units
+  }
+
+  /** 两种视图共享同一条只能消费一次的流，先开始的一方独占。 */
+  function claimMode(next: SSEConsumeMode) {
+    if (mode && mode !== next) {
+      const current = mode === 'batch'
+        ? 'in batches'
+        : 'message by message'
+      throw new Error(`SSE stream is already being consumed ${current}`)
+    }
+
+    mode = next
+  }
+
+  async function* iterate(): AsyncGenerator<SSEMessage<T>[]> {
     started = true
     let response = initialResponse
 
@@ -68,7 +106,7 @@ export async function executeSSERequest<T = unknown>(options: ExecuteSSERequestO
     }
   }
 
-  async function* consumeResponse(response: Response): AsyncGenerator<SSEMessage<T>> {
+  async function* consumeResponse(response: Response): AsyncGenerator<SSEMessage<T>[]> {
     if (!response.body)
       throw new Error('SSE response body is empty')
 
@@ -134,7 +172,27 @@ export async function executeSSERequest<T = unknown>(options: ExecuteSSERequestO
       reader.releaseLock?.()
     }
 
-    async function* processTextChunk(text: string): AsyncGenerator<SSEMessage<T>, boolean> {
+    async function* processTextChunk(text: string): AsyncGenerator<SSEMessage<T>[], boolean> {
+      if (mode === 'batch') {
+        const batch: SSEMessage<T>[] = []
+        let ended = false
+        for (const output of parser.processChunk(text)) {
+          if (output.type === 'done') {
+            ended = true
+            break
+          }
+
+          batch.push(await transformMessage(output.message))
+        }
+
+        /** 整批解析期间被取消：与逐条模式一致，已解析事件不再交付 */
+        signal.throwIfAborted()
+        if (batch.length > 0)
+          yield batch
+
+        return ended
+      }
+
       for (const output of parser.processChunk(text)) {
         if (output.type === 'done')
           return true
@@ -142,7 +200,7 @@ export async function executeSSERequest<T = unknown>(options: ExecuteSSERequestO
         const message = await transformMessage(output.message)
         /** 同一 chunk 可能含多条事件；取消后不再向消费者交付已解析的剩余事件 */
         signal.throwIfAborted()
-        yield message
+        yield [message]
       }
 
       return false
@@ -349,3 +407,6 @@ export interface ExecuteSSERequestOptions<T> {
 
 /** SSE 物理请求失败阶段。 */
 type SSEErrorPhase = 'request' | 'response' | 'stream'
+
+/** 流的消费方式：逐条按需解析，或按传输 chunk 整批交付。 */
+type SSEConsumeMode = 'message' | 'batch'

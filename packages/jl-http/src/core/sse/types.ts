@@ -27,6 +27,17 @@ export interface SSEMessage<T = unknown> {
 export interface SSEStream<T = unknown> extends AsyncIterableIterator<SSEMessage<T>> {
   /** 幂等取消当前请求以及错误拦截器显式触发的后续重新建连。 */
   cancel: (reason?: unknown) => void
+  /**
+   * 按传输 chunk 批量消费同一条流
+   *
+   * 一次底层读取解析出的全部完整事件作为一个数组一次性交付，消费者可以在一个同步
+   * 任务里处理整批，渲染层只需为每个网络包更新一次。逐条 `for await` 会把同一个包拆成
+   * 多个微任务，高频流下会把宏任务队列（渲染、定时器）饿死
+   *
+   * 只含注释或未完成事件的 chunk 不产生空数组。与逐条迭代互斥：任一方式开始消费后再
+   * 使用另一方式会抛错。提前退出和 `cancel` 语义与逐条迭代一致
+   */
+  batches: () => AsyncIterableIterator<SSEMessage<T>[]>
 }
 
 /** 单次底层读取产生的传输活动。 */

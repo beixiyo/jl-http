@@ -465,6 +465,56 @@ describe('baseReq SSE 增量生命周期', () => {
     )
     await expect(new BaseReq().fetchSSE('/stream')).rejects.toBeInstanceOf(SSEContentTypeError)
   })
+
+  it('batches 按传输 chunk 整批交付，跨 chunk 事件归入完成它的批次，纯注释 chunk 不产生空批', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(createStreamResponse([
+        'data: 1\n\ndata: 2\n\ndata: 3\n\ndata: 4\n',
+        ': ping\n',
+        '\ndata: 5\n\n',
+      ])),
+    )
+
+    const batches: number[][] = []
+    const stream = await new BaseReq().fetchSSE<number>('/stream', { parseData: text => Number(text) })
+    for await (const batch of stream.batches()) batches.push(batch.map(message => message.data))
+
+    expect(batches).toEqual([[1, 2, 3], [4, 5]])
+  })
+
+  it('batches 与逐条迭代互斥，先开始的一方独占同一条流', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => createStreamResponse(['data: 1\n\n', 'data: 2\n\n'])))
+
+    const messageFirst = await new BaseReq().fetchSSE<number>('/stream')
+    await expect(messageFirst.next()).resolves.toMatchObject({ value: { data: 1 } })
+    expect(() => messageFirst.batches()).toThrow('already being consumed')
+
+    const batchFirst = await new BaseReq().fetchSSE<number>('/stream')
+    const batches = batchFirst.batches()
+    await expect(batchFirst.next()).rejects.toThrow('already being consumed')
+    await expect(batches.next()).resolves.toMatchObject({ value: [{ data: 1 }] })
+  })
+
+  it('batches 解析期间被 cancel 时整批不再交付，并把 reason 抛给消费者', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(createStreamResponse(['data: 1\n\ndata: 2\n\n'])))
+    const reason = new Error('stop stream')
+    const received: number[][] = []
+
+    const stream = await new BaseReq().fetchSSE<string>('/stream', {
+      parseData: (dataText) => {
+        if (dataText === '2')
+          stream.cancel(reason)
+        return dataText
+      },
+    })
+    const consume = async () => {
+      for await (const batch of stream.batches()) received.push(batch.map(message => Number(message.data)))
+    }
+
+    await expect(consume()).rejects.toBe(reason)
+    expect(received).toEqual([])
+  })
 })
 
 async function fetchSSEChunks<T = unknown>(chunks: Uint8Array[], config: SSEOptions<T> = {}) {

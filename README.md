@@ -202,6 +202,25 @@ catch (error) {
 stream.cancel(new Error('用户停止'))
 ```
 
+### 按传输 chunk 批量消费
+
+逐条 `for await` 会把同一个网络包里的 N 条事件拆成 N 个微任务连续交付，宏任务队列
+（渲染、定时器）在整个包处理完之前拿不到执行机会；高频流下同步渲染的状态库（例如
+`useSyncExternalStore`、signals）会连续同步渲染几十次，React 会把它判成嵌套更新循环
+`stream.batches()` 把一次底层读取解析出的全部完整事件作为一个数组一次性交付，消费者
+在一个同步任务里处理整批，每个网络包只触发一次渲染：
+
+```ts
+for await (const batch of stream.batches()) {
+  for (const message of batch)
+    store.apply(message.data)
+}
+```
+
+- 只含注释或未完成事件的 chunk 不产生空数组；跨 chunk 的事件归入完成它的那个批次
+- 与逐条迭代互斥：任一方式开始消费后再使用另一方式会抛错
+- 提前退出、`cancel`、错误抛出的语义与逐条迭代一致；批次解析期间被取消时整批不再交付
+
 解析器也可以脱离请求独立使用，并从包根公开导出：
 
 ```ts
